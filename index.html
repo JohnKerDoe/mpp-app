@@ -21,13 +21,20 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
 .wrap{max-width:560px;margin:0 auto;padding:16px 12px 48px}
 h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.credits{flex:none;margin-top:3px;font-size:12px;line-height:1.2;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.credits b{font-weight:800;color:var(--ink)}
+.credits.low{border-color:var(--lo);color:#8A4F00}
+.credits.low b{color:#8A4F00}
+.credits.out{border-color:var(--lr);color:var(--warn)}
+.credits.out b{color:var(--warn)}
 .sub{margin:0 0 12px;color:var(--mute);font-size:14px}
 
 .tabs{display:flex;gap:6px;margin:0 0 12px}
 .tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
 .tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 
-.panel{display:grid;grid-template-columns:1.35fr 1fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px}
+.panel{display:grid;grid-template-columns:1.35fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px}
 .stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
 .stat + .stat{border-left:1px solid rgba(255,255,255,.18)}
 .stat b{font-size:24px;line-height:1.1;font-weight:800}
@@ -55,7 +62,7 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .tagchg{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--chg);color:#fff;margin-left:6px;vertical-align:1px}
 .tagchg.soft{background:var(--chg-tint);color:var(--chg-ink)}
 .ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px}
-.team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0}
+.team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .dash{color:var(--mute)}
 .del{border:0;background:transparent;color:var(--mute);font-size:22px;line-height:1;padding:4px 10px;cursor:pointer;border-radius:6px}
 .meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:2px 10px 8px;font-size:13px;color:var(--ink-2)}
@@ -101,6 +108,10 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap .rp em{font-style:normal;color:var(--mute);font-size:13px}
 .recap .sc{font-weight:800;margin:0 4px}
 .recap .empty{color:var(--mute);justify-content:flex-start}
+.recap li.chg{background:#FDE6F0}
+.recap li.chg .rm,.recap li.chg .rp b,.recap li.chg .sc,.recap li.chg .rp em{color:#C8003A}
+.recap li.chg .tagchg{background:#C8003A;color:#fff}
+.recap li.chg .tagchg.soft{background:#fff;color:#C8003A;border:1px solid #C8003A;padding:1px 5px}
 .store{margin:14px 2px 0;font-size:12px;color:var(--mute)}
 
 .imp{margin:12px 0 4px}
@@ -129,7 +140,7 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .quick .btn2{padding:10px 14px}
 .qempty{color:var(--mute);font-size:14px;margin:8px 0}
 .rteams{display:flex;align-items:center;gap:6px}
-.rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0}
+.rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .rteams .del{flex:none}
 .qmeta{font-size:12px;color:var(--mute);margin:2px 0 6px}
 .shot{width:100%;margin:10px 0 2px;padding:12px;border:1.5px dashed var(--ink-2);background:#F6F8FB;color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
@@ -140,7 +151,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 </head>
 <body>
 <div class="wrap">
-  <h1>Espérance MPP</h1>
+  <div class="top">
+    <h1>Espérance MPP</h1>
+    <span class="credits" id="credits" hidden></span>
+  </div>
   <p class="sub">Points du jeu × probabilités tirées des cotes</p>
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
@@ -148,24 +162,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <section class="panel" aria-live="polite">
     <div class="stat main"><b id="sEV">–</b><span>pts d'espérance en suivant les cotes</span><small id="sEVn"></small></div>
     <div class="stat"><b id="sOK">–</b><span>bons pronos attendus</span></div>
-    <div class="stat"><b id="sCrowd">–</b><span>en jouant comme la majorité</span><small id="sCrowdCmp"></small></div>
   </section>
 
-  <div class="tools">
-    <label for="method">Calcul des probabilités</label>
-    <select id="method">
-      <option value="prop">Proportionnel (simple)</option>
-      <option value="pow">Puissance (gros favoris)</option>
-    </select>
-  </div>
-  <details class="how">
+  <section class="recap">
+    <h2 class="day"><span>Pronos conseillés</span></h2>
+    <ul id="recapList"></ul>
+    <button class="btn" id="copy" type="button">Copier le récap</button>
+  </section>
+
+  <details class="how" style="margin-top:14px">
     <summary>Comment lire les résultats</summary>
-    <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée.</p>
+    <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
     <p>Score conseillé : 1-0 si le choix est le domicile, 1-1 pour le nul, 0-1 pour l'extérieur.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
-    <p>Écart joueurs : probabilité des cotes moins la part des joueurs qui choisissent l'issue. Positif : la majorité la délaisse.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
   </details>
 
@@ -196,11 +207,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   <div id="list"></div>
 
-  <section class="recap">
-    <h2 class="day"><span>Pronos conseillés</span></h2>
-    <ul id="recapList"></ul>
-    <button class="btn" id="copy" type="button">Copier le récap</button>
-  </section>
   <p class="store" id="store"></p>
 </div>
 
@@ -228,15 +234,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   var ROWS = [
     {k:'pts',   label:'Points',        input:true, ph:'0',    mode:'numeric'},
     {k:'odds',  label:'Cote Pinnacle', input:true, ph:'0.00', mode:'decimal'},
-    {k:'crowd', label:'% joueurs',     input:true, ph:'%',    mode:'numeric'},
     {out:'p',    label:'Probabilité'},
     {out:'ev',   label:'Espérance'},
     {out:'prev', label:'Avant'},
-    {out:'edge', label:'Écart joueurs'},
     {out:'tag',  label:'Repères'}
   ];
 
-  var S = { method:'prop', mode:'l1', data:{l1:[], l2:[], ldc:[]} };
+  var S = { method:'pow', mode:'l1', data:{l1:[], l2:[], ldc:[]} };
   var storageOK = false, recapText = '';
 
   /* ---------- calcul ---------- */
@@ -443,14 +447,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     for (var o = 0; o < 3; o++){
       cell('p', o).textContent = c.p ? pct(c.p[o] * 100) : '–';
 
-      var e = cell('edge', o);
-      e.classList.remove('pos', 'neg');
-      if (c.p && c.crowdOk){
-        var d = c.p[o] * 100 - c.crowd[o];
-        e.textContent = signed(d);
-        if (d >= 5) e.classList.add('pos'); else if (d <= -5) e.classList.add('neg');
-      } else e.textContent = '–';
-
       var v = cell('ev', o);
       if (c.ev){
         var w = c.ev[c.best] > 0 ? c.ev[o] / c.ev[c.best] * 100 : 0;
@@ -467,9 +463,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         pv.innerHTML = '<span>' + nf1.format(bc.ev[o]) + '</span>' + (delta ? '<span class="d">' + delta + '</span>' : '');
       } else pv.textContent = '–';
 
-      cell('tag', o).innerHTML =
-        (c.best === o ? '<span class="chip">À jouer</span>' : '') +
-        (c.crowdPick === o ? '<span class="chip maj">Majorité</span>' : '');
+      cell('tag', o).innerHTML = c.best === o ? '<span class="chip">À jouer</span>' : '';
 
       card.querySelectorAll('.c[data-o="' + o + '"]').forEach(function(x){ x.classList.toggle('best', c.best === o); });
     }
@@ -486,25 +480,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   function updateSummary(){
-    var ev = 0, ok = 0, n = 0, evC = 0, evB = 0, nC = 0, rows = [];
+    var ev = 0, ok = 0, n = 0, rows = [];
     cur().forEach(function(m){
       var c = calc(m);
       if (!c.ev) return;
       n++; ev += c.ev[c.best]; ok += c.p[c.best];
       var b0 = baseline(m);
       rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts) : null)});
-      if (c.crowdPick >= 0){ nC++; evC += c.ev[c.crowdPick]; evB += c.ev[c.best]; }
     });
     var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
     $('sEV').textContent = n ? nf0.format(ev) : '–';
     $('sEVn').textContent = n ? 'sur ' + plural(n) : 'Renseigne cotes et points';
     $('sOK').textContent = n ? nf1.format(ok) + ' / ' + n : '–';
-    $('sCrowd').textContent = nC ? nf0.format(evC) : '–';
-    $('sCrowdCmp').textContent = nC ? 'contre ' + nf0.format(evB) + ' avec les cotes (' + plural(nC) + ')' : 'Renseigne les % joueurs';
 
     $('recapList').innerHTML = rows.length ? rows.map(function(r){
       var tag = r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '';
-      return '<li><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + tag + '</span></span>' +
+      return '<li' + (r.ch ? ' class="chg"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + tag + '</span></span>' +
         '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + SCORES[r.c.best] + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
@@ -522,7 +513,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   function renderAll(){
     renderTabs();
-    $('method').value = S.method;
     var list = cur(), html = '', prev = null;
     list.forEach(function(m, i){
       if (m.day !== prev){
@@ -581,11 +571,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var b = e.target.closest('.del');
     if (!b) return;
     cur().splice(+b.closest('.card').dataset.i, 1);
-    renderAll(); save();
-  });
-
-  $('method').addEventListener('change', function(e){
-    S.method = e.target.value;
     renderAll(); save();
   });
 
@@ -777,6 +762,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   function status(t){ $('impStatus').textContent = t; }
 
+  // Crédits The Odds API restants, affichés en haut à droite
+  var KEY_CRED = 'mpp-odds-credits', credMem = null;
+  function setCredits(v){
+    if (v === null || v === undefined || v === '' || !isFinite(+v)) return;
+    credMem = {left: Math.round(+v), at: new Date().toISOString()};
+    if (storageOK){ try { localStorage.setItem(KEY_CRED, JSON.stringify(credMem)); } catch (e) {} }
+    showCredits();
+  }
+  function showCredits(){
+    var c = credMem;
+    if (!c && storageOK){ try { c = JSON.parse(localStorage.getItem(KEY_CRED) || 'null'); } catch (e) {} }
+    var el = $('credits');
+    if (!c || !isFinite(c.left)){ el.hidden = true; return; }
+    var when = new Date(c.at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+    el.innerHTML = '<b>' + nf0.format(c.left) + '</b> crédit' + (c.left > 1 ? 's' : '');
+    el.title = 'Crédits The Odds API restants (mis à jour le ' + when + ')';
+    el.setAttribute('aria-label', nf0.format(c.left) + ' crédits The Odds API restants, mis à jour le ' + when);
+    el.classList.toggle('out', c.left <= 0);
+    el.classList.toggle('low', c.left > 0 && c.left <= 50);
+    el.hidden = false;
+  }
+
   $('fetchOdds').addEventListener('click', async function(){
     var key = getKey();
     if (!key){
@@ -796,6 +803,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       try { r = await fetch(url); }
       catch (e) { throw new Error('Connexion impossible. Vérifie ta connexion internet.'); }
       var left = r.headers.get('x-requests-remaining');
+      setCredits(left);
       if (!r.ok){
         var msg = '';
         try { var j = await r.json(); msg = j.message || ''; } catch (e) {}
@@ -927,8 +935,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       pending.map(function(x, i){
         var g = '<span class="ql">Pts</span>';
         for (var o = 0; o < 3; o++) g += inp('pts', o, x.pts[o], 'Points ' + OUT_NAMES[o]);
-        g += '<span class="ql">%</span>';
-        for (o = 0; o < 3; o++) g += inp('crowd', o, x.crowd ? x.crowd[o] : '', '% joueurs ' + OUT_NAMES[o]);
         return '<div class="qrow" data-r="' + i + '">' +
           '<div class="rteams">' +
             '<input data-n="home" value="' + esc(x.home) + '" placeholder="Domicile" aria-label="Équipe à domicile">' +
@@ -946,8 +952,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       x.home = row.querySelector('[data-n="home"]').value.trim();
       x.away = row.querySelector('[data-n="away"]').value.trim();
       x.pts = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="pts"][data-o="' + o + '"]').value.trim(); });
-      var c = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="crowd"][data-o="' + o + '"]').value.trim(); });
-      x.crowd = c.every(function(v){ return v !== ''; }) ? c : null;
+      x.crowd = null;
     });
   }
   function closeReview(){ pending = []; $('review').hidden = true; }
@@ -1026,11 +1031,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         renderReview();
         $('review').hidden = false;
         $('review').scrollIntoView({block:'start'});
-        var noPct = found.filter(function(x){ return !x.crowd; }).length;
         var noName = found.filter(function(x){ return !x.home || !x.away; }).length;
         status(found.length + ' match' + (found.length > 1 ? 's' : '') + ' lu' + (found.length > 1 ? 's' : '') + '. Vérifie-les ci-dessous, puis valide.' +
-          (noName ? '\n' + noName + ' sans nom d\'équipe lisible : complète-les.' : '') +
-          (noPct ? '\n' + noPct + ' sans % joueurs lisibles.' : ''));
+          (noName ? '\n' + noName + ' sans nom d\'équipe lisible : complète-les.' : ''));
       }
     } catch (err) {
       status(err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.');
@@ -1042,10 +1045,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
+  S.method = 'pow';
   $('store').textContent = storageOK
     ? 'Les matchs, les cotes et les estimations précédentes restent enregistrés sur cet appareil.'
     : 'Enregistrement indisponible ici : les données seront perdues à la fermeture. Il fonctionne quand la page est ouverte depuis un hébergement web.';
   if (getKey()) $('apiKey').placeholder = 'Clé enregistrée';
+  showCredits();
   renderAll();
 
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
