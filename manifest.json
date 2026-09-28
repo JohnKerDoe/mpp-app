@@ -1,16 +1,16 @@
 {
   "name": "Espérance MPP",
   "short_name": "MPP",
+  "description": "Calculateur d'espérance de points MPP basé sur les cotes",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#E9EDF3",
   "theme_color": "#14213D",
   "icons": [
     {
-      "src": "https://www.pwabuilder.com/assets/icons/pwa-icon-512.png",
+      "src": "https://via.placeholder.com/512",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
