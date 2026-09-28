@@ -33,6 +33,11 @@ h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
 .tabs{display:flex;gap:6px;margin:0 0 12px}
 .tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
 .tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--ink-2)}
+.seg .lab{white-space:nowrap}
+.seg .opts{display:flex;flex:1;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 4px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
 
 .panel{display:grid;grid-template-columns:1.35fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px}
 .stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -56,11 +61,16 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
 .card.chg{border:2px solid var(--chg);box-shadow:0 0 0 3px var(--chg-tint)}
 .card.chg2{border-left:6px solid var(--chg)}
-.chgb{display:none;font-size:13px;font-weight:700;padding:6px 10px;background:var(--chg);color:#fff}
+.chgb{display:none;font-size:13px;font-weight:700;padding:4px 4px 4px 10px;background:var(--chg);color:#fff}
+.chgb-in{display:flex;align-items:center;gap:8px}
+.chgb-in span{flex:1;min-width:0}
+.ack{flex:none;border:0;background:transparent;color:inherit;font-size:20px;line-height:1;padding:4px 10px;cursor:pointer;border-radius:6px}
 .card.chg .chgb,.card.chg2 .chgb{display:block}
 .card.chg2 .chgb{background:var(--chg-tint);color:var(--chg-ink)}
 .tagchg{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--chg);color:#fff;margin-left:6px;vertical-align:1px}
 .tagchg.soft{background:var(--chg-tint);color:var(--chg-ink)}
+.tagx2{display:inline-block;font-size:11px;font-weight:800;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--ink);color:#fff;margin-left:6px;vertical-align:1px}
+.c[data-out="sc"] b{font-size:16px}
 .ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px}
 .team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .dash{color:var(--mute)}
@@ -116,8 +126,9 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 
 .imp{margin:12px 0 4px}
 .imp .btn{margin-top:0}
-.impstatus{margin:8px 2px 0;font-size:13px;color:var(--ink-2);white-space:pre-line}
-.impstatus:empty{display:none}
+.impbox{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 4px 8px 10px}
+.impstatus{flex:1;min-width:0;margin:0;font-size:13px;color:var(--ink-2);white-space:pre-line}
+.impbox .del{flex:none;padding:0 8px}
 .imp .add{margin-top:8px}
 .keyrow{display:flex;gap:8px;margin:6px 0}
 .keyrow input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
@@ -159,6 +170,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
 
+  <div class="seg" role="group" aria-label="Score exact">
+    <span class="lab">Score exact</span>
+    <div class="opts">
+      <button type="button" data-sm="est" aria-pressed="true">Estimé</button>
+      <button type="button" data-sm="fix" aria-pressed="false">Fixe 1-0 / 1-1 / 0-1</button>
+    </div>
+  </div>
+
   <section class="panel" aria-live="polite">
     <div class="stat main"><b id="sEV">–</b><span>pts d'espérance en suivant les cotes</span><small id="sEVn"></small></div>
     <div class="stat"><b id="sOK">–</b><span>bons pronos attendus</span></div>
@@ -174,7 +193,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>Score conseillé : 1-0 si le choix est le domicile, 1-1 pour le nul, 0-1 pour l'extérieur.</p>
+    <p>Score exact « Fixe » : toujours 1-0, 1-1 ou 0-1 ; le bonus moyen de ce score est quand même compté dans l'espérance.</p>
+    <p>Score exact « Estimé » : pour chaque issue, le score qui rapporte le plus en moyenne avec l'indice de rareté MPP (+20 à +100). Il tient compte de sa probabilité (d'après les cotes 1N2 et « plus/moins de buts ») et d'une estimation de sa popularité chez les joueurs. La rareté réelle n'est connue qu'après le coup d'envoi.</p>
+    <p>Espérance = points du résultat + bonus moyen du score exact. Bonus x2 : le match qui rapporte le plus en moyenne.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
@@ -184,14 +205,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <button class="btn" id="qShot" type="button">Importer les points MPP (capture)</button>
     <input type="file" id="qFile" accept="image/*" multiple hidden>
     <button class="btn ghost" id="fetchOdds" type="button">Importer les cotes Pinnacle</button>
-    <p class="impstatus" id="impStatus" aria-live="polite"></p>
+    <div class="impbox" id="impBox" hidden>
+      <p class="impstatus" id="impStatus" aria-live="polite"></p>
+      <button class="del" id="impClose" type="button" aria-label="Masquer le message">×</button>
+    </div>
     <details class="how" id="keyBox">
       <summary>Clé The Odds API</summary>
       <div class="keyrow">
         <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici" aria-label="Clé The Odds API">
         <button class="btn2" id="saveKey" type="button">Enregistrer</button>
       </div>
-      <p>La clé reste sur ce téléphone. Chaque import coûte 1 crédit de ton quota The Odds API.</p>
+      <p>La clé reste sur ce téléphone. Chaque import coûte 2 crédits de ton quota The Odds API (résultat + nombre de buts).</p>
     </details>
   </section>
 
@@ -235,12 +259,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     {k:'pts',   label:'Points',        input:true, ph:'0',    mode:'numeric'},
     {k:'odds',  label:'Cote Pinnacle', input:true, ph:'0.00', mode:'decimal'},
     {out:'p',    label:'Probabilité'},
+    {out:'sc',   label:'Score exact'},
     {out:'ev',   label:'Espérance'},
     {out:'prev', label:'Avant'},
     {out:'tag',  label:'Repères'}
   ];
 
-  var S = { method:'pow', mode:'l1', data:{l1:[], l2:[], ldc:[]} };
+  var S = { method:'pow', mode:'l1', scoreMode:'est', data:{l1:[], l2:[], ldc:[]} };
   var storageOK = false, recapText = '';
 
   /* ---------- calcul ---------- */
@@ -261,9 +286,69 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return inv.map(function(x){ return x / sum; });
   }
 
-  function calcFrom(odds, pts){
+  /* ---------- score exact et indice de rareté MPP ----------
+     Buts de chaque équipe selon une loi de Poisson, calée sur les cotes 1N2 et sur la ligne
+     « plus/moins de buts » de Pinnacle. Popularité d'un score chez les joueurs estimée : ils
+     jouent surtout les scores les plus probables (poids = probabilité au carré). */
+  var MU_DEFAULT = 2.6, MAXG = 8;
+  function pmf(l, n){ var a = [Math.exp(-l)]; for (var k = 1; k < n; k++) a.push(a[k - 1] * l / k); return a; }
+  function overProb(mu, L){
+    var t = pmf(mu, 25);
+    var gt = function(x){ var s = 0; for (var k = 0; k < t.length; k++) if (k > x) s += t[k]; return s; };
+    var one = function(x){
+      if (Math.abs(x - Math.round(x)) < 1e-9){ var eq = t[Math.round(x)] || 0; return gt(x) / (1 - eq); }
+      return gt(x);
+    };
+    var f = Math.round((L - Math.floor(L)) * 100);
+    if (f === 25 || f === 75) return (one(L - 0.25) + one(L + 0.25)) / 2;
+    return one(L);
+  }
+  function fitMu(L, pOver){
+    var lo = 0.3, hi = 7;
+    for (var n = 0; n < 50; n++){ var mid = (lo + hi) / 2; if (overProb(mid, L) < pOver) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  function totMu(tot){
+    if (!tot || !(tot.line > 0) || !(tot.over > 1) || !(tot.under > 1)) return null;
+    var io = 1 / tot.over, iu = 1 / tot.under;
+    return fitMu(tot.line, io / (io + iu));
+  }
+  function bonusFor(share){ return share > 30 ? 20 : share >= 20 ? 30 : share >= 5 ? 50 : share >= 0.5 ? 70 : 100; }
+  function scoreModel(p, tot){
+    var mu = totMu(tot) || MU_DEFAULT;
+    var target = p[0] / (p[0] + p[2]), lo = 0.02, hi = 0.98, grid, ph, pa;
+    var build = function(x){
+      var a = pmf(mu * x, MAXG), b = pmf(mu * (1 - x), MAXG), g = [];
+      for (var i = 0; i < MAXG; i++) for (var j = 0; j < MAXG; j++) g.push({h:i, a:j, p:a[i] * b[j], r:i > j ? 0 : i === j ? 1 : 2});
+      return g;
+    };
+    for (var n = 0; n < 40; n++){
+      var mid = (lo + hi) / 2;
+      grid = build(mid); ph = 0; pa = 0;
+      grid.forEach(function(s){ if (s.r === 0) ph += s.p; else if (s.r === 2) pa += s.p; });
+      if (ph / (ph + pa) < target) lo = mid; else hi = mid;
+    }
+    grid = build((lo + hi) / 2);
+    return [0, 1, 2].map(function(r){
+      var list = grid.filter(function(s){ return s.r === r; });
+      var tp = list.reduce(function(a, s){ return a + s.p; }, 0);
+      var w = list.reduce(function(a, s){ return a + Math.pow(s.p / tp, 2); }, 0);
+      var best = null;
+      list.forEach(function(s){
+        var pc = s.p / tp, share = Math.pow(pc, 2) / w * 100, bonus = bonusFor(share);
+        var o = {score:s.h + '-' + s.a, p:pc * p[r], bonus:bonus, share:share, ev:pc * p[r] * bonus};
+        if (S.scoreMode === 'fix'){ if (o.score === SCORES[r]) best = o; }
+        else if (!best || o.ev > best.ev) best = o;
+      });
+      return best;
+    });
+  }
+
+  function calcFrom(odds, pts, tot){
     var p = probs(odds);
-    var ev = (p && pts.every(function(x){ return x > 0; })) ? p.map(function(x, k){ return x * pts[k]; }) : null;
+    var evRes = (p && pts.every(function(x){ return x > 0; })) ? p.map(function(x, k){ return x * pts[k]; }) : null;
+    var sc = evRes ? scoreModel(p, tot) : null;
+    var ev = evRes ? evRes.map(function(x, k){ return x + sc[k].ev; }) : null;
     var best = -1, gap = null, level = null;
     if (ev){
       best = 0;
@@ -272,12 +357,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       gap = sorted[0] - sorted[1];
       level = gap > 5 ? 'g' : gap >= 1 ? 'o' : 'r';
     }
-    return {p:p, ev:ev, best:best, gap:gap, level:level};
+    return {p:p, ev:ev, evRes:evRes, sc:sc, best:best, gap:gap, level:level};
   }
+  function totOf(m){
+    var t = m.tot;
+    if (!t) return null;
+    var o = {line:N(t.line), over:N(t.over), under:N(t.under)};
+    return (o.line > 0 && o.over > 1 && o.under > 1) ? o : null;
+  }
+  function scoreOf(c, o){ return c && c.sc ? c.sc[o].score : SCORES[o]; }
 
   function calc(m){
     var odds = nums(m.odds);
-    var c = calcFrom(odds, nums(m.pts));
+    var c = calcFrom(odds, nums(m.pts), totOf(m));
     var crowd = nums(m.crowd);
     c.crowd = crowd;
     c.crowdOk = crowd.every(function(x){ return x >= 0; });
@@ -297,16 +389,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     for (var k = 0; k < 3; k++){
       if (!(Math.abs(a.pts[k] - b.pts[k]) < 1e-9) || !(Math.abs(a.odds[k] - b.odds[k]) < 1e-9)) return false;
     }
-    return true;
+    return JSON.stringify(a.tot || null) === JSON.stringify(b.tot || null);
   }
   function makeSnap(m, at){
     var o = nums(m.odds), p = nums(m.pts);
     if (!(p.every(function(x){ return x > 0; }) && o.every(function(x){ return x > 1; }))) return null;
-    return {odds:o, pts:p, at:at};
+    return {odds:o, pts:p, tot:totOf(m), at:at};
   }
   // Estimation de référence : la dernière validée si tu es en train de modifier, sinon la précédente.
   function baseline(m){
-    var cur = {odds:nums(m.odds), pts:nums(m.pts)};
+    var cur = {odds:nums(m.odds), pts:nums(m.pts), tot:totOf(m)};
     if (m.snap && !same(m.snap, cur)) return m.snap;
     return m.prev || null;
   }
@@ -417,8 +509,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
   }
 
-  function change(c, bc){
+  function ackKey(m){ return m.snap ? String(m.snap.at) : ''; }
+  function change(c, bc, m){
     if (!c.ev || !bc || !bc.ev) return '';
+    if (m && m.ack && m.ack === ackKey(m) && !(m.snap && !same(m.snap, {odds:nums(m.odds), pts:nums(m.pts), tot:totOf(m)}))) return '';
     if (bc.best !== c.best) return 'pick';
     if (bc.level !== c.level) return 'level';
     return '';
@@ -427,30 +521,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function updateCard(card, m){
     var c = calc(m);
     var b = baseline(m);
-    var bc = b ? calcFrom(b.odds, b.pts) : null;
+    var bc = b ? calcFrom(b.odds, b.pts, b.tot) : null;
     var cell = function(out, o){ return card.querySelector('.c[data-out="' + out + '"][data-o="' + o + '"]'); };
 
     card.querySelector('[data-meta="lvl"]').innerHTML = lvlHTML(c);
 
     // Changement d'estimation : prono conseillé différent, ou pastille différente
-    var ch = change(c, bc);
+    var ch = change(c, bc, m);
     card.classList.toggle('chg', ch === 'pick');
     card.classList.toggle('chg2', ch === 'level');
-    card.querySelector('[data-meta="chg"]').textContent =
-      ch === 'pick' ? 'Prono modifié : ' + pickLabel(m, bc.best) + ' ' + SCORES[bc.best] + ' → ' + pickLabel(m, c.best) + ' ' + SCORES[c.best] :
+    var chTxt = ch === 'pick' ? 'Prono modifié : ' + pickLabel(m, bc.best) + ' ' + scoreOf(bc, bc.best) + ' → ' + pickLabel(m, c.best) + ' ' + scoreOf(c, c.best) :
       ch === 'level' ? 'Force modifiée : ' + LV[bc.level] + ' → ' + LV[c.level] : '';
-    card.querySelector('[data-meta="score"]').innerHTML = c.ev ? 'Score conseillé<b>' + SCORES[c.best] + '</b>' : '';
+    card.querySelector('[data-meta="chg"]').innerHTML = chTxt
+      ? '<div class="chgb-in"><span>' + esc(chTxt) + '</span><button class="ack" type="button" data-ack aria-label="Masquer ce changement">×</button></div>'
+      : '';
+    card.querySelector('[data-meta="score"]').innerHTML = c.ev ? 'Score conseillé<b>' + scoreOf(c, c.best) + '</b>' : '';
     card.querySelector('[data-meta="prevsc"]').innerHTML = (bc && bc.ev && c.ev)
-      ? 'Avant <b>' + SCORES[bc.best] + '</b><span class="dot ' + bc.level + '" role="img" aria-label="Force de l\'espérance avant : ' + LV[bc.level] + '"></span>'
+      ? 'Avant <b>' + scoreOf(bc, bc.best) + '</b><span class="dot ' + bc.level + '" role="img" aria-label="Force de l\'espérance avant : ' + LV[bc.level] + '"></span>'
       : '';
 
     for (var o = 0; o < 3; o++){
       cell('p', o).textContent = c.p ? pct(c.p[o] * 100) : '–';
 
+      var scc = cell('sc', o);
+      scc.innerHTML = c.sc ? '<b>' + c.sc[o].score + '</b><span class="d">' + pct(c.sc[o].p * 100) + ' · +' + c.sc[o].bonus + '</span>' : '–';
+
       var v = cell('ev', o);
       if (c.ev){
         var w = c.ev[c.best] > 0 ? c.ev[o] / c.ev[c.best] * 100 : 0;
-        v.innerHTML = '<span class="evv">' + nf1.format(c.ev[o]) + '</span><span class="bar"><i style="width:' + w.toFixed(0) + '%"></i></span>';
+        v.innerHTML = '<span class="evv">' + nf1.format(c.ev[o]) + '</span><span class="d">dont ' + nf1.format(c.sc[o].ev) + ' score</span><span class="bar"><i style="width:' + w.toFixed(0) + '%"></i></span>';
       } else v.textContent = '–';
 
       var pv = cell('prev', o);
@@ -486,22 +585,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (!c.ev) return;
       n++; ev += c.ev[c.best]; ok += c.p[c.best];
       var b0 = baseline(m);
-      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts) : null)});
+      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts, b0.tot) : null, m)});
     });
     var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
     $('sEV').textContent = n ? nf0.format(ev) : '–';
     $('sEVn').textContent = n ? 'sur ' + plural(n) : 'Renseigne cotes et points';
     $('sOK').textContent = n ? nf1.format(ok) + ' / ' + n : '–';
 
+    var x2 = null;
+    rows.forEach(function(r){ if (!x2 || r.c.ev[r.c.best] > x2.c.ev[x2.c.best]) x2 = r; });
     $('recapList').innerHTML = rows.length ? rows.map(function(r){
-      var tag = r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '';
+      var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '') +
+        (r === x2 ? '<span class="tagx2">Bonus x2</span>' : '');
       return '<li' + (r.ch ? ' class="chg"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + tag + '</span></span>' +
-        '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + SCORES[r.c.best] + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+        '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + scoreOf(r.c, r.c.best) + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
-      return r.m.home + ' – ' + r.m.away + ' : ' + pickLabel(r.m, r.c.best) + ', score ' + SCORES[r.c.best] + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
+      return r.m.home + ' – ' + r.m.away + ' : ' + pickLabel(r.m, r.c.best) + ', score ' + scoreOf(r.c, r.c.best) + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')' + (r === x2 ? ' — bonus x2' : '');
     }).join('\n') : '';
   }
 
@@ -568,6 +670,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   $('list').addEventListener('click', function(e){
+    var a = e.target.closest('[data-ack]');
+    if (a){
+      var mm = cur()[+a.closest('.card').dataset.i];
+      mm.ack = ackKey(mm);
+      renderAll(); save();
+      return;
+    }
     var b = e.target.closest('.del');
     if (!b) return;
     cur().splice(+b.closest('.card').dataset.i, 1);
@@ -712,11 +821,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return odds.every(function(o){ return o > 1; }) ? odds : null;
   }
 
+  function pinTot(ev){
+    var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
+    var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'totals'; })[0];
+    if (!mk) return null;
+    var ov = mk.outcomes.filter(function(x){ return x.name === 'Over'; })[0];
+    var un = mk.outcomes.filter(function(x){ return x.name === 'Under'; })[0];
+    if (!ov || !un || ov.point !== un.point || !(ov.price > 1) || !(un.price > 1)) return null;
+    return {line:String(ov.point), over:ov.price.toFixed(3), under:un.price.toFixed(3)};
+  }
+
   function applyEvents(events){
     var list = cur(), linked = [], used = [], res = {updated:0, notes:[]};
     var setOdds = function(m, ev, odds){
       var d = new Date(ev.commence_time);
       m.odds = odds.map(function(o){ return o.toFixed(3); });
+      m.tot = pinTot(ev) || m.tot || null;
       m.ts = ev.commence_time;
       m.day = dayLabel(d);
       m.time = timeLabel(d);
@@ -760,7 +880,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return res;
   }
 
-  function status(t){ $('impStatus').textContent = t; }
+  function status(t){ $('impStatus').textContent = t; $('impBox').hidden = !t; }
+  $('impClose').addEventListener('click', function(){ status(''); });
 
   // Crédits The Odds API restants, affichés en haut à droite
   var KEY_CRED = 'mpp-odds-credits', credMem = null;
@@ -798,7 +919,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     status('');
     try {
       var url = 'https://api.the-odds-api.com/v4/sports/' + mode.sport + '/odds?apiKey=' + encodeURIComponent(key) +
-        '&bookmakers=pinnacle&markets=h2h&oddsFormat=decimal&dateFormat=iso';
+        '&bookmakers=pinnacle&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso';
       var r;
       try { r = await fetch(url); }
       catch (e) { throw new Error('Connexion impossible. Vérifie ta connexion internet.'); }
@@ -1046,6 +1167,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- démarrage ---------- */
   if (!load()) seed();
   S.method = 'pow';
+  if (S.scoreMode !== 'fix') S.scoreMode = 'est';
+  function renderSeg(){
+    document.querySelectorAll('[data-sm]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.sm === S.scoreMode)); });
+  }
+  document.querySelectorAll('[data-sm]').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (S.scoreMode === b.dataset.sm) return;
+      S.scoreMode = b.dataset.sm;
+      renderSeg(); renderAll(); save();
+    });
+  });
+  renderSeg();
   $('store').textContent = storageOK
     ? 'Les matchs, les cotes et les estimations précédentes restent enregistrés sur cet appareil.'
     : 'Enregistrement indisponible ici : les données seront perdues à la fermeture. Il fonctionne quand la page est ouverte depuis un hébergement web.';
