@@ -14,6 +14,7 @@
   --ink:#14213D; --ink-2:#3B4863; --mute:#667085; --line:#D6DCE5; --bg:#E9EDF3; --card:#fff;
   --best:#0B6B5C; --best-tint:#DDF2EC; --warn:#B23A22; --focus:#2F5BFF;
   --lg:#1F9D55; --lo:#F08C00; --lr:#D64545;
+  --chg:#5B3FD6; --chg-tint:#EEEAFD; --chg-ink:#3A2A8C;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -46,6 +47,13 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .empty-state{margin:22px 2px;color:var(--mute)}
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.card.chg{border:2px solid var(--chg);box-shadow:0 0 0 3px var(--chg-tint)}
+.card.chg2{border-left:6px solid var(--chg)}
+.chgb{display:none;font-size:13px;font-weight:700;padding:6px 10px;background:var(--chg);color:#fff}
+.card.chg .chgb,.card.chg2 .chgb{display:block}
+.card.chg2 .chgb{background:var(--chg-tint);color:var(--chg-ink)}
+.tagchg{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--chg);color:#fff;margin-left:6px;vertical-align:1px}
+.tagchg.soft{background:var(--chg-tint);color:var(--chg-ink)}
 .ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px}
 .team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0}
 .dash{color:var(--mute)}
@@ -120,6 +128,10 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .quick textarea{width:100%;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;margin:6px 0;color:var(--ink);background:#fff}
 .quick .btn2{padding:10px 14px}
 .qempty{color:var(--mute);font-size:14px;margin:8px 0}
+.rteams{display:flex;align-items:center;gap:6px}
+.rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0}
+.rteams .del{flex:none}
+.qmeta{font-size:12px;color:var(--mute);margin:2px 0 6px}
 .shot{width:100%;margin:10px 0 2px;padding:12px;border:1.5px dashed var(--ink-2);background:#F6F8FB;color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
 .shot:disabled{opacity:.6;cursor:default}
 
@@ -152,12 +164,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
     <p>Score conseillé : 1-0 si le choix est le domicile, 1-1 pour le nul, 0-1 pour l'extérieur.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
+    <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Écart joueurs : probabilité des cotes moins la part des joueurs qui choisissent l'issue. Positif : la majorité la délaisse.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
   </details>
 
   <section class="imp">
-    <button class="btn" id="fetchOdds" type="button">Importer les cotes Pinnacle</button>
+    <button class="btn" id="qShot" type="button">Importer les points MPP (capture)</button>
+    <input type="file" id="qFile" accept="image/*" multiple hidden>
+    <button class="btn ghost" id="fetchOdds" type="button">Importer les cotes Pinnacle</button>
     <p class="impstatus" id="impStatus" aria-live="polite"></p>
     <details class="how" id="keyBox">
       <summary>Clé The Odds API</summary>
@@ -169,29 +184,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     </details>
   </section>
 
-  <button class="btn ghost" id="openQuick" type="button">Saisir les points MPP</button>
-
-  <section class="quick" id="quick" hidden aria-labelledby="qTitle">
+  <section class="quick" id="review" hidden aria-labelledby="rTitle">
     <div class="qhead">
-      <h2 id="qTitle">Points MPP · <span id="qMode"></span></h2>
-      <button class="del" id="closeQuick" type="button" aria-label="Fermer la saisie">×</button>
+      <h2 id="rTitle">Points lus · <span id="rMode"></span></h2>
+      <button class="del" id="rClose" type="button" aria-label="Annuler l'import">×</button>
     </div>
-    <p class="qhint">Points 1, N, 2 puis % de joueurs. La touche Suivant du clavier passe au champ d'après.</p>
-    <button class="shot" id="qShot" type="button">Lire une capture MPP</button>
-    <input type="file" id="qFile" accept="image/*" multiple hidden>
-    <div id="qList"></div>
-    <details class="how" id="qPasteBox">
-      <summary>Coller une liste</summary>
-      <p>Une ligne par match : les équipes, les 3 points, puis les 3 % en option. Exemple : Lens - OL 85 117 104 24 23 54</p>
-      <textarea id="qPaste" rows="6" aria-label="Liste des points à coller" spellcheck="false"></textarea>
-      <button class="btn2" id="qApplyPaste" type="button">Remplir depuis la liste</button>
-    </details>
-    <p class="impstatus" id="qStatus" aria-live="polite"></p>
-    <button class="btn" id="qSave" type="button">Enregistrer les points</button>
+    <p class="qhint">Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l'onglet.</p>
+    <div id="rList"></div>
+    <button class="btn" id="rSave" type="button">Valider ces matchs</button>
   </section>
 
   <div id="list"></div>
-  <button class="add" id="add" type="button">Ajouter un match</button>
 
   <section class="recap">
     <h2 class="day"><span>Pronos conseillés</span></h2>
@@ -386,6 +389,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
     });
     return '<article class="card" data-i="' + i + '">' +
+      '<div class="chgb" data-meta="chg" role="status"></div>' +
       '<header class="ch">' +
         '<input class="team" data-f="home" value="' + esc(m.home) + '" aria-label="Équipe à domicile">' +
         '<span class="dash">–</span>' +
@@ -409,6 +413,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
   }
 
+  function change(c, bc){
+    if (!c.ev || !bc || !bc.ev) return '';
+    if (bc.best !== c.best) return 'pick';
+    if (bc.level !== c.level) return 'level';
+    return '';
+  }
+
   function updateCard(card, m){
     var c = calc(m);
     var b = baseline(m);
@@ -416,6 +427,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var cell = function(out, o){ return card.querySelector('.c[data-out="' + out + '"][data-o="' + o + '"]'); };
 
     card.querySelector('[data-meta="lvl"]').innerHTML = lvlHTML(c);
+
+    // Changement d'estimation : prono conseillé différent, ou pastille différente
+    var ch = change(c, bc);
+    card.classList.toggle('chg', ch === 'pick');
+    card.classList.toggle('chg2', ch === 'level');
+    card.querySelector('[data-meta="chg"]').textContent =
+      ch === 'pick' ? 'Prono modifié : ' + pickLabel(m, bc.best) + ' ' + SCORES[bc.best] + ' → ' + pickLabel(m, c.best) + ' ' + SCORES[c.best] :
+      ch === 'level' ? 'Force modifiée : ' + LV[bc.level] + ' → ' + LV[c.level] : '';
     card.querySelector('[data-meta="score"]').innerHTML = c.ev ? 'Score conseillé<b>' + SCORES[c.best] + '</b>' : '';
     card.querySelector('[data-meta="prevsc"]').innerHTML = (bc && bc.ev && c.ev)
       ? 'Avant <b>' + SCORES[bc.best] + '</b><span class="dot ' + bc.level + '" role="img" aria-label="Force de l\'espérance avant : ' + LV[bc.level] + '"></span>'
@@ -472,7 +491,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var c = calc(m);
       if (!c.ev) return;
       n++; ev += c.ev[c.best]; ok += c.p[c.best];
-      rows.push({m:m, c:c});
+      var b0 = baseline(m);
+      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts) : null)});
       if (c.crowdPick >= 0){ nC++; evC += c.ev[c.crowdPick]; evB += c.ev[c.best]; }
     });
     var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
@@ -483,7 +503,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('sCrowdCmp').textContent = nC ? 'contre ' + nf0.format(evB) + ' avec les cotes (' + plural(nC) + ')' : 'Renseigne les % joueurs';
 
     $('recapList').innerHTML = rows.length ? rows.map(function(r){
-      return '<li><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + '</span>' +
+      var tag = r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '';
+      return '<li><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + tag + '</span></span>' +
         '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + SCORES[r.c.best] + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
@@ -511,7 +532,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
       html += cardHTML(m, i);
     });
-    if (!list.length) html = '<p class="empty-state">Aucun match dans cette compétition. Ajoute-en un pour commencer.</p>';
+    if (!list.length) html = '<p class="empty-state">Aucun match dans cet onglet. Importe une capture MPP de la journée pour commencer.</p>';
     $('list').innerHTML = html;
     $('list').querySelectorAll('.card').forEach(function(card){
       var m = list[+card.dataset.i];
@@ -561,16 +582,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!b) return;
     cur().splice(+b.closest('.card').dataset.i, 1);
     renderAll(); save();
-  });
-
-  $('add').addEventListener('click', function(){
-    cur().push(newMatch('Prochains matchs', '', 'Domicile', 'Extérieur', ['','',''], ['','',''], ['','','']));
-    renderAll(); save();
-    var cards = $('list').querySelectorAll('.card');
-    var last = cards[cards.length - 1];
-    last.scrollIntoView({block:'center'});
-    var f = last.querySelector('.team');
-    f.focus(); f.select();
   });
 
   $('method').addEventListener('change', function(e){
@@ -694,40 +705,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':', 'h');
   }
 
+  // Met à jour uniquement les matchs de la capture MPP, sans en ajouter
   function applyEvents(events){
-    var list = cur(), now = Date.now();
-    var first = events.map(function(ev){ return Date.parse(ev.commence_time); })
-      .filter(function(t){ return t >= now - 3 * 36e5; })
-      .reduce(function(a, t){ return Math.min(a, t); }, Infinity);
-    var horizon = Math.max(now + 8 * 864e5, isFinite(first) ? first + 4 * 864e5 : 0);
-    var res = {updated:0, added:0, noPin:0};
+    var list = cur(), done = [];
+    var res = {updated:0, missing:0};
     events.forEach(function(ev){
       var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
       var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'h2h'; })[0];
-      if (!mk){ res.noPin++; return; }
+      if (!mk) return;
       var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? o.price : NaN; };
       var odds = [price(ev.home_team), price('Draw'), price(ev.away_team)];
-      if (odds.some(function(o){ return !(o > 1); })){ res.noPin++; return; }
-      var oddsStr = odds.map(function(o){ return o.toFixed(3); });
+      if (odds.some(function(o){ return !(o > 1); })) return;
+      var m = list.filter(function(x){ return done.indexOf(x) < 0 && sameTeam(x.home, ev.home_team) && sameTeam(x.away, ev.away_team); })[0];
+      if (!m) return;
       var d = new Date(ev.commence_time);
-
-      var m = list.filter(function(x){ return sameTeam(x.home, ev.home_team) && sameTeam(x.away, ev.away_team); })[0];
-      if (m){
-        m.odds = oddsStr;
-        m.ts = ev.commence_time;
-        m.day = dayLabel(d);
-        m.time = timeLabel(d);
-        commit(m);
-        res.updated++;
-      } else if (d.getTime() <= horizon){
-        list.push(newMatch(dayLabel(d), timeLabel(d), ev.home_team, ev.away_team, ['','',''], oddsStr, ['','',''], ev.commence_time));
-        res.added++;
-      }
+      m.odds = odds.map(function(o){ return o.toFixed(3); });
+      m.ts = ev.commence_time;
+      m.day = dayLabel(d);
+      m.time = timeLabel(d);
+      commit(m);
+      done.push(m);
+      res.updated++;
     });
-    list.sort(function(a, b){
-      var x = a.ts ? Date.parse(a.ts) : Infinity, y = b.ts ? Date.parse(b.ts) : Infinity;
-      return x - y;
-    });
+    res.missingNames = list.filter(function(x){ return done.indexOf(x) < 0; }).map(function(x){ return x.home + ' – ' + x.away; });
+    res.missing = res.missingNames.length;
+    if (list.every(function(x){ return x.ts; })){
+      list.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
+    }
     return res;
   }
 
@@ -763,15 +767,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         );
       }
       var events = await r.json();
-      if (!Array.isArray(events) || !events.length){
+      if (!cur().length){
+        status('Importe d\'abord ta capture MPP : seuls ses matchs reçoivent des cotes.');
+      } else if (!Array.isArray(events) || !events.length){
         status(mode.name + ' : aucun match à venir trouvé.');
       } else {
         var res = applyEvents(events);
         var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
-        var lines = [mode.name + ' : ' + p(res.updated, 'match') + ' mis à jour, ' + p(res.added, 'ajouté') + '.'];
-        if (res.noPin) lines.push(p(res.noPin, 'match') + ' sans cote Pinnacle pour l\'instant.');
-        if (!res.updated && !res.added && !res.noPin) lines.push('Aucun match de la prochaine journée trouvé.');
-        if (res.added) lines.push('Pense à saisir les points MPP des nouveaux matchs.');
+        var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' de ta capture.'];
+        if (res.missing) lines.push('Sans cote Pinnacle trouvée : ' + res.missingNames.join(', ') + '. Vérifie les noms d\'équipes, ou réessaie plus tard.');
         if (left !== null) lines.push('Crédits restants : ' + left + '.');
         status(lines.join('\n'));
         renderAll(); save();
@@ -791,112 +795,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     status(k ? 'Clé enregistrée. Tu peux importer les cotes.' : 'Clé supprimée.');
     if (k) $('keyBox').open = false;
   });
-
-
-  /* ---------- saisie rapide des points MPP ---------- */
-  function renderQuick(){
-    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
-    $('qMode').textContent = mode.name;
-    var list = cur();
-    if (!list.length){
-      $('qList').innerHTML = '<p class="qempty">Aucun match dans cet onglet. Importe les cotes ou colle une liste ci-dessous.</p>';
-      return;
-    }
-    var inp = function(k, o, v, lab){
-      return '<input type="text" inputmode="numeric" enterkeyhint="next" data-q="' + k + '" data-o="' + o + '" value="' + esc(v) + '" aria-label="' + lab + '">';
-    };
-    $('qList').innerHTML = '<div class="qcols"><span></span><span>1</span><span>N</span><span>2</span></div>' +
-      list.map(function(m, i){
-        var name = esc(m.home) + ' – ' + esc(m.away);
-        var g = '<span class="ql">Pts</span>';
-        for (var o = 0; o < 3; o++) g += inp('pts', o, m.pts[o], 'Points ' + OUT_NAMES[o] + ', ' + m.home + ' – ' + m.away);
-        g += '<span class="ql">%</span>';
-        for (o = 0; o < 3; o++) g += inp('crowd', o, m.crowd[o], '% joueurs ' + OUT_NAMES[o] + ', ' + m.home + ' – ' + m.away);
-        return '<div class="qrow" data-i="' + i + '"><div class="qteams">' + name + '<span>' + esc(m.time || '') + '</span></div><div class="qgrid">' + g + '</div></div>';
-      }).join('');
-  }
-
-  function openQuick(){
-    renderQuick();
-    $('qStatus').textContent = '';
-    $('quick').hidden = false;
-    $('openQuick').hidden = true;
-    $('quick').scrollIntoView({block:'start'});
-    var first = $('qList').querySelector('input');
-    if (first) first.focus();
-  }
-  function closeQuick(){
-    $('quick').hidden = true;
-    $('openQuick').hidden = false;
-  }
-
-  $('openQuick').addEventListener('click', openQuick);
-  $('closeQuick').addEventListener('click', closeQuick);
-
-  // Touche Suivant / Entrée : champ suivant, puis le bouton Enregistrer
-  $('qList').addEventListener('keydown', function(e){
-    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-    e.preventDefault();
-    var all = Array.prototype.slice.call($('qList').querySelectorAll('input'));
-    var next = all[all.indexOf(e.target) + 1];
-    if (next){ next.focus(); next.select(); } else $('qSave').focus();
-  });
-
-  $('qSave').addEventListener('click', function(){
-    var list = cur(), n = 0;
-    $('qList').querySelectorAll('.qrow').forEach(function(row){
-      var m = list[+row.dataset.i];
-      if (!m) return;
-      row.querySelectorAll('input').forEach(function(x){ m[x.dataset.q][+x.dataset.o] = x.value.trim(); });
-      if (m.pts.every(function(v){ return N(v) > 0; })) n++;
-      commit(m);
-    });
-    renderAll(); save();
-    closeQuick();
-    status('Points MPP enregistrés : ' + n + ' match' + (n > 1 ? 's' : '') + ' complet' + (n > 1 ? 's' : '') + '.');
-  });
-
-  // Lecture d'une liste collée : "Équipe A - Équipe B 85 117 104 24 23 54"
-  function parseLine(line){
-    var tok = line.replace(/\t/g, ' ').trim().split(/\s+/), nums = [];
-    while (tok.length && /^\d+%?$/.test(tok[tok.length - 1])) nums.unshift(tok.pop().replace('%', ''));
-    var text = tok.join(' ').replace(/[:;|]+$/, '').trim();
-    var parts = text.split(/\s*[–—-]\s+|\s+[–—-]\s*|\s+vs\.?\s+|\s+\/\s+/i).filter(Boolean);
-    return {home:parts[0] || '', away:parts[1] || '', nums:nums, hasNames:parts.length >= 2};
-  }
-
-  $('qApplyPaste').addEventListener('click', function(){
-    var lines = $('qPaste').value.split(/\n/).map(function(x){ return x.trim(); }).filter(Boolean);
-    if (!lines.length){ $('qStatus').textContent = 'Colle d\'abord une liste.'; return; }
-    var list = cur(), filled = 0, added = 0, bad = [];
-    lines.forEach(function(line, idx){
-      var r = parseLine(line);
-      if (r.nums.length < 3){ bad.push(line); return; }
-      var pts = r.nums.slice(0, 3), crowd = r.nums.length >= 6 ? r.nums.slice(3, 6) : null;
-      var m = r.hasNames
-        ? list.filter(function(x){ return sameTeam(x.home, r.home) && sameTeam(x.away, r.away); })[0]
-        : list[idx];
-      if (!m){
-        if (!r.hasNames){ bad.push(line); return; }
-        m = newMatch('Matchs ajoutés', '', r.home, r.away, ['','',''], ['','',''], ['','','']);
-        list.push(m);
-        added++;
-      } else filled++;
-      m.pts = pts;
-      if (crowd) m.crowd = crowd;
-      commit(m);
-    });
-    renderAll(); save();
-    renderQuick();
-    var msg = [filled + ' match' + (filled > 1 ? 's' : '') + ' rempli' + (filled > 1 ? 's' : '') + (added ? ', ' + added + ' ajouté' + (added > 1 ? 's' : '') : '') + '.'];
-    if (added) msg.push('Les matchs ajoutés n\'ont pas encore de cotes : importe-les ensuite.');
-    if (bad.length) msg.push('Lignes non comprises : ' + bad.join(' / '));
-    $('qStatus').textContent = msg.join('\n');
-    if (!bad.length) $('qPaste').value = '';
-  });
-
-  // Changer d'onglet ferme la saisie pour éviter de mélanger les compétitions
-  $('tabs').addEventListener('click', function(){ if (!$('quick').hidden) closeQuick(); });
 
 
   /* ---------- lecture d'une capture MPP (reconnaissance de texte) ---------- */
@@ -938,9 +836,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
   }
 
-  // Sur MPP, une ligne contient : équipe domicile, 3 points, équipe extérieur ; les % sont juste en dessous
+  // Sur MPP : titre du jour, puis « J.6 - 20h45 », puis une ligne « équipe 85 117 104 équipe », puis les %
+  var DAYS = /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+([a-zéèûô]+)/i;
   function parseOcr(text){
-    var out = [], lines = text.split(/\n/);
+    var out = [], lines = text.split(/\n/), curDay = '', curTime = '';
     var pctIn = function(str){ return (str.match(/\d{1,3}\s?[%°]/g) || []).map(function(x){ return x.replace(/\D/g, ''); }); };
     var clean = function(arr){
       return arr.filter(function(t){ return !/^\d+[eè]?$/i.test(t); }).join(' ')
@@ -948,15 +847,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         .replace(/^[-. ']+|[-. ']+$/g, '');
     };
     for (var i = 0; i < lines.length; i++){
-      var tok = lines[i].trim().split(/\s+/).filter(Boolean), k = -1;
+      var line = lines[i];
+      var dm = line.match(DAYS);
+      if (dm){ curDay = dm[1].charAt(0).toUpperCase() + dm[1].slice(1).toLowerCase() + ' ' + dm[2] + ' ' + dm[3].toLowerCase(); continue; }
+      var tok = line.trim().split(/\s+/).filter(Boolean), k = -1;
       for (var j = 0; j + 2 < tok.length; j++){
         if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
       }
-      if (k < 0) continue;
+      if (k < 0){
+        var tm = line.match(/(\d{1,2})\s?[hH]\s?(\d{2})/);
+        if (tm) curTime = tm[1] + 'h' + tm[2];
+        continue;
+      }
       var pts = tok.slice(k, k + 3);
       if (pts.some(function(v){ return +v < 1; })) continue;
       var home = clean(tok.slice(0, k)), away = clean(tok.slice(k + 3));
-      if (home.length < 2 || away.length < 2){ home = ''; away = ''; }
       var crowd = null;
       for (var n = 1; n <= 2 && !crowd; n++){
         var ps = pctIn(lines[i + n] || '');
@@ -965,10 +870,90 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           if (sum >= 97 && sum <= 103) crowd = ps.slice(0, 3);
         }
       }
-      out.push({home:home, away:away, pts:pts, crowd:crowd});
+      out.push({home:home.length >= 2 ? home : '', away:away.length >= 2 ? away : '', pts:pts, crowd:crowd, day:curDay, time:curTime});
     }
     return out;
   }
+
+  /* ---------- vérification avant import ---------- */
+  var pending = [];
+  function renderReview(){
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    $('rMode').textContent = mode.name;
+    var inp = function(k, o, v, lab){
+      return '<input type="text" inputmode="numeric" enterkeyhint="next" data-q="' + k + '" data-o="' + o + '" value="' + esc(v || '') + '" aria-label="' + lab + '">';
+    };
+    $('rList').innerHTML = pending.length ? '<div class="qcols"><span></span><span>1</span><span>N</span><span>2</span></div>' +
+      pending.map(function(x, i){
+        var g = '<span class="ql">Pts</span>';
+        for (var o = 0; o < 3; o++) g += inp('pts', o, x.pts[o], 'Points ' + OUT_NAMES[o]);
+        g += '<span class="ql">%</span>';
+        for (o = 0; o < 3; o++) g += inp('crowd', o, x.crowd ? x.crowd[o] : '', '% joueurs ' + OUT_NAMES[o]);
+        return '<div class="qrow" data-r="' + i + '">' +
+          '<div class="rteams">' +
+            '<input data-n="home" value="' + esc(x.home) + '" placeholder="Domicile" aria-label="Équipe à domicile">' +
+            '<span class="dash">–</span>' +
+            '<input data-n="away" value="' + esc(x.away) + '" placeholder="Extérieur" aria-label="Équipe à l\'extérieur">' +
+            '<button class="del" type="button" data-rm="' + i + '" aria-label="Retirer ce match">×</button>' +
+          '</div>' +
+          '<div class="qmeta">' + esc([x.day, x.time].filter(Boolean).join(' · ') || 'Date lue avec les cotes') + '</div>' +
+          '<div class="qgrid">' + g + '</div></div>';
+      }).join('') : '<p class="qempty">Plus aucun match à importer.</p>';
+  }
+  function readReview(){
+    $('rList').querySelectorAll('.qrow').forEach(function(row){
+      var x = pending[+row.dataset.r];
+      x.home = row.querySelector('[data-n="home"]').value.trim();
+      x.away = row.querySelector('[data-n="away"]').value.trim();
+      x.pts = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="pts"][data-o="' + o + '"]').value.trim(); });
+      var c = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="crowd"][data-o="' + o + '"]').value.trim(); });
+      x.crowd = c.every(function(v){ return v !== ''; }) ? c : null;
+    });
+  }
+  function closeReview(){ pending = []; $('review').hidden = true; }
+
+  $('rList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rm]');
+    if (!b) return;
+    readReview();
+    pending.splice(+b.dataset.rm, 1);
+    renderReview();
+  });
+  $('rList').addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    var all = Array.prototype.slice.call($('rList').querySelectorAll('input'));
+    var next = all[all.indexOf(e.target) + 1];
+    if (next){ next.focus(); next.select(); } else $('rSave').focus();
+  });
+  $('rClose').addEventListener('click', function(){ closeReview(); status('Import de la capture annulé.'); });
+  $('tabs').addEventListener('click', function(){ if (!$('review').hidden) closeReview(); });
+
+  // L'onglet ne garde que les matchs de la capture ; cotes et estimations déjà connues sont conservées
+  $('rSave').addEventListener('click', function(){
+    readReview();
+    var bad = pending.filter(function(x){ return !x.home || !x.away || !x.pts.every(function(v){ return N(v) > 0; }); });
+    if (bad.length){
+      $('rList').querySelector('.qrow') && status('Complète les noms d\'équipes et les 3 points de chaque match avant de valider.');
+      return;
+    }
+    var old = cur().slice(), next = [], kept = 0;
+    pending.forEach(function(x){
+      var m = old.filter(function(o){ return sameTeam(o.home, x.home) && sameTeam(o.away, x.away); })[0];
+      if (m){ old.splice(old.indexOf(m), 1); kept++; }
+      else m = newMatch(x.day || 'Journée', x.time || '', x.home, x.away, ['','',''], ['','',''], ['','','']);
+      m.pts = x.pts.slice();
+      if (x.crowd) m.crowd = x.crowd.slice();
+      commit(m);
+      next.push(m);
+    });
+    S.data[S.mode] = next;
+    var n = next.length, noOdds = next.filter(function(m){ return !nums(m.odds).every(function(o){ return o > 1; }); }).length;
+    closeReview();
+    renderAll(); save();
+    status(n + ' match' + (n > 1 ? 's' : '') + ' de ta capture dans l\'onglet' + (old.length ? ', ' + old.length + ' retiré' + (old.length > 1 ? 's' : '') : '') + '.' +
+      (noOdds ? '\nImporte maintenant les cotes Pinnacle.' : ''));
+  });
 
   $('qShot').addEventListener('click', function(){ $('qFile').click(); });
 
@@ -976,15 +961,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var files = Array.prototype.slice.call(e.target.files || []);
     e.target.value = '';
     if (!files.length) return;
-    var btn = $('qShot'), st = $('qStatus'), worker = null, found = [];
+    var btn = $('qShot'), worker = null, found = [];
     btn.disabled = true;
     try {
-      st.textContent = 'Chargement de la lecture de texte…';
+      status('Chargement de la lecture de texte…');
       try { await loadTesseract(); }
       catch (err) { throw new Error('Impossible de charger la lecture de texte. Vérifie ta connexion internet.'); }
       worker = await Tesseract.createWorker('fra', 1, {
         logger: function(m){
-          if (m.status === 'recognizing text') st.textContent = 'Lecture de la capture… ' + Math.round(m.progress * 100) + '%';
+          if (m.status === 'recognizing text') status('Lecture de la capture… ' + Math.round(m.progress * 100) + '%');
         }
       });
       await worker.setParameters({tessedit_pageseg_mode: '6'});
@@ -995,25 +980,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         found = found.concat(parseOcr(r.data.text || ''));
       }
       if (!found.length){
-        st.textContent = 'Aucun point trouvé sur la capture. Essaie une capture plus nette, ou saisis les points à la main.';
+        status('Aucun point trouvé sur la capture. Essaie une capture plus nette.');
       } else {
-        var txt = found.map(function(x){
-          return (x.home && x.away ? x.home + ' - ' + x.away + ' ' : '') + x.pts.join(' ') + (x.crowd ? ' ' + x.crowd.join(' ') : '');
-        }).join('\n');
-        var box = $('qPaste');
-        box.value = (box.value.trim() ? box.value.trim() + '\n' : '') + txt;
-        $('qPasteBox').open = true;
+        pending = found;
+        renderReview();
+        $('review').hidden = false;
+        $('review').scrollIntoView({block:'start'});
         var noPct = found.filter(function(x){ return !x.crowd; }).length;
-        st.textContent = found.length + ' match' + (found.length > 1 ? 's' : '') + ' lu' + (found.length > 1 ? 's' : '') + ' sur la capture.' +
-          (noPct ? '\n' + noPct + ' sans % joueurs lisibles : tu pourras les compléter.' : '') +
-          '\nVérifie les chiffres dans la liste, puis touche « Remplir depuis la liste ».';
-        box.scrollIntoView({block:'center'});
+        var noName = found.filter(function(x){ return !x.home || !x.away; }).length;
+        status(found.length + ' match' + (found.length > 1 ? 's' : '') + ' lu' + (found.length > 1 ? 's' : '') + '. Vérifie-les ci-dessous, puis valide.' +
+          (noName ? '\n' + noName + ' sans nom d\'équipe lisible : complète-les.' : '') +
+          (noPct ? '\n' + noPct + ' sans % joueurs lisibles.' : ''));
       }
     } catch (err) {
-      st.textContent = err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.';
+      status(err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.');
     } finally {
       if (worker) { try { await worker.terminate(); } catch (e) {} }
-      btn.disabled = false; btn.textContent = 'Lire une capture MPP';
+      btn.disabled = false; btn.textContent = 'Importer les points MPP (capture)';
     }
   });
 
