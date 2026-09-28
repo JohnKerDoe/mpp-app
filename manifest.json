@@ -1,0 +1,16 @@
+{
+  "name": "Espérance MPP",
+  "short_name": "MPP",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#E9EDF3",
+  "theme_color": "#14213D",
+  "icons": [
+    {
+      "src": "https://www.pwabuilder.com/assets/icons/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
