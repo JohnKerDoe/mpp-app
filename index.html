@@ -34,11 +34,6 @@ h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
 .tabs{display:flex;gap:6px;margin:0 0 12px}
 .tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
 .tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.seg{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--ink-2)}
-.seg .lab{white-space:nowrap}
-.seg .opts{display:flex;flex:1;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
-.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 4px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
-.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
 
 .panel{display:grid;grid-template-columns:1.35fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px}
 .stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -170,13 +165,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
 
-  <div class="seg" role="group" aria-label="Score exact">
-    <span class="lab">Score exact</span>
-    <div class="opts">
-      <button type="button" data-sm="est" aria-pressed="true">Estimé</button>
-      <button type="button" data-sm="fix" aria-pressed="false">Fixe 1-0 / 1-1 / 0-1</button>
-    </div>
-  </div>
 
   <section class="panel" aria-live="polite">
     <div class="stat main"><b id="sEV">–</b><span>pts d'espérance en suivant les cotes</span><small id="sEVn"></small></div>
@@ -193,8 +181,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>Score exact « Fixe » : toujours 1-0, 1-1 ou 0-1 ; le bonus moyen de ce score est quand même compté dans l'espérance.</p>
-    <p>Score exact « Estimé » : pour chaque issue, le score qui rapporte le plus en moyenne avec l'indice de rareté MPP (+20 à +100). Il tient compte de sa probabilité (d'après les cotes 1N2 et « plus/moins de buts ») et d'une estimation de sa popularité chez les joueurs. La rareté réelle n'est connue qu'après le coup d'envoi.</p>
+    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Son bonus de rareté moyen (+20 à +100, estimé) est compté dans l'espérance ; la rareté réelle n'est connue qu'après le coup d'envoi.</p>
     <p>Espérance = points du résultat + bonus moyen du score exact.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
@@ -265,7 +252,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     {out:'tag',  label:'Repères'}
   ];
 
-  var S = { method:'pow', mode:'l1', scoreMode:'est', data:{l1:[], l2:[], ldc:[]} };
+  var S = { method:'pow', mode:'l1', data:{l1:[], l2:[], ldc:[]} };
   var storageOK = false, recapText = '';
 
   /* ---------- calcul ---------- */
@@ -337,8 +324,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       list.forEach(function(s){
         var pc = s.p / tp, share = Math.pow(pc, 2) / w * 100, bonus = bonusFor(share);
         var o = {score:s.h + '-' + s.a, p:pc * p[r], bonus:bonus, share:share, ev:pc * p[r] * bonus};
-        if (S.scoreMode === 'fix'){ if (o.score === SCORES[r]) best = o; }
-        else if (!best || o.ev > best.ev) best = o;
+        if (!best || o.p > best.p) best = o;
       });
       return best;
     });
@@ -1164,18 +1150,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- démarrage ---------- */
   if (!load()) seed();
   S.method = 'pow';
-  if (S.scoreMode !== 'fix') S.scoreMode = 'est';
-  function renderSeg(){
-    document.querySelectorAll('[data-sm]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.sm === S.scoreMode)); });
-  }
-  document.querySelectorAll('[data-sm]').forEach(function(b){
-    b.addEventListener('click', function(){
-      if (S.scoreMode === b.dataset.sm) return;
-      S.scoreMode = b.dataset.sm;
-      renderSeg(); renderAll(); save();
-    });
-  });
-  renderSeg();
+  delete S.scoreMode;
   $('store').textContent = storageOK
     ? 'Les matchs, les cotes et les estimations précédentes restent enregistrés sur cet appareil.'
     : 'Enregistrement indisponible ici : les données seront perdues à la fermeture. Il fonctionne quand la page est ouverte depuis un hébergement web.';
