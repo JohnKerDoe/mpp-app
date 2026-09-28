@@ -104,6 +104,24 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .keyrow input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
 .btn2{border:0;background:var(--ink);color:#fff;border-radius:8px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.6;cursor:default}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--ink);margin-top:8px}
+.quick{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.qhead h2{font-size:16px;margin:0}
+.qhint{font-size:13px;color:var(--mute);margin:4px 0 8px}
+.qcols,.qgrid{display:grid;grid-template-columns:36px repeat(3,minmax(0,1fr));gap:6px;align-items:center}
+.qcols{font-size:12px;font-weight:700;color:var(--mute);text-align:center;padding-bottom:4px}
+.qrow{padding:10px 0;border-top:1px solid var(--line)}
+.qteams{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:6px}
+.qteams span{font-weight:400;font-size:13px;color:var(--mute);white-space:nowrap}
+.ql{font-size:12px;color:var(--mute)}
+.qgrid input{width:100%;text-align:center;font:inherit;font-size:16px;padding:7px 2px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+.qgrid input[data-q="crowd"]{background:#F6F8FB}
+.quick textarea{width:100%;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;margin:6px 0;color:var(--ink);background:#fff}
+.quick .btn2{padding:10px 14px}
+.qempty{color:var(--mute);font-size:14px;margin:8px 0}
+.shot{width:100%;margin:10px 0 2px;padding:12px;border:1.5px dashed var(--ink-2);background:#F6F8FB;color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
+.shot:disabled{opacity:.6;cursor:default}
 
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
@@ -149,6 +167,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <p>La clé reste sur ce téléphone. Chaque import coûte 1 crédit de ton quota The Odds API.</p>
     </details>
+  </section>
+
+  <button class="btn ghost" id="openQuick" type="button">Saisir les points MPP</button>
+
+  <section class="quick" id="quick" hidden aria-labelledby="qTitle">
+    <div class="qhead">
+      <h2 id="qTitle">Points MPP · <span id="qMode"></span></h2>
+      <button class="del" id="closeQuick" type="button" aria-label="Fermer la saisie">×</button>
+    </div>
+    <p class="qhint">Points 1, N, 2 puis % de joueurs. La touche Suivant du clavier passe au champ d'après.</p>
+    <button class="shot" id="qShot" type="button">Lire une capture MPP</button>
+    <input type="file" id="qFile" accept="image/*" multiple hidden>
+    <div id="qList"></div>
+    <details class="how" id="qPasteBox">
+      <summary>Coller une liste</summary>
+      <p>Une ligne par match : les équipes, les 3 points, puis les 3 % en option. Exemple : Lens - OL 85 117 104 24 23 54</p>
+      <textarea id="qPaste" rows="6" aria-label="Liste des points à coller" spellcheck="false"></textarea>
+      <button class="btn2" id="qApplyPaste" type="button">Remplir depuis la liste</button>
+    </details>
+    <p class="impstatus" id="qStatus" aria-live="polite"></p>
+    <button class="btn" id="qSave" type="button">Enregistrer les points</button>
   </section>
 
   <div id="list"></div>
@@ -595,7 +634,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     ['guingamp','ea guingamp'],
     ['bastia','sc bastia'],
     ['ajaccio','ac ajaccio'],
-    ['pau','pau fc']
+    ['pau','pau fc'],
+    ['barcelona','barcelone','fc barcelone','fc barcelona','barca'],
+    ['bayern','bayern munich','bayern munchen','fc bayern','bayern de munich'],
+    ['inter','inter milan','internazionale','inter milano'],
+    ['acmilan','milan','ac milan','milan ac'],
+    ['juventus','juve','juventus turin'],
+    ['atletico','atletico madrid','atletico de madrid','atl madrid'],
+    ['realmadrid','real madrid','real'],
+    ['mancity','manchester city','man city'],
+    ['manutd','manchester united','man united','man utd'],
+    ['tottenham','tottenham hotspur','spurs'],
+    ['dortmund','borussia dortmund','bvb'],
+    ['leverkusen','bayer leverkusen','bayer 04 leverkusen'],
+    ['leipzig','rb leipzig'],
+    ['frankfurt','eintracht frankfurt'],
+    ['napoli','naples','ssc napoli'],
+    ['benfica','sl benfica'],
+    ['sporting','sporting cp','sporting lisbonne','sporting lisbon','sporting portugal'],
+    ['porto','fc porto'],
+    ['psv','psv eindhoven'],
+    ['bruges','club brugge','club bruges','brugge'],
+    ['newcastle','newcastle united'],
+    ['bilbao','athletic bilbao','athletic club'],
+    ['villarreal','villarreal cf'],
+    ['copenhague','fc copenhagen','copenhagen','fc copenhague'],
+    ['slavia','slavia prague','slavia praha'],
+    ['olympiakos','olympiacos','olympiakos piraeus','olympiacos piraeus'],
+    ['bodo','bodo glimt','bodoe glimt','fk bodo glimt'],
+    ['union','union saint gilloise','union st gilloise','royale union saint gilloise']
   ];
   var ALIAS = {};
   TEAM_GROUPS.forEach(function(g){ g.forEach(function(n){ ALIAS[n] = g[0]; }); });
@@ -628,7 +695,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   function applyEvents(events){
-    var list = cur(), now = Date.now(), horizon = now + 8 * 864e5;
+    var list = cur(), now = Date.now();
+    var first = events.map(function(ev){ return Date.parse(ev.commence_time); })
+      .filter(function(t){ return t >= now - 3 * 36e5; })
+      .reduce(function(a, t){ return Math.min(a, t); }, Infinity);
+    var horizon = Math.max(now + 8 * 864e5, isFinite(first) ? first + 4 * 864e5 : 0);
     var res = {updated:0, added:0, noPin:0};
     events.forEach(function(ev){
       var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
@@ -687,7 +758,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         throw new Error(
           r.status === 401 ? 'Clé refusée : vérifie ta clé The Odds API.' :
           r.status === 429 ? 'Quota ou limite atteinte. Réessaie plus tard.' :
-          r.status === 404 ? 'Compétition indisponible pour le moment sur The Odds API.' :
+          (r.status === 404 || r.status === 422) ? mode.name + ' : pas de cotes disponibles pour le moment (compétition hors période ou pas encore ouverte).' :
           'Erreur ' + r.status + (msg ? ' : ' + msg : '')
         );
       }
@@ -699,6 +770,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
         var lines = [mode.name + ' : ' + p(res.updated, 'match') + ' mis à jour, ' + p(res.added, 'ajouté') + '.'];
         if (res.noPin) lines.push(p(res.noPin, 'match') + ' sans cote Pinnacle pour l\'instant.');
+        if (!res.updated && !res.added && !res.noPin) lines.push('Aucun match de la prochaine journée trouvé.');
         if (res.added) lines.push('Pense à saisir les points MPP des nouveaux matchs.');
         if (left !== null) lines.push('Crédits restants : ' + left + '.');
         status(lines.join('\n'));
@@ -718,6 +790,231 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('apiKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé ici';
     status(k ? 'Clé enregistrée. Tu peux importer les cotes.' : 'Clé supprimée.');
     if (k) $('keyBox').open = false;
+  });
+
+
+  /* ---------- saisie rapide des points MPP ---------- */
+  function renderQuick(){
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    $('qMode').textContent = mode.name;
+    var list = cur();
+    if (!list.length){
+      $('qList').innerHTML = '<p class="qempty">Aucun match dans cet onglet. Importe les cotes ou colle une liste ci-dessous.</p>';
+      return;
+    }
+    var inp = function(k, o, v, lab){
+      return '<input type="text" inputmode="numeric" enterkeyhint="next" data-q="' + k + '" data-o="' + o + '" value="' + esc(v) + '" aria-label="' + lab + '">';
+    };
+    $('qList').innerHTML = '<div class="qcols"><span></span><span>1</span><span>N</span><span>2</span></div>' +
+      list.map(function(m, i){
+        var name = esc(m.home) + ' – ' + esc(m.away);
+        var g = '<span class="ql">Pts</span>';
+        for (var o = 0; o < 3; o++) g += inp('pts', o, m.pts[o], 'Points ' + OUT_NAMES[o] + ', ' + m.home + ' – ' + m.away);
+        g += '<span class="ql">%</span>';
+        for (o = 0; o < 3; o++) g += inp('crowd', o, m.crowd[o], '% joueurs ' + OUT_NAMES[o] + ', ' + m.home + ' – ' + m.away);
+        return '<div class="qrow" data-i="' + i + '"><div class="qteams">' + name + '<span>' + esc(m.time || '') + '</span></div><div class="qgrid">' + g + '</div></div>';
+      }).join('');
+  }
+
+  function openQuick(){
+    renderQuick();
+    $('qStatus').textContent = '';
+    $('quick').hidden = false;
+    $('openQuick').hidden = true;
+    $('quick').scrollIntoView({block:'start'});
+    var first = $('qList').querySelector('input');
+    if (first) first.focus();
+  }
+  function closeQuick(){
+    $('quick').hidden = true;
+    $('openQuick').hidden = false;
+  }
+
+  $('openQuick').addEventListener('click', openQuick);
+  $('closeQuick').addEventListener('click', closeQuick);
+
+  // Touche Suivant / Entrée : champ suivant, puis le bouton Enregistrer
+  $('qList').addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    var all = Array.prototype.slice.call($('qList').querySelectorAll('input'));
+    var next = all[all.indexOf(e.target) + 1];
+    if (next){ next.focus(); next.select(); } else $('qSave').focus();
+  });
+
+  $('qSave').addEventListener('click', function(){
+    var list = cur(), n = 0;
+    $('qList').querySelectorAll('.qrow').forEach(function(row){
+      var m = list[+row.dataset.i];
+      if (!m) return;
+      row.querySelectorAll('input').forEach(function(x){ m[x.dataset.q][+x.dataset.o] = x.value.trim(); });
+      if (m.pts.every(function(v){ return N(v) > 0; })) n++;
+      commit(m);
+    });
+    renderAll(); save();
+    closeQuick();
+    status('Points MPP enregistrés : ' + n + ' match' + (n > 1 ? 's' : '') + ' complet' + (n > 1 ? 's' : '') + '.');
+  });
+
+  // Lecture d'une liste collée : "Équipe A - Équipe B 85 117 104 24 23 54"
+  function parseLine(line){
+    var tok = line.replace(/\t/g, ' ').trim().split(/\s+/), nums = [];
+    while (tok.length && /^\d+%?$/.test(tok[tok.length - 1])) nums.unshift(tok.pop().replace('%', ''));
+    var text = tok.join(' ').replace(/[:;|]+$/, '').trim();
+    var parts = text.split(/\s*[–—-]\s+|\s+[–—-]\s*|\s+vs\.?\s+|\s+\/\s+/i).filter(Boolean);
+    return {home:parts[0] || '', away:parts[1] || '', nums:nums, hasNames:parts.length >= 2};
+  }
+
+  $('qApplyPaste').addEventListener('click', function(){
+    var lines = $('qPaste').value.split(/\n/).map(function(x){ return x.trim(); }).filter(Boolean);
+    if (!lines.length){ $('qStatus').textContent = 'Colle d\'abord une liste.'; return; }
+    var list = cur(), filled = 0, added = 0, bad = [];
+    lines.forEach(function(line, idx){
+      var r = parseLine(line);
+      if (r.nums.length < 3){ bad.push(line); return; }
+      var pts = r.nums.slice(0, 3), crowd = r.nums.length >= 6 ? r.nums.slice(3, 6) : null;
+      var m = r.hasNames
+        ? list.filter(function(x){ return sameTeam(x.home, r.home) && sameTeam(x.away, r.away); })[0]
+        : list[idx];
+      if (!m){
+        if (!r.hasNames){ bad.push(line); return; }
+        m = newMatch('Matchs ajoutés', '', r.home, r.away, ['','',''], ['','',''], ['','','']);
+        list.push(m);
+        added++;
+      } else filled++;
+      m.pts = pts;
+      if (crowd) m.crowd = crowd;
+      commit(m);
+    });
+    renderAll(); save();
+    renderQuick();
+    var msg = [filled + ' match' + (filled > 1 ? 's' : '') + ' rempli' + (filled > 1 ? 's' : '') + (added ? ', ' + added + ' ajouté' + (added > 1 ? 's' : '') : '') + '.'];
+    if (added) msg.push('Les matchs ajoutés n\'ont pas encore de cotes : importe-les ensuite.');
+    if (bad.length) msg.push('Lignes non comprises : ' + bad.join(' / '));
+    $('qStatus').textContent = msg.join('\n');
+    if (!bad.length) $('qPaste').value = '';
+  });
+
+  // Changer d'onglet ferme la saisie pour éviter de mélanger les compétitions
+  $('tabs').addEventListener('click', function(){ if (!$('quick').hidden) closeQuick(); });
+
+
+  /* ---------- lecture d'une capture MPP (reconnaissance de texte) ---------- */
+  var tessLoading = null;
+  function loadTesseract(){
+    if (window.Tesseract) return Promise.resolve();
+    if (tessLoading) return tessLoading;
+    tessLoading = new Promise(function(res, rej){
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      sc.onload = res;
+      sc.onerror = function(){ tessLoading = null; rej(new Error('load')); };
+      document.head.appendChild(sc);
+    });
+    return tessLoading;
+  }
+
+  // Fond sombre → fond blanc, texte clair → noir, image agrandie : lecture plus fiable
+  function prepImage(file){
+    return new Promise(function(res, rej){
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function(){
+        var k = img.width < 1400 ? 2 : 1;
+        var c = document.createElement('canvas');
+        c.width = img.width * k; c.height = img.height * k;
+        var x = c.getContext('2d');
+        x.drawImage(img, 0, 0, c.width, c.height);
+        var d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+        for (var i = 0; i < p.length; i += 4){
+          var g = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+          p[i] = p[i + 1] = p[i + 2] = g > 110 ? 0 : 255;
+        }
+        x.putImageData(d, 0, 0);
+        URL.revokeObjectURL(url);
+        res(c);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); rej(new Error('image')); };
+      img.src = url;
+    });
+  }
+
+  // Sur MPP, une ligne contient : équipe domicile, 3 points, équipe extérieur ; les % sont juste en dessous
+  function parseOcr(text){
+    var out = [], lines = text.split(/\n/);
+    var pctIn = function(str){ return (str.match(/\d{1,3}\s?[%°]/g) || []).map(function(x){ return x.replace(/\D/g, ''); }); };
+    var clean = function(arr){
+      return arr.filter(function(t){ return !/^\d+[eè]?$/i.test(t); }).join(' ')
+        .replace(/[^A-Za-zÀ-ÿ' .-]/g, ' ').replace(/\s+/g, ' ').trim()
+        .replace(/^[-. ']+|[-. ']+$/g, '');
+    };
+    for (var i = 0; i < lines.length; i++){
+      var tok = lines[i].trim().split(/\s+/).filter(Boolean), k = -1;
+      for (var j = 0; j + 2 < tok.length; j++){
+        if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
+      }
+      if (k < 0) continue;
+      var pts = tok.slice(k, k + 3);
+      if (pts.some(function(v){ return +v < 1; })) continue;
+      var home = clean(tok.slice(0, k)), away = clean(tok.slice(k + 3));
+      if (home.length < 2 || away.length < 2){ home = ''; away = ''; }
+      var crowd = null;
+      for (var n = 1; n <= 2 && !crowd; n++){
+        var ps = pctIn(lines[i + n] || '');
+        if (ps.length >= 3){
+          var sum = +ps[0] + +ps[1] + +ps[2];
+          if (sum >= 97 && sum <= 103) crowd = ps.slice(0, 3);
+        }
+      }
+      out.push({home:home, away:away, pts:pts, crowd:crowd});
+    }
+    return out;
+  }
+
+  $('qShot').addEventListener('click', function(){ $('qFile').click(); });
+
+  $('qFile').addEventListener('change', async function(e){
+    var files = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    var btn = $('qShot'), st = $('qStatus'), worker = null, found = [];
+    btn.disabled = true;
+    try {
+      st.textContent = 'Chargement de la lecture de texte…';
+      try { await loadTesseract(); }
+      catch (err) { throw new Error('Impossible de charger la lecture de texte. Vérifie ta connexion internet.'); }
+      worker = await Tesseract.createWorker('fra', 1, {
+        logger: function(m){
+          if (m.status === 'recognizing text') st.textContent = 'Lecture de la capture… ' + Math.round(m.progress * 100) + '%';
+        }
+      });
+      await worker.setParameters({tessedit_pageseg_mode: '6'});
+      for (var f = 0; f < files.length; f++){
+        btn.textContent = 'Lecture ' + (f + 1) + ' / ' + files.length + '…';
+        var canvas = await prepImage(files[f]);
+        var r = await worker.recognize(canvas);
+        found = found.concat(parseOcr(r.data.text || ''));
+      }
+      if (!found.length){
+        st.textContent = 'Aucun point trouvé sur la capture. Essaie une capture plus nette, ou saisis les points à la main.';
+      } else {
+        var txt = found.map(function(x){
+          return (x.home && x.away ? x.home + ' - ' + x.away + ' ' : '') + x.pts.join(' ') + (x.crowd ? ' ' + x.crowd.join(' ') : '');
+        }).join('\n');
+        var box = $('qPaste');
+        box.value = (box.value.trim() ? box.value.trim() + '\n' : '') + txt;
+        $('qPasteBox').open = true;
+        var noPct = found.filter(function(x){ return !x.crowd; }).length;
+        st.textContent = found.length + ' match' + (found.length > 1 ? 's' : '') + ' lu' + (found.length > 1 ? 's' : '') + ' sur la capture.' +
+          (noPct ? '\n' + noPct + ' sans % joueurs lisibles : tu pourras les compléter.' : '') +
+          '\nVérifie les chiffres dans la liste, puis touche « Remplir depuis la liste ».';
+        box.scrollIntoView({block:'center'});
+      }
+    } catch (err) {
+      st.textContent = err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.';
+    } finally {
+      if (worker) { try { await worker.terminate(); } catch (e) {} }
+      btn.disabled = false; btn.textContent = 'Lire une capture MPP';
+    }
   });
 
   /* ---------- démarrage ---------- */
