@@ -646,6 +646,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     ['bastia','sc bastia'],
     ['ajaccio','ac ajaccio'],
     ['pau','pau fc'],
+    ['sochaux','fc sochaux','sochaux montbeliard','fc sochaux montbeliard','sochaux montbeliard fc'],
+    ['boulogne','us boulogne','boulogne sur mer','us boulogne cote d opale','usbco'],
+    ['rodez','rodez af','rodez aveyron','rodez aveyron football','raf'],
+    ['grenoble','grenoble foot','grenoble foot 38','gf38'],
+    ['annecy','fc annecy'],
+    ['laval','stade lavallois','stade laval'],
+    ['amiens','amiens sc'],
+    ['nancy','as nancy','as nancy lorraine','nancy lorraine'],
+    ['dunkerque','usl dunkerque','dunkerque usl'],
+    ['caen','sm caen','stade malherbe caen','stade malherbe'],
+    ['quevilly','quevilly rouen','qrm','us quevilly rouen'],
+    ['martigues','fc martigues'],
     ['barcelona','barcelone','fc barcelone','fc barcelona','barca'],
     ['bayern','bayern munich','bayern munchen','fc bayern','bayern de munich'],
     ['inter','inter milan','internazionale','inter milano'],
@@ -706,29 +718,57 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   // Met à jour uniquement les matchs de la capture MPP, sans en ajouter
+  function pinOdds(ev){
+    var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
+    var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'h2h'; })[0];
+    if (!mk) return null;
+    var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? o.price : NaN; };
+    var odds = [price(ev.home_team), price('Draw'), price(ev.away_team)];
+    return odds.every(function(o){ return o > 1; }) ? odds : null;
+  }
+
   function applyEvents(events){
-    var list = cur(), done = [];
-    var res = {updated:0, missing:0};
-    events.forEach(function(ev){
-      var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
-      var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'h2h'; })[0];
-      if (!mk) return;
-      var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? o.price : NaN; };
-      var odds = [price(ev.home_team), price('Draw'), price(ev.away_team)];
-      if (odds.some(function(o){ return !(o > 1); })) return;
-      var m = list.filter(function(x){ return done.indexOf(x) < 0 && sameTeam(x.home, ev.home_team) && sameTeam(x.away, ev.away_team); })[0];
-      if (!m) return;
+    var list = cur(), linked = [], used = [], res = {updated:0, notes:[]};
+    var setOdds = function(m, ev, odds){
       var d = new Date(ev.commence_time);
       m.odds = odds.map(function(o){ return o.toFixed(3); });
       m.ts = ev.commence_time;
       m.day = dayLabel(d);
       m.time = timeLabel(d);
       commit(m);
-      done.push(m);
       res.updated++;
+    };
+
+    // 1) Correspondance exacte des deux équipes
+    list.forEach(function(m){
+      var ev = events.filter(function(e){ return used.indexOf(e) < 0 && sameTeam(m.home, e.home_team) && sameTeam(m.away, e.away_team); })[0];
+      if (!ev) return;
+      used.push(ev); linked.push(m);
+      var odds = pinOdds(ev);
+      if (odds) setOdds(m, ev, odds);
+      else res.notes.push(m.home + ' – ' + m.away + ' : match bien reçu, mais pas encore de cote Pinnacle.');
     });
-    res.missingNames = list.filter(function(x){ return done.indexOf(x) < 0; }).map(function(x){ return x.home + ' – ' + x.away; });
-    res.missing = res.missingNames.length;
+
+    // 2) Une seule équipe reconnue : on associe si le match est le seul candidat (noms écrits autrement)
+    list.forEach(function(m){
+      if (linked.indexOf(m) >= 0) return;
+      var cands = events.filter(function(e){
+        return used.indexOf(e) < 0 && (sameTeam(m.home, e.home_team) || sameTeam(m.away, e.away_team));
+      });
+      if (cands.length === 1){
+        var ev = cands[0], odds = pinOdds(ev);
+        used.push(ev); linked.push(m);
+        if (odds){
+          setOdds(m, ev, odds);
+          res.notes.push(m.home + ' – ' + m.away + ' : associé à « ' + ev.home_team + ' – ' + ev.away_team + ' » (noms différents), vérifie que c\'est le bon match.');
+        } else {
+          res.notes.push(m.home + ' – ' + m.away + ' : reçu sous le nom « ' + ev.home_team + ' – ' + ev.away_team + ' », mais pas encore de cote Pinnacle.');
+        }
+      } else {
+        res.notes.push(m.home + ' – ' + m.away + ' : absent des matchs reçus. Pinnacle ne le propose sans doute pas encore via The Odds API.');
+      }
+    });
+
     if (list.every(function(x){ return x.ts; })){
       list.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
     }
@@ -774,8 +814,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       } else {
         var res = applyEvents(events);
         var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
-        var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' de ta capture.'];
-        if (res.missing) lines.push('Sans cote Pinnacle trouvée : ' + res.missingNames.join(', ') + '. Vérifie les noms d\'équipes, ou réessaie plus tard.');
+        var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' sur ' + cur().length + '.'];
+        res.notes.forEach(function(t){ lines.push('• ' + t); });
         if (left !== null) lines.push('Crédits restants : ' + left + '.');
         status(lines.join('\n'));
         renderAll(); save();
