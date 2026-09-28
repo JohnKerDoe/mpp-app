@@ -69,7 +69,6 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .card.chg2 .chgb{background:var(--chg-tint);color:var(--chg-ink)}
 .tagchg{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--chg);color:#fff;margin-left:6px;vertical-align:1px}
 .tagchg.soft{background:var(--chg-tint);color:var(--chg-ink)}
-.tagx2{display:inline-block;font-size:11px;font-weight:800;line-height:1.2;padding:2px 6px;border-radius:999px;background:var(--ink);color:#fff;margin-left:6px;vertical-align:1px}
 .c[data-out="sc"] b{font-size:16px}
 .ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px}
 .team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
@@ -195,7 +194,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
     <p>Score exact « Fixe » : toujours 1-0, 1-1 ou 0-1 ; le bonus moyen de ce score est quand même compté dans l'espérance.</p>
     <p>Score exact « Estimé » : pour chaque issue, le score qui rapporte le plus en moyenne avec l'indice de rareté MPP (+20 à +100). Il tient compte de sa probabilité (d'après les cotes 1N2 et « plus/moins de buts ») et d'une estimation de sa popularité chez les joueurs. La rareté réelle n'est connue qu'après le coup d'envoi.</p>
-    <p>Espérance = points du résultat + bonus moyen du score exact. Bonus x2 : le match qui rapporte le plus en moyenne.</p>
+    <p>Espérance = points du résultat + bonus moyen du score exact.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
@@ -592,18 +591,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('sEVn').textContent = n ? 'sur ' + plural(n) : 'Renseigne cotes et points';
     $('sOK').textContent = n ? nf1.format(ok) + ' / ' + n : '–';
 
-    var x2 = null;
-    rows.forEach(function(r){ if (!x2 || r.c.ev[r.c.best] > x2.c.ev[x2.c.best]) x2 = r; });
     $('recapList').innerHTML = rows.length ? rows.map(function(r){
-      var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '') +
-        (r === x2 ? '<span class="tagx2">Bonus x2</span>' : '');
+      var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
       return '<li' + (r.ch ? ' class="chg"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + tag + '</span></span>' +
         '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + scoreOf(r.c, r.c.best) + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
-      return r.m.home + ' – ' + r.m.away + ' : ' + pickLabel(r.m, r.c.best) + ', score ' + scoreOf(r.c, r.c.best) + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')' + (r === x2 ? ' — bonus x2' : '');
+      return r.m.home + ' – ' + r.m.away + ' : ' + pickLabel(r.m, r.c.best) + ', score ' + scoreOf(r.c, r.c.best) + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
     }).join('\n') : '';
   }
 
