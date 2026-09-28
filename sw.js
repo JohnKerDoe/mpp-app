@@ -1,5 +1,7 @@
-const CACHE = 'esperance-mpp-v3';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+// Espérance MPP : cache de l'appli pour un fonctionnement hors ligne.
+// Les appels à The Odds API ne passent jamais par le cache.
+const CACHE = 'esperance-mpp-v4';
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
