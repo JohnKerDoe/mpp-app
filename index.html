@@ -1,191 +1,737 @@
-<!DOCTYPE html> 
-<html lang="fr"> 
-<head> 
-<meta charset="utf-8"> 
-<meta name="viewport" content="width=device-width, initial-scale=1"> 
-<title>Espérance MPP</title> 
-<link rel="manifest" href="manifest.json">
-<style> 
-:root{ --ink:#14213D; --ink-2:#3B4863; --mute:#667085; --line:#D6DCE5; --bg:#E9EDF3; --card:#fff; --best:#0B6B5C; --best-tint:#DDF2EC; --warn:#B23A22; --focus:#2F5BFF; --lg:#1F9D55; --lo:#F08C00; --lr:#D64545; } 
-*{box-sizing:border-box} 
-html{-webkit-text-size-adjust:100%} 
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,sans-serif;} 
-.wrap{max-width:560px;margin:0 auto;padding:16px 12px 48px} 
-h1{font-size:22px;margin:0 0 2px;} 
-.sub{margin:0 0 12px;color:var(--mute);font-size:14px} 
-.tabs{display:flex;gap:6px;margin:0 0 12px} 
-.tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;} 
-.tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)} 
-.panel{display:grid;grid-template-columns:1.35fr 1fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px} 
-.stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0} 
-.stat + .stat{border-left:1px solid rgba(255,255,255,.18)} 
-.stat b{font-size:24px;line-height:1.1;font-weight:800} 
-.stat.main b{font-size:36px} 
-.stat span{font-size:12px;color:#CBD4E5;line-height:1.25} 
-.stat small{font-size:11px;color:#9FB0CC;} 
-.tools{display:flex;align-items:center;gap:10px;margin:14px 0 6px;font-size:14px;} 
-select{font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;flex:1;} 
-details.how{font-size:14px;color:var(--ink-2);margin:6px 0 0} 
-details.how summary{cursor:pointer;padding:6px 0;font-weight:600} 
-.keyrow{display:flex;gap:8px;margin:6px 0} 
-.keyrow input{flex:1;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;} 
-.btn2{border:0;background:var(--ink);color:#fff;border-radius:8px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer} 
-.imp{border: 2px dashed var(--line); border-radius: 12px; padding: 12px; text-align: center; background: #fff; margin: 15px 0 10px;} 
-.imp label{cursor: pointer; display: block; font-weight: 600; color: var(--ink-2); font-size: 14px;} 
-.btn{width:100%;padding:13px;border:0;background:var(--ink);color:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-bottom:10px;} 
-.add{width:100%;padding:13px;border:1.5px dashed var(--mute);background:transparent;border-radius:12px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;} 
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden; margin-top:15px;} 
-.ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px} 
-.team{flex:1;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;} 
-.del{border:0;background:transparent;color:var(--mute);font-size:22px;cursor:pointer;} 
-.grid{display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));padding:0 6px 0 10px} 
-.rl{font-size:12px;color:var(--mute);padding-right:4px;align-self:center;} 
-.c{padding:5px 4px;text-align:center;min-height:40px;display:flex;flex-direction:column;justify-content:center;} 
-.c input{width:100%;text-align:center;font:inherit;font-size:16px;padding:6px 2px;border:1px solid var(--line);border-radius:6px;} 
-.c.h{font-size:13px;font-weight:700;padding-top:8px} 
-.c.h .k{font-size:11px;font-weight:400;color:var(--mute)} 
-.cf{padding:6px 10px 10px;font-size:12px;color:var(--mute)} 
-h2.day{font-size:14px;font-weight:700;margin:22px 2px 8px;color:var(--ink-2);} 
-.score b{font-size:17px;font-weight:800;color:var(--ink);margin-left:4px} 
-.meta{padding:2px 10px 8px;font-size:13px;color:var(--ink-2)} 
-.when{width:68px;font:inherit;font-size:14px;color:var(--mute);border:0;border-bottom:1px dashed var(--line);background:transparent;} 
-</style> 
-</head> 
-<body> 
-<div class="wrap"> 
-<h1>Espérance MPP</h1> 
-<p class="sub">Points du jeu × probabilités tirées des cotes</p> 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#14213D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Espérance MPP</title>
+<style>
+:root{
+  --ink:#14213D; --ink-2:#3B4863; --mute:#667085; --line:#D6DCE5; --bg:#E9EDF3; --card:#fff;
+  --best:#0B6B5C; --best-tint:#DDF2EC; --warn:#B23A22; --focus:#2F5BFF;
+  --lg:#1F9D55; --lo:#F08C00; --lr:#D64545;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:560px;margin:0 auto;padding:16px 12px 48px}
+h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{margin:0 0 12px;color:var(--mute);font-size:14px}
 
-<nav class="tabs" id="tabs"></nav> 
+.tabs{display:flex;gap:6px;margin:0 0 12px}
+.tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 
-<section class="panel"> 
-<div class="stat main"><b id="sEV">–</b><span>pts d'espérance</span><small id="sEVn"></small></div> 
-<div class="stat"><b id="sOK">–</b><span>bons pronos</span></div> 
-<div class="stat"><b id="sCrowd">–</b><span>vs majorité</span><small id="sCrowdCmp"></small></div> 
-</section> 
+.panel{display:grid;grid-template-columns:1.35fr 1fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px}
+.stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat + .stat{border-left:1px solid rgba(255,255,255,.18)}
+.stat b{font-size:24px;line-height:1.1;font-weight:800}
+.stat.main b{font-size:36px}
+.stat span{font-size:12px;color:#CBD4E5;line-height:1.25}
+.stat small{font-size:11px;color:#9FB0CC;line-height:1.25}
 
-<details class="how"> 
-  <summary>Paramètres de la clé API (The Odds)</summary> 
-  <div class="keyrow"> 
-    <input type="password" id="apiKey" placeholder="Colle ta clé secrète ici"> 
-    <button class="btn2" id="saveKey" type="button">Enregistrer</button> 
-  </div> 
-</details>
+.tools{display:flex;align-items:center;gap:10px;margin:14px 0 6px;font-size:14px;color:var(--ink-2)}
+.tools label{white-space:nowrap}
+select{font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);flex:1;min-width:0}
+details.how{font-size:14px;color:var(--ink-2);margin:6px 0 0}
+details.how summary{cursor:pointer;padding:6px 0;font-weight:600}
+details.how p{margin:4px 0 8px;color:var(--mute)}
 
-<div class="imp">
-  <label for="mppImage">📷 Déposer une capture d'écran MPP</label>
-  <input type="file" id="mppImage" accept="image/*" style="display: none;">
-  <div id="mppStatus" style="margin-top: 8px; font-size: 13px;"></div>
+h2.day{font-size:14px;font-weight:700;margin:22px 2px 8px;color:var(--ink-2);display:flex;justify-content:space-between;align-items:baseline}
+h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
+.empty-state{margin:22px 2px;color:var(--mute)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px}
+.team{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0}
+.dash{color:var(--mute)}
+.del{border:0;background:transparent;color:var(--mute);font-size:22px;line-height:1;padding:4px 10px;cursor:pointer;border-radius:6px}
+.meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:2px 10px 8px;font-size:13px;color:var(--ink-2)}
+.when{width:68px;font:inherit;font-size:14px;color:var(--mute);border:0;border-bottom:1px dashed var(--line);background:transparent;padding:2px 0;border-radius:0}
+.lvl{display:inline-flex;align-items:center;gap:6px}
+.lvl.mute{color:var(--mute)}
+.lvl.mute b{color:var(--ink-2)}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none}
+.dot.g{background:var(--lg)} .dot.o{background:var(--lo)} .dot.r{background:var(--lr)}
+.score{margin-left:auto;font-weight:400}
+.score b{font-size:17px;font-weight:800;color:var(--ink);margin-left:4px}
+
+.grid{display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));padding:0 6px 0 10px}
+.rl{font-size:12px;color:var(--mute);padding-right:4px;align-self:center;line-height:1.2}
+.c{padding:5px 4px;text-align:center;min-height:40px;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:3px}
+.c.best{background:var(--best-tint)}
+.c.h{font-size:13px;font-weight:700;padding-top:8px}
+.c.h .k{font-size:11px;font-weight:400;color:var(--mute)}
+.c.h .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c input{width:100%;text-align:center;font:inherit;font-size:16px;padding:6px 2px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+.c[data-out="p"]{font-weight:600}
+.c[data-out="edge"]{font-size:14px}
+.c[data-out="prev"]{font-size:13px;color:var(--ink-2)}
+.c .d{font-size:11px;color:var(--mute)}
+.c.pos{color:var(--best);font-weight:700}
+.c.neg{color:var(--warn);font-weight:700}
+.evv{font-size:18px;font-weight:800}
+.bar{display:block;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink-2)}
+.c.best .bar{background:#B9DED5}
+.c.best .bar i{background:var(--best)}
+.chip{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:3px 6px;border-radius:999px;background:var(--best);color:#fff}
+.chip.maj{background:transparent;color:var(--ink-2);border:1px solid var(--mute);padding:2px 5px}
+.cf{padding:6px 10px 10px;font-size:12px;color:var(--mute)}
+
+.add{width:100%;padding:13px;border:1.5px dashed var(--mute);background:transparent;border-radius:12px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;margin-top:4px}
+.btn{width:100%;padding:13px;border:0;background:var(--ink);color:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
+.recap ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.recap li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.recap li:first-child{border-top:0}
+.recap .rm{color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0}
+.recap .rp{text-align:right;white-space:nowrap}
+.recap .rp em{font-style:normal;color:var(--mute);font-size:13px}
+.recap .sc{font-weight:800;margin:0 4px}
+.recap .empty{color:var(--mute);justify-content:flex-start}
+.store{margin:14px 2px 0;font-size:12px;color:var(--mute)}
+
+.imp{margin:12px 0 4px}
+.imp .btn{margin-top:0}
+.impstatus{margin:8px 2px 0;font-size:13px;color:var(--ink-2);white-space:pre-line}
+.impstatus:empty{display:none}
+.imp .add{margin-top:8px}
+.keyrow{display:flex;gap:8px;margin:6px 0}
+.keyrow input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.btn2{border:0;background:var(--ink);color:#fff;border-radius:8px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:default}
+
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Espérance MPP</h1>
+  <p class="sub">Points du jeu × probabilités tirées des cotes</p>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
+
+  <section class="panel" aria-live="polite">
+    <div class="stat main"><b id="sEV">–</b><span>pts d'espérance en suivant les cotes</span><small id="sEVn"></small></div>
+    <div class="stat"><b id="sOK">–</b><span>bons pronos attendus</span></div>
+    <div class="stat"><b id="sCrowd">–</b><span>en jouant comme la majorité</span><small id="sCrowdCmp"></small></div>
+  </section>
+
+  <div class="tools">
+    <label for="method">Calcul des probabilités</label>
+    <select id="method">
+      <option value="prop">Proportionnel (simple)</option>
+      <option value="pow">Puissance (gros favoris)</option>
+    </select>
+  </div>
+  <details class="how">
+    <summary>Comment lire les résultats</summary>
+    <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée.</p>
+    <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
+    <p>Score conseillé : 1-0 si le choix est le domicile, 1-1 pour le nul, 0-1 pour l'extérieur.</p>
+    <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
+    <p>Écart joueurs : probabilité des cotes moins la part des joueurs qui choisissent l'issue. Positif : la majorité la délaisse.</p>
+    <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
+  </details>
+
+  <section class="imp">
+    <button class="btn" id="fetchOdds" type="button">Importer les cotes Pinnacle</button>
+    <p class="impstatus" id="impStatus" aria-live="polite"></p>
+    <details class="how" id="keyBox">
+      <summary>Clé The Odds API</summary>
+      <div class="keyrow">
+        <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici" aria-label="Clé The Odds API">
+        <button class="btn2" id="saveKey" type="button">Enregistrer</button>
+      </div>
+      <p>La clé reste sur ce téléphone. Chaque import coûte 1 crédit de ton quota The Odds API.</p>
+    </details>
+  </section>
+
+  <div id="list"></div>
+  <button class="add" id="add" type="button">Ajouter un match</button>
+
+  <section class="recap">
+    <h2 class="day"><span>Pronos conseillés</span></h2>
+    <ul id="recapList"></ul>
+    <button class="btn" id="copy" type="button">Copier le récap</button>
+  </section>
+  <p class="store" id="store"></p>
 </div>
 
-<button class="btn" id="fetchOdds" type="button" style="background:var(--focus);">🔄 Récupérer les cotes Pinnacle</button>
+<script>
+(function(){
+  var KEY = 'mpp-esperance-v2';
+  var $ = function(id){ return document.getElementById(id); };
+  var N = function(s){ var v = parseFloat(String(s).replace(',', '.')); return isFinite(v) ? v : NaN; };
+  var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+  var nf1 = new Intl.NumberFormat('fr-FR', {minimumFractionDigits:1, maximumFractionDigits:1});
+  var nf0 = new Intl.NumberFormat('fr-FR', {maximumFractionDigits:0});
+  var pct = function(x){ return (x >= 10 ? nf0.format(x) : nf1.format(x)) + '%'; };
+  var signed = function(d){ var r = Math.round(d); return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r); };
+  var strs = function(a){ return a.map(String); };
+  var nums = function(a){ return a.map(N); };
 
-<div id="list"></div> 
-<button class="add" id="add" type="button">Ajouter un match manuel</button> 
-</div> 
+  var MODES = [
+    {id:'l1',  name:'Ligue 1',             sport:'soccer_france_ligue_one'},
+    {id:'l2',  name:'Ligue 2',             sport:'soccer_france_ligue_two'},
+    {id:'ldc', name:'Ligue des champions', sport:'soccer_uefa_champs_league'}
+  ];
+  var SCORES = ['1-0', '1-1', '0-1'];
+  var LV = {g:'forte', o:'moyenne', r:'faible'};
+  var OUT_NAMES = ['victoire domicile', 'nul', 'victoire extérieur'];
+  var ROWS = [
+    {k:'pts',   label:'Points',        input:true, ph:'0',    mode:'numeric'},
+    {k:'odds',  label:'Cote Pinnacle', input:true, ph:'0.00', mode:'decimal'},
+    {k:'crowd', label:'% joueurs',     input:true, ph:'%',    mode:'numeric'},
+    {out:'p',    label:'Probabilité'},
+    {out:'ev',   label:'Espérance'},
+    {out:'prev', label:'Avant'},
+    {out:'edge', label:'Écart joueurs'},
+    {out:'tag',  label:'Repères'}
+  ];
 
-<script> 
-var KEY = 'mpp-esperance-v2'; 
-var S = { method:'prop', mode:'l1', data:{l1:[], l2:[], ldc:[]} }; 
-var $ = function(id){ return document.getElementById(id); }; 
-var MODES = [{id:'l1', name:'Ligue 1'}, {id:'l2', name:'Ligue 2'}, {id:'ldc', name:'LDC'}]; 
+  var S = { method:'prop', mode:'l1', data:{l1:[], l2:[], ldc:[]} };
+  var storageOK = false, recapText = '';
 
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} } 
-function load(){ 
-  try { 
-    var raw = localStorage.getItem(KEY); 
-    if (raw) { S = JSON.parse(raw); return true; } 
-  } catch (e) {} 
-  return false; 
-} 
-function cur(){ return S.data[S.mode]; } 
+  /* ---------- calcul ---------- */
+  function probs(odds){
+    if (odds.some(function(o){ return !(o > 1); })) return null;
+    var inv = odds.map(function(o){ return 1 / o; });
+    var sum = inv[0] + inv[1] + inv[2];
+    if (S.method === 'pow' && sum > 1.0001){
+      var lo = 1, hi = 40, k;
+      for (var n = 0; n < 60; n++){
+        k = (lo + hi) / 2;
+        var f = inv.reduce(function(a, x){ return a + Math.pow(x, k); }, 0);
+        if (f > 1) lo = k; else hi = k;
+      }
+      k = (lo + hi) / 2;
+      return inv.map(function(x){ return Math.pow(x, k); });
+    }
+    return inv.map(function(x){ return x / sum; });
+  }
 
-function newMatch(day, time, home, away, pts, odds){ 
-  return {day:day, time:time, home:home, away:away, pts:pts, odds:odds, crowd:['','','']}; 
-} 
+  function calcFrom(odds, pts){
+    var p = probs(odds);
+    var ev = (p && pts.every(function(x){ return x > 0; })) ? p.map(function(x, k){ return x * pts[k]; }) : null;
+    var best = -1, gap = null, level = null;
+    if (ev){
+      best = 0;
+      ev.forEach(function(x, k){ if (x > ev[best]) best = k; });
+      var sorted = ev.slice().sort(function(a, b){ return b - a; });
+      gap = sorted[0] - sorted[1];
+      level = gap > 5 ? 'g' : gap >= 1 ? 'o' : 'r';
+    }
+    return {p:p, ev:ev, best:best, gap:gap, level:level};
+  }
 
-function renderTabs(){ 
-  $('tabs').innerHTML = MODES.map(function(x){ 
-    return '<button type="button" data-mode="' + x.id + '" aria-selected="' + (x.id === S.mode) + '">' + x.name + '</button>'; 
-  }).join(''); 
-} 
+  function calc(m){
+    var odds = nums(m.odds);
+    var c = calcFrom(odds, nums(m.pts));
+    var crowd = nums(m.crowd);
+    c.crowd = crowd;
+    c.crowdOk = crowd.every(function(x){ return x >= 0; });
+    c.crowdPick = -1;
+    if (c.crowdOk){
+      var mx = Math.max.apply(null, crowd);
+      if (mx > 0) c.crowdPick = crowd.indexOf(mx);
+    }
+    c.margin = c.p ? odds.reduce(function(a, o){ return a + 1 / o; }, 0) - 1 : null;
+    return c;
+  }
 
-function renderAll(){ 
-  renderTabs(); 
-  var list = cur(), html = '', prev = null; 
-  list.forEach(function(m, i){ 
-    if (m.day !== prev){ 
-      html += '<h2 class="day">' + m.day + '</h2>'; 
-      prev = m.day; 
-    } 
-    html += '<article class="card" data-i="' + i + '">';
-    html += '<header class="ch"><input class="team" data-f="home" value="' + m.home + '"> – <input class="team" data-f="away" value="' + m.away + '"><button class="del">×</button></header>';
-    html += '<div class="meta"><input class="when" data-f="time" value="' + m.time + '"></div>';
-    html += '<div class="grid">';
-    html += '<div class="rl"></div><div class="c h"><span class="k">1</span></div><div class="c h"><span class="k">N</span></div><div class="c h"><span class="k">2</span></div>';
-    html += '<div class="rl">Points</div><div class="c"><input data-k="pts" data-o="0" value="' + m.pts[0] + '"></div><div class="c"><input data-k="pts" data-o="1" value="' + m.pts[1] + '"></div><div class="c"><input data-k="pts" data-o="2" value="' + m.pts[2] + '"></div>';
-    html += '<div class="rl">Cotes</div><div class="c"><input data-k="odds" data-o="0" value="' + m.odds[0] + '"></div><div class="c"><input data-k="odds" data-o="1" value="' + m.odds[1] + '"></div><div class="c"><input data-k="odds" data-o="2" value="' + m.odds[2] + '"></div>';
-    html += '</div></article>';
-  }); 
-  if (!list.length) html = '<p style="color:#666">Aucun match. Clique sur "Récupérer les cotes" ou "Ajouter".</p>'; 
-  $('list').innerHTML = html; 
-} 
+  function pickLabel(m, o){ return o === 0 ? (m.home || 'Domicile') : o === 1 ? 'Nul' : (m.away || 'Extérieur'); }
 
-$('tabs').addEventListener('click', function(e){ if(e.target.dataset.mode) { S.mode = e.target.dataset.mode; renderAll(); save(); }}); 
-$('add').addEventListener('click', function(){ cur().push(newMatch('Prochains matchs', '', 'Domicile', 'Extérieur', ['','',''], ['','',''])); renderAll(); save(); }); 
-$('list').addEventListener('click', function(e){ if(e.target.classList.contains('del')) { cur().splice(+e.target.closest('.card').dataset.i, 1); renderAll(); save(); }}); 
-$('list').addEventListener('input', function(e){ 
-  var t = e.target, m = cur()[+t.closest('.card').dataset.i]; 
-  if (t.dataset.f) m[t.dataset.f] = t.value; 
-  if (t.dataset.k) m[t.dataset.k][+t.dataset.o] = t.value; 
-  save(); 
-}); 
+  /* ---------- estimation précédente ---------- */
+  function same(a, b){
+    for (var k = 0; k < 3; k++){
+      if (!(Math.abs(a.pts[k] - b.pts[k]) < 1e-9) || !(Math.abs(a.odds[k] - b.odds[k]) < 1e-9)) return false;
+    }
+    return true;
+  }
+  function makeSnap(m, at){
+    var o = nums(m.odds), p = nums(m.pts);
+    if (!(p.every(function(x){ return x > 0; }) && o.every(function(x){ return x > 1; }))) return null;
+    return {odds:o, pts:p, at:at};
+  }
+  // Estimation de référence : la dernière validée si tu es en train de modifier, sinon la précédente.
+  function baseline(m){
+    var cur = {odds:nums(m.odds), pts:nums(m.pts)};
+    if (m.snap && !same(m.snap, cur)) return m.snap;
+    return m.prev || null;
+  }
+  function commit(m){
+    var s = makeSnap(m, new Date().toISOString());
+    if (!s) return;
+    if (!m.snap){ m.snap = s; return; }
+    if (same(m.snap, s)) return;
+    m.prev = m.snap;
+    m.snap = s;
+  }
+  function whenLabel(at){
+    if (!at) return 'estimation initiale';
+    return new Date(at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }
 
-if (localStorage.getItem('mpp-api-key')) $('apiKey').value = localStorage.getItem('mpp-api-key');
-$('saveKey').addEventListener('click', function(){
-  localStorage.setItem('mpp-api-key', $('apiKey').value.trim());
-  this.textContent = 'Enregistré !'; setTimeout(() => this.textContent = 'Enregistrer', 1500);
-});
+  /* ---------- données ---------- */
+  function newMatch(day, time, home, away, pts, odds, crowd, ts){
+    var m = {day:day, time:time, home:home, away:away, pts:pts, odds:odds, crowd:crowd, snap:null, prev:null, ts:ts || null};
+    m.snap = makeSnap(m, null);
+    return m;
+  }
+  function seed(){
+    S.data.l1 = [
+      ['Vendredi 9 octobre','20h45','Lens','OL',[85,117,104],['2.190','3.780','3.040'],[24,23,54]],
+      ['Samedi 10 octobre','17h15','LOSC','Le Havre',[49,131,155],['1.448','4.620','6.650'],[94,4,2]],
+      ['Samedi 10 octobre','20h45','Brest','Angers',[73,117,126],['1.869','3.860','3.870'],[46,37,17]],
+      ['Samedi 10 octobre','20h45','Lorient','Paris FC',[107,115,86],['3.090','3.310','2.360'],[8,17,75]],
+      ['Samedi 10 octobre','20h45','Monaco','Toulouse',[62,122,133],['1.666','4.190','4.630'],[92,5,3]],
+      ['Samedi 10 octobre','20h45','PSG','Le Mans',[21,174,207],['1.089','11.790','18.030'],[92,6,2]],
+      ['Dimanche 11 octobre','15h00','Nice','Strasbourg',[86,115,104],['2.190','3.650','3.120'],[24,39,38]],
+      ['Dimanche 11 octobre','17h15','Rennes','Auxerre',[47,136,159],['1.408','5.060','6.670'],[86,10,4]],
+      ['Dimanche 11 octobre','20h45','Troyes','OM',[121,121,71],['3.760','3.850','1.900'],[15,23,63]]
+    ].map(function(r){
+      var dd = {'Vendredi 9 octobre':'09','Samedi 10 octobre':'10','Dimanche 11 octobre':'11'}[r[0]];
+      var ts = new Date('2026-10-' + dd + 'T' + r[1].replace('h', ':') + ':00').toISOString();
+      return newMatch(r[0], r[1], r[2], r[3], strs(r[4]), r[5], strs(r[6]), ts);
+    });
+    S.data.l2 = [];
+    S.data.ldc = [];
+  }
+  function cur(){ return S.data[S.mode]; }
 
-var teamMap = {"Paris Saint Germain": "Paris SG", "Olympique Lyonnais": "Lyon", "Olympique de Marseille": "Marseille", "Lille OSC": "Lille", "RC Lens": "Lens", "AS Monaco": "Monaco", "Stade Rennais": "Rennes", "OGC Nice": "Nice", "Toulouse FC": "Toulouse", "Stade Brestois": "Brest", "Le Havre AC": "Le Havre", "Stade de Reims": "Reims", "FC Nantes": "Nantes", "Montpellier HSC": "Montpellier", "RC Strasbourg": "Strasbourg", "AJ Auxerre": "Auxerre", "Angers SCO": "Angers", "AS Saint-Étienne": "Saint-Étienne", "FC Annecy": "Annecy", "Dijon FCO": "Dijon", "Grenoble Foot 38": "Grenoble", "Clermont Foot": "Clermont", "Stade Lavallois": "Laval", "FC Sochaux": "Sochaux", "Pau FC": "Pau", "USL Dunkerque": "Dunkerque", "Rodez AF": "Rodez", "AS Nancy": "Nancy", "US Boulogne": "Boulogne", "EA Guingamp": "Guingamp", "Red Star FC": "Red Star", "FC Metz": "Metz", "Paris FC": "Paris FC", "ES Troyes AC": "Troyes", "Le Mans FC": "Le Mans", "FC Lorient": "Lorient"};
+  function save(){
+    if (!storageOK) return;
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  }
+  function load(){
+    try {
+      localStorage.setItem(KEY + '-t', '1'); localStorage.removeItem(KEY + '-t');
+      storageOK = true;
+      var raw = localStorage.getItem(KEY);
+      if (raw){
+        var o = JSON.parse(raw);
+        if (o && o.data && Array.isArray(o.data.l1) && Array.isArray(o.data.l2) && Array.isArray(o.data.ldc)){
+          S = o;
+          if (!MODES.some(function(x){ return x.id === S.mode; })) S.mode = 'l1';
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
 
-$('fetchOdds').addEventListener('click', async function() {
-  var apiKey = localStorage.getItem('mpp-api-key');
-  if (!apiKey) { alert("Mets d'abord ta clé secrète dans les paramètres !"); return; }
-  var btn = this; btn.textContent = '⏳ Recherche en cours...';
-  var sportKey = S.mode === 'l2' ? 'soccer_france_ligue_two' : 'soccer_france_ligue_one';
-  try {
-    var rep = await fetch('https://api.the-odds-api.com/v4/sports/' + sportKey + '/odds/?apiKey=' + apiKey + '&regions=eu&bookmakers=pinnacle&markets=h2h');
-    var data = await rep.json();
-    var list = cur(), updated = 0;
-    data.forEach(function(match) {
-      var pinnacle = match.bookmakers.find(b => b.key === 'pinnacle');
-      if (!pinnacle) return;
-      var out = pinnacle.markets[0].outcomes;
-      var o1 = out.find(o => o.name === match.home_team), o2 = out.find(o => o.name === match.away_team), oN = out.find(o => o.name === 'Draw');
-      if (o1 && o2 && oN) {
-        var nomDom = teamMap[match.home_team] || match.home_team, nomExt = teamMap[match.away_team] || match.away_team;
-        var existing = list.find(m => m.home.includes(nomDom) || m.away.includes(nomExt));
-        if (existing) { existing.odds = [o1.price.toFixed(3), oN.price.toFixed(3), o2.price.toFixed(3)]; updated++; } 
-        else {
-          var d = new Date(match.commence_time);
-          list.push(newMatch(d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric'}), d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':','h'), nomDom, nomExt, ['','',''], [o1.price.toFixed(3), oN.price.toFixed(3), o2.price.toFixed(3)]));
-          updated++;
+  /* ---------- rendu ---------- */
+  function lvlHTML(c){
+    if (!c.ev) return '';
+    return '<span class="dot ' + c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[c.level] + '"></span>Écart ' + nf1.format(c.gap) + ' pts';
+  }
+
+  function cardHTML(m, i){
+    var g = '<div class="rl"></div>';
+    for (var o = 0; o < 3; o++){
+      g += '<div class="c h" data-o="' + o + '"><span class="k">' + ['1','N','2'][o] + '</span><span class="nm" data-nm="' + o + '"></span></div>';
+    }
+    ROWS.forEach(function(r){
+      g += '<div class="rl">' + r.label + '</div>';
+      for (var o = 0; o < 3; o++){
+        if (r.input){
+          g += '<div class="c" data-o="' + o + '"><input type="text" inputmode="' + r.mode + '" data-k="' + r.k + '" data-o="' + o + '" placeholder="' + r.ph + '" value="' + esc(m[r.k][o]) + '" aria-label="' + r.label + ', ' + OUT_NAMES[o] + '"></div>';
+        } else {
+          g += '<div class="c" data-o="' + o + '" data-out="' + r.out + '"></div>';
         }
       }
     });
-    renderAll(); save(); btn.textContent = '✅ ' + updated + ' matchs ajoutés/mis à jour';
-  } catch (e) { btn.textContent = '❌ Erreur (vérifie ta clé)'; }
-  setTimeout(() => btn.textContent = '🔄 Récupérer les cotes Pinnacle', 3000);
-});
+    return '<article class="card" data-i="' + i + '">' +
+      '<header class="ch">' +
+        '<input class="team" data-f="home" value="' + esc(m.home) + '" aria-label="Équipe à domicile">' +
+        '<span class="dash">–</span>' +
+        '<input class="team" data-f="away" value="' + esc(m.away) + '" aria-label="Équipe à l\'extérieur">' +
+        '<button class="del" type="button" aria-label="Supprimer ce match">×</button>' +
+      '</header>' +
+      '<div class="meta">' +
+        '<input class="when" data-f="time" value="' + esc(m.time) + '" placeholder="Heure" aria-label="Heure du match">' +
+        '<span class="lvl" data-meta="lvl"></span>' +
+        '<span class="lvl mute" data-meta="prevsc"></span>' +
+        '<span class="score" data-meta="score"></span>' +
+      '</div>' +
+      '<div class="grid">' + g + '</div>' +
+      '<div class="cf" data-out="note"></div>' +
+    '</article>';
+  }
 
-if (!load()) { S.data.l1 = []; }
-renderAll(); 
+  function updateNames(card, m){
+    card.querySelectorAll('[data-nm]').forEach(function(el){
+      el.textContent = pickLabel(m, +el.dataset.nm);
+    });
+  }
 
-// Activation du Service Worker pour la PWA
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
-}
-</script> 
-</body> 
+  function updateCard(card, m){
+    var c = calc(m);
+    var b = baseline(m);
+    var bc = b ? calcFrom(b.odds, b.pts) : null;
+    var cell = function(out, o){ return card.querySelector('.c[data-out="' + out + '"][data-o="' + o + '"]'); };
+
+    card.querySelector('[data-meta="lvl"]').innerHTML = lvlHTML(c);
+    card.querySelector('[data-meta="score"]').innerHTML = c.ev ? 'Score conseillé<b>' + SCORES[c.best] + '</b>' : '';
+    card.querySelector('[data-meta="prevsc"]').innerHTML = (bc && bc.ev && c.ev)
+      ? 'Avant <b>' + SCORES[bc.best] + '</b><span class="dot ' + bc.level + '" role="img" aria-label="Force de l\'espérance avant : ' + LV[bc.level] + '"></span>'
+      : '';
+
+    for (var o = 0; o < 3; o++){
+      cell('p', o).textContent = c.p ? pct(c.p[o] * 100) : '–';
+
+      var e = cell('edge', o);
+      e.classList.remove('pos', 'neg');
+      if (c.p && c.crowdOk){
+        var d = c.p[o] * 100 - c.crowd[o];
+        e.textContent = signed(d);
+        if (d >= 5) e.classList.add('pos'); else if (d <= -5) e.classList.add('neg');
+      } else e.textContent = '–';
+
+      var v = cell('ev', o);
+      if (c.ev){
+        var w = c.ev[c.best] > 0 ? c.ev[o] / c.ev[c.best] * 100 : 0;
+        v.innerHTML = '<span class="evv">' + nf1.format(c.ev[o]) + '</span><span class="bar"><i style="width:' + w.toFixed(0) + '%"></i></span>';
+      } else v.textContent = '–';
+
+      var pv = cell('prev', o);
+      if (bc && bc.ev){
+        var delta = '';
+        if (c.ev){
+          var dd = c.ev[o] - bc.ev[o];
+          delta = dd >= 0.05 ? '▲ +' + nf1.format(dd) : dd <= -0.05 ? '▼ −' + nf1.format(-dd) : '=';
+        }
+        pv.innerHTML = '<span>' + nf1.format(bc.ev[o]) + '</span>' + (delta ? '<span class="d">' + delta + '</span>' : '');
+      } else pv.textContent = '–';
+
+      cell('tag', o).innerHTML =
+        (c.best === o ? '<span class="chip">À jouer</span>' : '') +
+        (c.crowdPick === o ? '<span class="chip maj">Majorité</span>' : '');
+
+      card.querySelectorAll('.c[data-o="' + o + '"]').forEach(function(x){ x.classList.toggle('best', c.best === o); });
+    }
+
+    var lines = [];
+    lines.push(!c.p ? 'Renseigne les trois cotes pour voir les probabilités.'
+      : !c.ev ? 'Renseigne les trois valeurs de points pour calculer l\'espérance.'
+      : 'Marge du bookmaker : ' + nf1.format(c.margin * 100) + '%');
+    if (bc && bc.ev && c.ev){
+      var changed = bc.best !== c.best;
+      lines.push('Avant (' + whenLabel(b.at) + ') : ' + pickLabel(m, bc.best) + ', ' + nf1.format(bc.ev[bc.best]) + ' pts' + (changed ? ' — le choix a changé' : ''));
+    }
+    card.querySelector('[data-out="note"]').innerHTML = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
+  }
+
+  function updateSummary(){
+    var ev = 0, ok = 0, n = 0, evC = 0, evB = 0, nC = 0, rows = [];
+    cur().forEach(function(m){
+      var c = calc(m);
+      if (!c.ev) return;
+      n++; ev += c.ev[c.best]; ok += c.p[c.best];
+      rows.push({m:m, c:c});
+      if (c.crowdPick >= 0){ nC++; evC += c.ev[c.crowdPick]; evB += c.ev[c.best]; }
+    });
+    var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
+    $('sEV').textContent = n ? nf0.format(ev) : '–';
+    $('sEVn').textContent = n ? 'sur ' + plural(n) : 'Renseigne cotes et points';
+    $('sOK').textContent = n ? nf1.format(ok) + ' / ' + n : '–';
+    $('sCrowd').textContent = nC ? nf0.format(evC) : '–';
+    $('sCrowdCmp').textContent = nC ? 'contre ' + nf0.format(evB) + ' avec les cotes (' + plural(nC) + ')' : 'Renseigne les % joueurs';
+
+    $('recapList').innerHTML = rows.length ? rows.map(function(r){
+      return '<li><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span>' + esc(r.m.home) + ' – ' + esc(r.m.away) + '</span>' +
+        '<span class="rp"><b>' + esc(pickLabel(r.m, r.c.best)) + '</b><span class="sc">' + SCORES[r.c.best] + '</span><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+    }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
+
+    var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
+    recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
+      return r.m.home + ' – ' + r.m.away + ' : ' + pickLabel(r.m, r.c.best) + ', score ' + SCORES[r.c.best] + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
+    }).join('\n') : '';
+  }
+
+  function renderTabs(){
+    $('tabs').innerHTML = MODES.map(function(x){
+      return '<button type="button" role="tab" data-mode="' + x.id + '" aria-selected="' + (x.id === S.mode) + '">' + x.name + '</button>';
+    }).join('');
+  }
+
+  function renderAll(){
+    renderTabs();
+    $('method').value = S.method;
+    var list = cur(), html = '', prev = null;
+    list.forEach(function(m, i){
+      if (m.day !== prev){
+        var count = list.filter(function(x){ return x.day === m.day; }).length;
+        html += '<h2 class="day"><span>' + esc(m.day) + '</span><span class="cnt">' + count + ' match' + (count > 1 ? 's' : '') + '</span></h2>';
+        prev = m.day;
+      }
+      html += cardHTML(m, i);
+    });
+    if (!list.length) html = '<p class="empty-state">Aucun match dans cette compétition. Ajoute-en un pour commencer.</p>';
+    $('list').innerHTML = html;
+    $('list').querySelectorAll('.card').forEach(function(card){
+      var m = list[+card.dataset.i];
+      updateNames(card, m);
+      updateCard(card, m);
+    });
+    updateSummary();
+  }
+
+  /* ---------- événements ---------- */
+  $('tabs').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-mode]');
+    if (!b) return;
+    S.mode = b.dataset.mode;
+    renderAll(); save();
+  });
+
+  $('list').addEventListener('input', function(e){
+    var t = e.target, card = t.closest('.card');
+    if (!card) return;
+    var m = cur()[+card.dataset.i];
+    if (t.dataset.f){
+      m[t.dataset.f] = t.value;
+      updateNames(card, m);
+      updateSummary();
+    } else if (t.dataset.k){
+      m[t.dataset.k][+t.dataset.o] = t.value;
+      updateCard(card, m);
+      updateSummary();
+    }
+    save();
+  });
+
+  // À la validation d'un champ cotes/points, l'estimation précédente est conservée.
+  $('list').addEventListener('change', function(e){
+    var t = e.target, card = t.closest('.card');
+    if (!card || !(t.dataset.k === 'odds' || t.dataset.k === 'pts')) return;
+    var m = cur()[+card.dataset.i];
+    commit(m);
+    updateCard(card, m);
+    updateSummary();
+    save();
+  });
+
+  $('list').addEventListener('click', function(e){
+    var b = e.target.closest('.del');
+    if (!b) return;
+    cur().splice(+b.closest('.card').dataset.i, 1);
+    renderAll(); save();
+  });
+
+  $('add').addEventListener('click', function(){
+    cur().push(newMatch('Prochains matchs', '', 'Domicile', 'Extérieur', ['','',''], ['','',''], ['','','']));
+    renderAll(); save();
+    var cards = $('list').querySelectorAll('.card');
+    var last = cards[cards.length - 1];
+    last.scrollIntoView({block:'center'});
+    var f = last.querySelector('.team');
+    f.focus(); f.select();
+  });
+
+  $('method').addEventListener('change', function(e){
+    S.method = e.target.value;
+    renderAll(); save();
+  });
+
+  $('copy').addEventListener('click', async function(){
+    var btn = $('copy'), ok = false;
+    if (!recapText) return;
+    try { await navigator.clipboard.writeText(recapText); ok = true; }
+    catch (err) {
+      var ta = document.createElement('textarea');
+      ta.value = recapText; document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    btn.textContent = ok ? 'Copié' : 'Copie impossible';
+    setTimeout(function(){ btn.textContent = 'Copier le récap'; }, 1600);
+  });
+
+
+  /* ---------- import des cotes (The Odds API) ---------- */
+  var KEY_API = 'mpp-odds-key', apiKeyMem = '';
+  function getKey(){
+    if (storageOK){ try { return localStorage.getItem(KEY_API) || ''; } catch (e) {} }
+    return apiKeyMem;
+  }
+  function setKey(k){
+    apiKeyMem = k;
+    if (storageOK){ try { if (k) localStorage.setItem(KEY_API, k); else localStorage.removeItem(KEY_API); } catch (e) {} }
+  }
+
+  var TEAM_GROUPS = [
+    ['psg','paris sg','paris saint germain','paris st germain','paris saint germain fc'],
+    ['parisfc','paris fc','paris'],
+    ['marseille','om','olympique de marseille','olympique marseille'],
+    ['lyon','ol','olympique lyonnais','olympique de lyon'],
+    ['lille','losc','losc lille','lille osc'],
+    ['lens','rc lens','racing club de lens'],
+    ['monaco','as monaco'],
+    ['havre','le havre','hac','havre ac','le havre ac'],
+    ['angers','angers sco','sco angers'],
+    ['saintetienne','saint etienne','as saint etienne','st etienne','asse'],
+    ['rennes','stade rennais','stade rennais fc'],
+    ['brest','stade brestois','stade brestois 29'],
+    ['reims','stade de reims'],
+    ['nice','ogc nice'],
+    ['nantes','fc nantes'],
+    ['auxerre','aj auxerre'],
+    ['troyes','estac','estac troyes','es troyes ac'],
+    ['redstar','red star','red star fc'],
+    ['strasbourg','rc strasbourg','rc strasbourg alsace','racing strasbourg'],
+    ['toulouse','toulouse fc','tfc'],
+    ['lorient','fc lorient'],
+    ['lemans','le mans','le mans fc'],
+    ['metz','fc metz'],
+    ['montpellier','montpellier hsc','mhsc'],
+    ['clermont','clermont foot','clermont foot 63'],
+    ['dijon','dfco','dijon fco'],
+    ['guingamp','ea guingamp'],
+    ['bastia','sc bastia'],
+    ['ajaccio','ac ajaccio'],
+    ['pau','pau fc']
+  ];
+  var ALIAS = {};
+  TEAM_GROUPS.forEach(function(g){ g.forEach(function(n){ ALIAS[n] = g[0]; }); });
+  var STOP = ['fc','rc','as','ac','sc','afc','cf','club','football','de','du','la','le','les','the'];
+  function norm(t){
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function canon(t){
+    var n = norm(t);
+    if (ALIAS[n]) return ALIAS[n];
+    var stripped = n.split(' ').filter(function(w){ return STOP.indexOf(w) < 0; }).join(' ');
+    if (ALIAS[stripped]) return ALIAS[stripped];
+    return stripped.replace(/ /g, '') || n.replace(/ /g, '');
+  }
+  function sameTeam(a, b){
+    var x = canon(a), y = canon(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    var known = ALIAS[norm(a)] || ALIAS[norm(b)];
+    return !known && x.length >= 4 && y.length >= 4 && (x.indexOf(y) >= 0 || y.indexOf(x) >= 0);
+  }
+
+  function dayLabel(d){
+    var t = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function timeLabel(d){
+    return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':', 'h');
+  }
+
+  function applyEvents(events){
+    var list = cur(), now = Date.now(), horizon = now + 8 * 864e5;
+    var res = {updated:0, added:0, noPin:0};
+    events.forEach(function(ev){
+      var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
+      var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'h2h'; })[0];
+      if (!mk){ res.noPin++; return; }
+      var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? o.price : NaN; };
+      var odds = [price(ev.home_team), price('Draw'), price(ev.away_team)];
+      if (odds.some(function(o){ return !(o > 1); })){ res.noPin++; return; }
+      var oddsStr = odds.map(function(o){ return o.toFixed(3); });
+      var d = new Date(ev.commence_time);
+
+      var m = list.filter(function(x){ return sameTeam(x.home, ev.home_team) && sameTeam(x.away, ev.away_team); })[0];
+      if (m){
+        m.odds = oddsStr;
+        m.ts = ev.commence_time;
+        m.day = dayLabel(d);
+        m.time = timeLabel(d);
+        commit(m);
+        res.updated++;
+      } else if (d.getTime() <= horizon){
+        list.push(newMatch(dayLabel(d), timeLabel(d), ev.home_team, ev.away_team, ['','',''], oddsStr, ['','',''], ev.commence_time));
+        res.added++;
+      }
+    });
+    list.sort(function(a, b){
+      var x = a.ts ? Date.parse(a.ts) : Infinity, y = b.ts ? Date.parse(b.ts) : Infinity;
+      return x - y;
+    });
+    return res;
+  }
+
+  function status(t){ $('impStatus').textContent = t; }
+
+  $('fetchOdds').addEventListener('click', async function(){
+    var key = getKey();
+    if (!key){
+      status('Ajoute d\'abord ta clé The Odds API ci-dessous.');
+      $('keyBox').open = true;
+      $('apiKey').focus();
+      return;
+    }
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    var btn = $('fetchOdds');
+    btn.disabled = true; btn.textContent = 'Import en cours…';
+    status('');
+    try {
+      var url = 'https://api.the-odds-api.com/v4/sports/' + mode.sport + '/odds?apiKey=' + encodeURIComponent(key) +
+        '&bookmakers=pinnacle&markets=h2h&oddsFormat=decimal&dateFormat=iso';
+      var r;
+      try { r = await fetch(url); }
+      catch (e) { throw new Error('Connexion impossible. Vérifie ta connexion internet.'); }
+      var left = r.headers.get('x-requests-remaining');
+      if (!r.ok){
+        var msg = '';
+        try { var j = await r.json(); msg = j.message || ''; } catch (e) {}
+        throw new Error(
+          r.status === 401 ? 'Clé refusée : vérifie ta clé The Odds API.' :
+          r.status === 429 ? 'Quota ou limite atteinte. Réessaie plus tard.' :
+          r.status === 404 ? 'Compétition indisponible pour le moment sur The Odds API.' :
+          'Erreur ' + r.status + (msg ? ' : ' + msg : '')
+        );
+      }
+      var events = await r.json();
+      if (!Array.isArray(events) || !events.length){
+        status(mode.name + ' : aucun match à venir trouvé.');
+      } else {
+        var res = applyEvents(events);
+        var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
+        var lines = [mode.name + ' : ' + p(res.updated, 'match') + ' mis à jour, ' + p(res.added, 'ajouté') + '.'];
+        if (res.noPin) lines.push(p(res.noPin, 'match') + ' sans cote Pinnacle pour l\'instant.');
+        if (res.added) lines.push('Pense à saisir les points MPP des nouveaux matchs.');
+        if (left !== null) lines.push('Crédits restants : ' + left + '.');
+        status(lines.join('\n'));
+        renderAll(); save();
+      }
+    } catch (e) {
+      status(e.message || 'Import impossible.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Importer les cotes Pinnacle';
+    }
+  });
+
+  $('saveKey').addEventListener('click', function(){
+    var k = $('apiKey').value.trim();
+    setKey(k);
+    $('apiKey').value = '';
+    $('apiKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé ici';
+    status(k ? 'Clé enregistrée. Tu peux importer les cotes.' : 'Clé supprimée.');
+    if (k) $('keyBox').open = false;
+  });
+
+  /* ---------- démarrage ---------- */
+  if (!load()) seed();
+  $('store').textContent = storageOK
+    ? 'Les matchs, les cotes et les estimations précédentes restent enregistrés sur cet appareil.'
+    : 'Enregistrement indisponible ici : les données seront perdues à la fermeture. Il fonctionne quand la page est ouverte depuis un hébergement web.';
+  if (getKey()) $('apiKey').placeholder = 'Clé enregistrée';
+  renderAll();
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  }
+})();
+</script>
+</body>
 </html>
