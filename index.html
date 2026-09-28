@@ -4,6 +4,7 @@
 <meta charset="utf-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1"> 
 <title>Espérance MPP</title> 
+<link rel="manifest" href="manifest.json">
 <style> 
 :root{ --ink:#14213D; --ink-2:#3B4863; --mute:#667085; --line:#D6DCE5; --bg:#E9EDF3; --card:#fff; --best:#0B6B5C; --best-tint:#DDF2EC; --warn:#B23A22; --focus:#2F5BFF; --lg:#1F9D55; --lo:#F08C00; --lr:#D64545; } 
 *{box-sizing:border-box} 
@@ -180,6 +181,11 @@ $('fetchOdds').addEventListener('click', async function() {
 
 if (!load()) { S.data.l1 = []; }
 renderAll(); 
+
+// Activation du Service Worker pour la PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
 </script> 
 </body> 
 </html>
