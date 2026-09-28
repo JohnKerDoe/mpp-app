@@ -1,0 +1,185 @@
+<!DOCTYPE html> 
+<html lang="fr"> 
+<head> 
+<meta charset="utf-8"> 
+<meta name="viewport" content="width=device-width, initial-scale=1"> 
+<title>Espérance MPP</title> 
+<style> 
+:root{ --ink:#14213D; --ink-2:#3B4863; --mute:#667085; --line:#D6DCE5; --bg:#E9EDF3; --card:#fff; --best:#0B6B5C; --best-tint:#DDF2EC; --warn:#B23A22; --focus:#2F5BFF; --lg:#1F9D55; --lo:#F08C00; --lr:#D64545; } 
+*{box-sizing:border-box} 
+html{-webkit-text-size-adjust:100%} 
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,sans-serif;} 
+.wrap{max-width:560px;margin:0 auto;padding:16px 12px 48px} 
+h1{font-size:22px;margin:0 0 2px;} 
+.sub{margin:0 0 12px;color:var(--mute);font-size:14px} 
+.tabs{display:flex;gap:6px;margin:0 0 12px} 
+.tabs button{flex:1;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;} 
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)} 
+.panel{display:grid;grid-template-columns:1.35fr 1fr 1fr;background:var(--ink);color:#fff;border-radius:14px;padding:14px 6px} 
+.stat{padding:0 10px;display:flex;flex-direction:column;gap:3px;min-width:0} 
+.stat + .stat{border-left:1px solid rgba(255,255,255,.18)} 
+.stat b{font-size:24px;line-height:1.1;font-weight:800} 
+.stat.main b{font-size:36px} 
+.stat span{font-size:12px;color:#CBD4E5;line-height:1.25} 
+.stat small{font-size:11px;color:#9FB0CC;} 
+.tools{display:flex;align-items:center;gap:10px;margin:14px 0 6px;font-size:14px;} 
+select{font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;flex:1;} 
+details.how{font-size:14px;color:var(--ink-2);margin:6px 0 0} 
+details.how summary{cursor:pointer;padding:6px 0;font-weight:600} 
+.keyrow{display:flex;gap:8px;margin:6px 0} 
+.keyrow input{flex:1;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;} 
+.btn2{border:0;background:var(--ink);color:#fff;border-radius:8px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer} 
+.imp{border: 2px dashed var(--line); border-radius: 12px; padding: 12px; text-align: center; background: #fff; margin: 15px 0 10px;} 
+.imp label{cursor: pointer; display: block; font-weight: 600; color: var(--ink-2); font-size: 14px;} 
+.btn{width:100%;padding:13px;border:0;background:var(--ink);color:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-bottom:10px;} 
+.add{width:100%;padding:13px;border:1.5px dashed var(--mute);background:transparent;border-radius:12px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;} 
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden; margin-top:15px;} 
+.ch{display:flex;align-items:center;gap:6px;padding:10px 6px 4px 10px} 
+.team{flex:1;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;} 
+.del{border:0;background:transparent;color:var(--mute);font-size:22px;cursor:pointer;} 
+.grid{display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));padding:0 6px 0 10px} 
+.rl{font-size:12px;color:var(--mute);padding-right:4px;align-self:center;} 
+.c{padding:5px 4px;text-align:center;min-height:40px;display:flex;flex-direction:column;justify-content:center;} 
+.c input{width:100%;text-align:center;font:inherit;font-size:16px;padding:6px 2px;border:1px solid var(--line);border-radius:6px;} 
+.c.h{font-size:13px;font-weight:700;padding-top:8px} 
+.c.h .k{font-size:11px;font-weight:400;color:var(--mute)} 
+.cf{padding:6px 10px 10px;font-size:12px;color:var(--mute)} 
+h2.day{font-size:14px;font-weight:700;margin:22px 2px 8px;color:var(--ink-2);} 
+.score b{font-size:17px;font-weight:800;color:var(--ink);margin-left:4px} 
+.meta{padding:2px 10px 8px;font-size:13px;color:var(--ink-2)} 
+.when{width:68px;font:inherit;font-size:14px;color:var(--mute);border:0;border-bottom:1px dashed var(--line);background:transparent;} 
+</style> 
+</head> 
+<body> 
+<div class="wrap"> 
+<h1>Espérance MPP</h1> 
+<p class="sub">Points du jeu × probabilités tirées des cotes</p> 
+
+<nav class="tabs" id="tabs"></nav> 
+
+<section class="panel"> 
+<div class="stat main"><b id="sEV">–</b><span>pts d'espérance</span><small id="sEVn"></small></div> 
+<div class="stat"><b id="sOK">–</b><span>bons pronos</span></div> 
+<div class="stat"><b id="sCrowd">–</b><span>vs majorité</span><small id="sCrowdCmp"></small></div> 
+</section> 
+
+<details class="how"> 
+  <summary>Paramètres de la clé API (The Odds)</summary> 
+  <div class="keyrow"> 
+    <input type="password" id="apiKey" placeholder="Colle ta clé secrète ici"> 
+    <button class="btn2" id="saveKey" type="button">Enregistrer</button> 
+  </div> 
+</details>
+
+<div class="imp">
+  <label for="mppImage">📷 Déposer une capture d'écran MPP</label>
+  <input type="file" id="mppImage" accept="image/*" style="display: none;">
+  <div id="mppStatus" style="margin-top: 8px; font-size: 13px;"></div>
+</div>
+
+<button class="btn" id="fetchOdds" type="button" style="background:var(--focus);">🔄 Récupérer les cotes Pinnacle</button>
+
+<div id="list"></div> 
+<button class="add" id="add" type="button">Ajouter un match manuel</button> 
+</div> 
+
+<script> 
+var KEY = 'mpp-esperance-v2'; 
+var S = { method:'prop', mode:'l1', data:{l1:[], l2:[], ldc:[]} }; 
+var $ = function(id){ return document.getElementById(id); }; 
+var MODES = [{id:'l1', name:'Ligue 1'}, {id:'l2', name:'Ligue 2'}, {id:'ldc', name:'LDC'}]; 
+
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} } 
+function load(){ 
+  try { 
+    var raw = localStorage.getItem(KEY); 
+    if (raw) { S = JSON.parse(raw); return true; } 
+  } catch (e) {} 
+  return false; 
+} 
+function cur(){ return S.data[S.mode]; } 
+
+function newMatch(day, time, home, away, pts, odds){ 
+  return {day:day, time:time, home:home, away:away, pts:pts, odds:odds, crowd:['','','']}; 
+} 
+
+function renderTabs(){ 
+  $('tabs').innerHTML = MODES.map(function(x){ 
+    return '<button type="button" data-mode="' + x.id + '" aria-selected="' + (x.id === S.mode) + '">' + x.name + '</button>'; 
+  }).join(''); 
+} 
+
+function renderAll(){ 
+  renderTabs(); 
+  var list = cur(), html = '', prev = null; 
+  list.forEach(function(m, i){ 
+    if (m.day !== prev){ 
+      html += '<h2 class="day">' + m.day + '</h2>'; 
+      prev = m.day; 
+    } 
+    html += '<article class="card" data-i="' + i + '">';
+    html += '<header class="ch"><input class="team" data-f="home" value="' + m.home + '"> – <input class="team" data-f="away" value="' + m.away + '"><button class="del">×</button></header>';
+    html += '<div class="meta"><input class="when" data-f="time" value="' + m.time + '"></div>';
+    html += '<div class="grid">';
+    html += '<div class="rl"></div><div class="c h"><span class="k">1</span></div><div class="c h"><span class="k">N</span></div><div class="c h"><span class="k">2</span></div>';
+    html += '<div class="rl">Points</div><div class="c"><input data-k="pts" data-o="0" value="' + m.pts[0] + '"></div><div class="c"><input data-k="pts" data-o="1" value="' + m.pts[1] + '"></div><div class="c"><input data-k="pts" data-o="2" value="' + m.pts[2] + '"></div>';
+    html += '<div class="rl">Cotes</div><div class="c"><input data-k="odds" data-o="0" value="' + m.odds[0] + '"></div><div class="c"><input data-k="odds" data-o="1" value="' + m.odds[1] + '"></div><div class="c"><input data-k="odds" data-o="2" value="' + m.odds[2] + '"></div>';
+    html += '</div></article>';
+  }); 
+  if (!list.length) html = '<p style="color:#666">Aucun match. Clique sur "Récupérer les cotes" ou "Ajouter".</p>'; 
+  $('list').innerHTML = html; 
+} 
+
+$('tabs').addEventListener('click', function(e){ if(e.target.dataset.mode) { S.mode = e.target.dataset.mode; renderAll(); save(); }}); 
+$('add').addEventListener('click', function(){ cur().push(newMatch('Prochains matchs', '', 'Domicile', 'Extérieur', ['','',''], ['','',''])); renderAll(); save(); }); 
+$('list').addEventListener('click', function(e){ if(e.target.classList.contains('del')) { cur().splice(+e.target.closest('.card').dataset.i, 1); renderAll(); save(); }}); 
+$('list').addEventListener('input', function(e){ 
+  var t = e.target, m = cur()[+t.closest('.card').dataset.i]; 
+  if (t.dataset.f) m[t.dataset.f] = t.value; 
+  if (t.dataset.k) m[t.dataset.k][+t.dataset.o] = t.value; 
+  save(); 
+}); 
+
+if (localStorage.getItem('mpp-api-key')) $('apiKey').value = localStorage.getItem('mpp-api-key');
+$('saveKey').addEventListener('click', function(){
+  localStorage.setItem('mpp-api-key', $('apiKey').value.trim());
+  this.textContent = 'Enregistré !'; setTimeout(() => this.textContent = 'Enregistrer', 1500);
+});
+
+var teamMap = {"Paris Saint Germain": "Paris SG", "Olympique Lyonnais": "Lyon", "Olympique de Marseille": "Marseille", "Lille OSC": "Lille", "RC Lens": "Lens", "AS Monaco": "Monaco", "Stade Rennais": "Rennes", "OGC Nice": "Nice", "Toulouse FC": "Toulouse", "Stade Brestois": "Brest", "Le Havre AC": "Le Havre", "Stade de Reims": "Reims", "FC Nantes": "Nantes", "Montpellier HSC": "Montpellier", "RC Strasbourg": "Strasbourg", "AJ Auxerre": "Auxerre", "Angers SCO": "Angers", "AS Saint-Étienne": "Saint-Étienne", "FC Annecy": "Annecy", "Dijon FCO": "Dijon", "Grenoble Foot 38": "Grenoble", "Clermont Foot": "Clermont", "Stade Lavallois": "Laval", "FC Sochaux": "Sochaux", "Pau FC": "Pau", "USL Dunkerque": "Dunkerque", "Rodez AF": "Rodez", "AS Nancy": "Nancy", "US Boulogne": "Boulogne", "EA Guingamp": "Guingamp", "Red Star FC": "Red Star", "FC Metz": "Metz", "Paris FC": "Paris FC", "ES Troyes AC": "Troyes", "Le Mans FC": "Le Mans", "FC Lorient": "Lorient"};
+
+$('fetchOdds').addEventListener('click', async function() {
+  var apiKey = localStorage.getItem('mpp-api-key');
+  if (!apiKey) { alert("Mets d'abord ta clé secrète dans les paramètres !"); return; }
+  var btn = this; btn.textContent = '⏳ Recherche en cours...';
+  var sportKey = S.mode === 'l2' ? 'soccer_france_ligue_two' : 'soccer_france_ligue_one';
+  try {
+    var rep = await fetch('https://api.the-odds-api.com/v4/sports/' + sportKey + '/odds/?apiKey=' + apiKey + '&regions=eu&bookmakers=pinnacle&markets=h2h');
+    var data = await rep.json();
+    var list = cur(), updated = 0;
+    data.forEach(function(match) {
+      var pinnacle = match.bookmakers.find(b => b.key === 'pinnacle');
+      if (!pinnacle) return;
+      var out = pinnacle.markets[0].outcomes;
+      var o1 = out.find(o => o.name === match.home_team), o2 = out.find(o => o.name === match.away_team), oN = out.find(o => o.name === 'Draw');
+      if (o1 && o2 && oN) {
+        var nomDom = teamMap[match.home_team] || match.home_team, nomExt = teamMap[match.away_team] || match.away_team;
+        var existing = list.find(m => m.home.includes(nomDom) || m.away.includes(nomExt));
+        if (existing) { existing.odds = [o1.price.toFixed(3), oN.price.toFixed(3), o2.price.toFixed(3)]; updated++; } 
+        else {
+          var d = new Date(match.commence_time);
+          list.push(newMatch(d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric'}), d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':','h'), nomDom, nomExt, ['','',''], [o1.price.toFixed(3), oN.price.toFixed(3), o2.price.toFixed(3)]));
+          updated++;
+        }
+      }
+    });
+    renderAll(); save(); btn.textContent = '✅ ' + updated + ' matchs ajoutés/mis à jour';
+  } catch (e) { btn.textContent = '❌ Erreur (vérifie ta clé)'; }
+  setTimeout(() => btn.textContent = '🔄 Récupérer les cotes Pinnacle', 3000);
+});
+
+if (!load()) { S.data.l1 = []; }
+renderAll(); 
+</script> 
+</body> 
+</html>
