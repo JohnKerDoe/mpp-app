@@ -248,8 +248,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Son bonus de rareté moyen (+20 à +100, estimé) est compté dans l'espérance ; la rareté réelle n'est connue qu'après le coup d'envoi.</p>
-    <p>Espérance = points du résultat + bonus moyen du score exact. Dans le récap, le score entre parenthèses est celui qu'on obtiendrait sans retirer la marge du bookmaker (probabilité = 1 ÷ cote). Il est en rouge quand il diffère du score conseillé.</p>
+    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
+    <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
@@ -411,7 +411,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var p = probs(odds);
     var evRes = (p && pts.every(function(x){ return x > 0; })) ? p.map(function(x, k){ return x * pts[k]; }) : null;
     var sc = evRes ? scoreModel(p, tot) : null;
-    var ev = evRes ? evRes.map(function(x, k){ return x + sc[k].ev; }) : null;
+    var ev = evRes ? evRes.slice() : null;   // le choix 1/N/2 se fait sur les seuls points du résultat
     var best = -1, gap = null, level = null;
     if (ev){
       best = 0;
@@ -650,7 +650,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var v = cell('ev', o);
       if (c.ev){
         var w = c.ev[c.best] > 0 ? c.ev[o] / c.ev[c.best] * 100 : 0;
-        v.innerHTML = '<span class="evv">' + nf1.format(c.ev[o]) + '</span><span class="d">dont ' + nf1.format(c.sc[o].ev) + ' score</span><span class="bar"><i style="width:' + w.toFixed(0) + '%"></i></span>';
+        v.innerHTML = '<span class="evv">' + nf1.format(c.ev[o]) + '</span><span class="bar"><i style="width:' + w.toFixed(0) + '%"></i></span>';
       } else v.textContent = '–';
 
       var pv = cell('prev', o);
@@ -710,7 +710,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!odds.every(function(o){ return o > 1; }) || !pts.every(function(x){ return x > 0; })) return '';
     var pr = odds.map(function(o){ return 1 / o; });
     var sc = scoreModel(pr, totOf(m));
-    var ev = pr.map(function(x, k){ return x * pts[k] + sc[k].ev; });
+    var ev = pr.map(function(x, k){ return x * pts[k]; });   // points ÷ cote
     var best = 0;
     ev.forEach(function(x, k){ if (x > ev[best]) best = k; });
     return sc[best].score;
