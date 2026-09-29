@@ -209,6 +209,12 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap .mt .sc{font-weight:800;color:var(--ink);background:var(--soft);border-radius:6px;padding:1px 6px;margin:0}
 .recap li.chg .mt .win,.recap li.chg .mt .sc{color:var(--pink-ink)}
 .recap li.chg .mt .sc{background:transparent;border:1px solid var(--pink-ink)}
+/* glissement entre onglets */
+@keyframes inL{from{opacity:.2;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes inR{from{opacity:.2;transform:translateX(-40px)}to{opacity:1;transform:none}}
+body.swL .panel,body.swL .recap,body.swL #list{animation:inL .22s ease-out}
+body.swR .panel,body.swR .recap,body.swR #list{animation:inR .22s ease-out}
+@media (prefers-reduced-motion: reduce){body.swL .panel,body.swL .recap,body.swL #list,body.swR .panel,body.swR .recap,body.swR #list{animation:none}}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
 </head>
@@ -1371,6 +1377,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
   if (mq && mq.addEventListener) mq.addEventListener('change', function(){ if (!themePref()) renderAll(); });
   setInterval(updateCountdown, 30000);
+
+  // Changer d'onglet en glissant le pouce vers la gauche ou la droite
+  (function(){
+    var sx = 0, sy = 0, st = 0, active = false;
+    document.addEventListener('touchstart', function(e){
+      if (e.touches.length !== 1){ active = false; return; }
+      var t = e.touches[0], el = e.target;
+      // pas depuis un champ de saisie, ni depuis le bord de l'écran (geste « retour » d'Android)
+      active = !(el.closest && el.closest('input, textarea, select')) && t.clientX > 24 && t.clientX < window.innerWidth - 24;
+      sx = t.clientX; sy = t.clientY; st = Date.now();
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+      if (!active) return;
+      active = false;
+      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < 1.8 * Math.abs(dy)) return;
+      var i = MODES.map(function(x){ return x.id; }).indexOf(S.mode), j = i + (dx < 0 ? 1 : -1);
+      if (j < 0 || j >= MODES.length) return;
+      var btn = $('tabs').querySelector('[data-mode="' + MODES[j].id + '"]');
+      if (!btn) return;
+      document.body.classList.remove('swL', 'swR');
+      void document.body.offsetWidth;
+      document.body.classList.add(dx < 0 ? 'swL' : 'swR');
+      btn.click();
+      setTimeout(function(){ document.body.classList.remove('swL', 'swR'); }, 300);
+    }, {passive:true});
+  })();
 
   // Sauvegarde : export / restauration d'un fichier JSON
   $('bkExport').addEventListener('click', function(){
