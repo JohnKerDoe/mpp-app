@@ -297,6 +297,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <button class="btn2" id="saveKey" type="button">Enregistrer</button>
       </div>
       <p>La clé reste sur ce téléphone. Chaque import coûte 2 crédits de ton quota The Odds API (résultat + nombre de buts).</p>
+      <button class="btn2" id="testMk" type="button" style="padding:10px 14px">🔍 Tester les marchés Pinnacle</button>
+      <p>Liste les types de paris disponibles sur un match de l'onglet ouvert (environ 1 crédit par région interrogée).</p>
     </details>
   </section>
 
@@ -1203,6 +1205,53 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       status(e.message || 'Import impossible.');
     } finally {
       btn.disabled = false; btn.textContent = '🔄 Cotes Pinnacle';
+    }
+  });
+
+  // Test : quels marchés (types de paris) Pinnacle et les autres bookmakers proposent-ils sur un match ?
+  $('testMk').addEventListener('click', async function(){
+    var key = getKey();
+    if (!key){ status('Ajoute d\'abord ta clé The Odds API.'); return; }
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    var btn = $('testMk'); btn.disabled = true; btn.textContent = 'Test en cours…';
+    var base = 'https://api.the-odds-api.com/v4/sports/' + mode.sport;
+    try {
+      // 1) Liste des matchs (gratuit)
+      var r = await fetch(base + '/events?apiKey=' + encodeURIComponent(key) + '&dateFormat=iso');
+      if (!r.ok) throw new Error('Liste des matchs indisponible (erreur ' + r.status + ').');
+      var evs = await r.json();
+      if (!Array.isArray(evs) || !evs.length) throw new Error(mode.name + ' : aucun match à venir.');
+      // on privilégie un match présent dans l'onglet
+      var ev = evs.filter(function(e){ return cur().some(function(m){ return sameTeam(m.home, e.home_team) && sameTeam(m.away, e.away_team); }); })[0] || evs[0];
+      // 2) Marchés disponibles pour ce match (région Europe, qui contient Pinnacle)
+      r = await fetch(base + '/events/' + ev.id + '/markets?apiKey=' + encodeURIComponent(key) + '&regions=eu&dateFormat=iso');
+      setCredits(r.headers.get('x-requests-remaining'));
+      if (!r.ok){
+        var msg = ''; try { msg = (await r.json()).message || ''; } catch (e) {}
+        throw new Error('Liste des marchés indisponible (erreur ' + r.status + (msg ? ' : ' + msg : '') + ').');
+      }
+      var data = await r.json(), bks = data.bookmakers || [];
+      var interesting = /score|team_total|alternate|handicap|spread|btts|both/i;
+      var pin = bks.filter(function(b){ return b.key === 'pinnacle'; })[0];
+      var lines = [ev.home_team + ' – ' + ev.away_team + ' :'];
+      lines.push('Pinnacle : ' + (pin ? pin.markets.map(function(m){ return m.key; }).join(', ') : 'absent de ce match'));
+      var others = {};
+      bks.forEach(function(b){
+        if (b.key === 'pinnacle') return;
+        b.markets.forEach(function(m){ if (interesting.test(m.key)) (others[m.key] = others[m.key] || []).push(b.title); });
+      });
+      var ok = Object.keys(others);
+      lines.push(ok.length
+        ? 'Autres bookmakers : ' + ok.map(function(k){ return k + ' (' + others[k].length + ')'; }).join(', ')
+        : 'Autres bookmakers : pas de marché score exact ni buts par équipe.');
+      var hasCS = (pin ? pin.markets : []).some(function(m){ return /score/i.test(m.key); });
+      var hasTT = (pin ? pin.markets : []).some(function(m){ return /team_total/i.test(m.key); });
+      lines.push(hasCS ? '→ Pinnacle propose un marché de score exact.' : hasTT ? '→ Pas de score exact, mais les buts par équipe sont disponibles.' : '→ Pinnacle ne propose ni score exact ni buts par équipe ici.');
+      status(lines.join('\n'));
+    } catch (e) {
+      status(e.message || 'Test impossible. Vérifie ta connexion internet.');
+    } finally {
+      btn.disabled = false; btn.textContent = '🔍 Tester les marchés Pinnacle';
     }
   });
 
