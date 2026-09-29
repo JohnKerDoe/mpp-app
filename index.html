@@ -136,6 +136,9 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap .rm{color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0}
 .recap .rp{text-align:right;white-space:nowrap}
 .recap .rp em{font-style:normal;color:var(--mute);font-size:13px}
+.recap .rp .raw{color:var(--mute);font-size:13px;margin-right:6px}
+.recap .rp .raw.diff{color:var(--warn);font-weight:800}
+.recap li.chg .rp .raw{color:var(--pink-ink)}
 .recap .sc{font-weight:800;margin:0 4px}
 .recap .empty{color:var(--mute);justify-content:flex-start}
 .recap li.chg{background:var(--pink-bg)}
@@ -240,7 +243,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Son bonus de rareté moyen (+20 à +100, estimé) est compté dans l'espérance ; la rareté réelle n'est connue qu'après le coup d'envoi.</p>
-    <p>Espérance = points du résultat + bonus moyen du score exact.</p>
+    <p>Espérance = points du résultat + bonus moyen du score exact. Dans le récap, le score entre parenthèses est celui qu'on obtiendrait sans retirer la marge du bookmaker (probabilité = 1 ÷ cote). Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
@@ -695,6 +698,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     el.hidden = false;
   }
 
+  // Score conseillé si l'on prend 1/cote comme probabilité, sans retirer la marge du bookmaker
+  function rawScore(m){
+    var odds = nums(m.odds), pts = nums(m.pts);
+    if (!odds.every(function(o){ return o > 1; }) || !pts.every(function(x){ return x > 0; })) return '';
+    var pr = odds.map(function(o){ return 1 / o; });
+    var sc = scoreModel(pr, totOf(m));
+    var ev = pr.map(function(x, k){ return x * pts[k] + sc[k].ev; });
+    var best = 0;
+    ev.forEach(function(x, k){ if (x > ev[best]) best = k; });
+    return sc[best].score;
+  }
+
   function updateSummary(){
     updateCountdown();
     var ev = 0, ok = 0, n = 0, rows = [];
@@ -716,12 +731,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           '<span class="' + (r.c.best === 0 ? 'win' : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win' : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
-        '<span class="rp"><em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+        '<span class="rp">' + (function(){ var rs = rawScore(r.m); return rs ? '<span class="raw' + (rs !== scoreOf(r.c, r.c.best) ? ' diff' : '') + '" title="Score sans retirer la marge du bookmaker">(' + rs + ')</span>' : ''; })() + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
-      return r.m.home + ' ' + scoreOf(r.c, r.c.best) + ' ' + r.m.away + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
+      return r.m.home + ' ' + scoreOf(r.c, r.c.best) + ' ' + r.m.away + ' (brut ' + (rawScore(r.m) || '–') + ' / ' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
     }).join('\n') : '';
   }
 
@@ -1360,12 +1375,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   // Sauvegarde : export / restauration d'un fichier JSON
   $('bkExport').addEventListener('click', function(){
     var data = JSON.stringify({app:'esperance-mpp', v:1, at:new Date().toISOString(), state:S}, null, 1);
-    var name = 'esperance-mpp-' + new Date().toISOString().slice(0, 10) + '.json';
+    var name = 'JKD-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
     var blob = new Blob([data], {type:'application/json'});
     var url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
-    status('Sauvegarde exportée : ' + name + ' (dossier Téléchargements).');
+    status('Sauvegarde exportée : ' + name + '.');
   });
   $('bkImport').addEventListener('click', function(){ $('bkFile').click(); });
   $('bkFile').addEventListener('change', function(e){
