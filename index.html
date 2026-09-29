@@ -795,11 +795,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   // Met à jour uniquement les matchs de la capture MPP, sans en ajouter
+  // Cotes reçues au format américain (entiers, comme chez Pinnacle), converties en cotes décimales à 3 chiffres
+  function dec(a){
+    a = +a;
+    if (!isFinite(a) || a === 0) return NaN;
+    var d = a > 0 ? 1 + a / 100 : 1 + 100 / -a;
+    return Math.round(d * 1000) / 1000;
+  }
+
   function pinOdds(ev){
     var bk = (ev.bookmakers || []).filter(function(b){ return b.key === 'pinnacle'; })[0];
     var mk = bk && (bk.markets || []).filter(function(x){ return x.key === 'h2h'; })[0];
     if (!mk) return null;
-    var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? o.price : NaN; };
+    var price = function(name){ var o = mk.outcomes.filter(function(x){ return x.name === name; })[0]; return o ? dec(o.price) : NaN; };
     var odds = [price(ev.home_team), price('Draw'), price(ev.away_team)];
     return odds.every(function(o){ return o > 1; }) ? odds : null;
   }
@@ -810,8 +818,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!mk) return null;
     var ov = mk.outcomes.filter(function(x){ return x.name === 'Over'; })[0];
     var un = mk.outcomes.filter(function(x){ return x.name === 'Under'; })[0];
-    if (!ov || !un || ov.point !== un.point || !(ov.price > 1) || !(un.price > 1)) return null;
-    return {line:String(ov.point), over:ov.price.toFixed(3), under:un.price.toFixed(3)};
+    var po = ov && dec(ov.price), pu = un && dec(un.price);
+    if (!ov || !un || ov.point !== un.point || !(po > 1) || !(pu > 1)) return null;
+    return {line:String(ov.point), over:po.toFixed(3), under:pu.toFixed(3)};
   }
 
   function applyEvents(events){
@@ -902,7 +911,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     status('');
     try {
       var url = 'https://api.the-odds-api.com/v4/sports/' + mode.sport + '/odds?apiKey=' + encodeURIComponent(key) +
-        '&bookmakers=pinnacle&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso';
+        '&bookmakers=pinnacle&markets=h2h,totals&oddsFormat=american&dateFormat=iso';
       var r;
       try { r = await fetch(url); }
       catch (e) { throw new Error('Connexion impossible. Vérifie ta connexion internet.'); }
