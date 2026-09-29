@@ -17,6 +17,8 @@
   --chg:#5B3FD6; --chg-tint:#EEEAFD; --chg-ink:#3A2A8C;
   --field:#fff; --soft:#F6F8FB; --best-bar:#B9DED5; --on-best:#fff;
   --pink-bg:#FDE6F0; --pink-ink:#C8003A; --low-ink:#8A4F00;
+  --tg:#16874A; --to:#B35F00; --tr:#C23434;
+  --tgb:#DDF2E6; --tob:#FDEBD3; --trb:#FBE0E0;
 }
 html[data-theme="dark"]{
   --ink:#E6EAF2; --ink-2:#BAC3D3; --mute:#8C96AA; --line:#2B3446; --card:#161C29;
@@ -24,6 +26,8 @@ html[data-theme="dark"]{
   --chg:#8A73FF; --chg-tint:#2A2352; --chg-ink:#D6CCFF;
   --field:#0F1522; --soft:#1B2232; --best-bar:#1F5A4C; --on-best:#06231C;
   --pink-bg:#3B1226; --pink-ink:#FF7EA6; --low-ink:#FFB65C;
+  --tg:#45D98A; --to:#FFB347; --tr:#FF7A7A;
+  --tgb:#123D2A; --tob:#3D2A10; --trb:#3D1818;
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -149,6 +153,10 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 
 .imp{margin:12px 0 4px}
 .imp .btn{margin-top:0}
+.improw{display:flex;gap:8px;align-items:stretch}
+.improw .btn.ghost{margin:0}
+html[data-theme="dark"] .btn.ghost{color:#fff}
+.improw .btn{flex:1;min-width:0;margin:0;padding:12px 6px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .impbox{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 4px 8px 10px}
 .impstatus{flex:1;min-width:0;margin:0;font-size:13px;color:var(--ink-2);white-space:pre-line}
 .impbox .del{flex:none;padding:0 8px}
@@ -213,11 +221,15 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .hsc{flex:none;min-width:48px;text-align:center;font-size:17px;font-weight:800;color:var(--mute);padding:3px 8px;border-radius:8px;white-space:nowrap}
 .hsc.on{background:var(--best-tint);color:var(--best)}
 .team.pick{color:var(--best)}
+.lv-g{color:var(--tg) !important} .lv-o{color:var(--to) !important} .lv-r{color:var(--tr) !important}
+.hsc.on.lv-g,.recap .mt .sc.lv-g{background:var(--tgb)}
+.hsc.on.lv-o,.recap .mt .sc.lv-o{background:var(--tob)}
+.hsc.on.lv-r,.recap .mt .sc.lv-r{background:var(--trb)}
 .score b{margin-left:0}
 .recap .mt{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 .recap .mt .win{font-weight:800;color:var(--ink)}
 .recap .mt .sc{font-weight:800;color:var(--ink);background:var(--soft);border-radius:6px;padding:1px 6px;margin:0}
-.recap li.chg .mt .win,.recap li.chg .mt .sc{color:var(--pink-ink)}
+.recap li.chg .mt .sc{color:var(--pink-ink)}
 .recap li.chg .mt .sc{background:transparent;border:1px solid var(--pink-ink)}
 /* glissement entre onglets */
 @keyframes inL{from{opacity:.2;transform:translateX(40px)}to{opacity:1;transform:none}}
@@ -255,7 +267,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <section class="recap">
     <h2 class="day"><span>Pronos conseillés</span></h2>
     <ul id="recapList"></ul>
-    <button class="btn" id="copy" type="button">Copier le récap</button>
   </section>
 
   <details class="how" style="margin-top:14px">
@@ -270,9 +281,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </details>
 
   <section class="imp">
-    <button class="btn" id="qShot" type="button">Importer les points MPP (capture)</button>
+    <div class="improw">
+      <button class="btn" id="qShot" type="button">📷 Points MPP</button>
+      <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes Pinnacle</button>
+    </div>
     <input type="file" id="qFile" accept="image/*" multiple hidden>
-    <button class="btn ghost" id="fetchOdds" type="button">Importer les cotes Pinnacle</button>
     <div class="impbox" id="impBox" hidden>
       <p class="impstatus" id="impStatus" aria-live="polite"></p>
       <button class="del" id="impClose" type="button" aria-label="Masquer le message">×</button>
@@ -633,8 +646,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var hs = card.querySelector('[data-meta="hscore"]');
     hs.textContent = c.ev ? scoreOf(c, c.best) : '–';
     hs.classList.toggle('on', !!c.ev);
-    card.querySelector('[data-f="home"]').classList.toggle('pick', !!c.ev && c.best === 0);
-    card.querySelector('[data-f="away"]').classList.toggle('pick', !!c.ev && c.best === 2);
+    var th = card.querySelector('[data-f="home"]'), ta = card.querySelector('[data-f="away"]');
+    [th, ta, hs].forEach(function(x){ x.classList.remove('lv-g', 'lv-o', 'lv-r'); });
+    th.classList.toggle('pick', !!c.ev && c.best === 0);
+    ta.classList.toggle('pick', !!c.ev && c.best === 2);
+    if (c.ev){
+      hs.classList.add('lv-' + c.level);                         // le score prend toujours la couleur
+      if (c.best !== 1) (c.best === 0 ? th : ta).classList.add('lv-' + c.level);
+    }
     var fb = card.querySelector('[data-fold]');
     fb.setAttribute('aria-expanded', String(isOpen(m)));
     fb.setAttribute('aria-label', isOpen(m) ? 'Masquer le détail' : 'Afficher le détail');
@@ -783,9 +802,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('recapList').innerHTML = rows.length ? rows.map(function(r){
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
       return '<li' + (r.ch ? ' class="chg"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
-          '<span class="' + (r.c.best === 0 ? 'win' : '') + '">' + esc(r.m.home) + '</span>' +
-          '<span class="sc">' + scoreOf(r.c, r.c.best) + '</span>' +
-          '<span class="' + (r.c.best === 2 ? 'win' : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
+          '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
+          '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
+          '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
         '<span class="rp">' + (function(){ var rs = rawScore(r.m); return rs ? '<span class="raw' + (rs !== scoreOf(r.c, r.c.best) ? ' diff' : '') + '" title="Score sans retirer la marge du bookmaker">(' + rs + ')</span>' : ''; })() + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
 
@@ -905,19 +924,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     renderAll(); save();
   });
 
-  $('copy').addEventListener('click', async function(){
-    var btn = $('copy'), ok = false;
-    if (!recapText) return;
-    try { await navigator.clipboard.writeText(recapText); ok = true; }
-    catch (err) {
-      var ta = document.createElement('textarea');
-      ta.value = recapText; document.body.appendChild(ta); ta.select();
-      try { ok = document.execCommand('copy'); } catch (_) {}
-      ta.remove();
-    }
-    btn.textContent = ok ? 'Copié' : 'Copie impossible';
-    setTimeout(function(){ btn.textContent = 'Copier le récap'; }, 1600);
-  });
 
 
   /* ---------- import des cotes (The Odds API) ---------- */
@@ -1196,7 +1202,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     } catch (e) {
       status(e.message || 'Import impossible.');
     } finally {
-      btn.disabled = false; btn.textContent = 'Importer les cotes Pinnacle';
+      btn.disabled = false; btn.textContent = '🔄 Cotes Pinnacle';
     }
   });
 
@@ -1405,7 +1411,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       status(err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.');
     } finally {
       if (worker) { try { await worker.terminate(); } catch (e) {} }
-      btn.disabled = false; btn.textContent = 'Importer les points MPP (capture)';
+      btn.disabled = false; btn.textContent = '📷 Points MPP';
     }
   });
 
