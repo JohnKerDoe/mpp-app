@@ -243,9 +243,14 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))}
 .bbar > *{max-width:536px;margin-left:auto;margin-right:auto}
 .bbar .impbox{margin:0 auto 8px;max-height:38vh;overflow:auto}
 /* page Réglages */
-.sheet{position:fixed;inset:0;z-index:30;background:rgba(8,12,24,.55);display:flex;align-items:flex-end;justify-content:center}
-.sheet-in{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 16px calc(20px + env(safe-area-inset-bottom, 0px))}
-.sheet-in h3{font-size:14px;color:var(--ink-2);margin:18px 0 8px}
+.sheet{position:fixed;inset:0;z-index:30;overflow:auto;--acc:#3D4452;--bg:#EEF0F3;background:var(--bg)}
+html[data-theme="dark"] .sheet{--acc:#5B6475;--bg:#12151B}
+.sethead{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;background:var(--acc);color:#fff;padding:calc(10px + env(safe-area-inset-top, 0px)) 8px 10px}
+.sethead h2{margin:0;font-size:19px;flex:1}
+.sethead .back{border:0;background:transparent;color:#fff;font-size:24px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:8px}
+.sheet-in{max-width:560px;margin:0 auto;padding:6px 16px calc(24px + env(safe-area-inset-bottom, 0px))}
+.sheet-in h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:22px 0 8px}
+.sheet-in section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
 .sheet-in .note{font-size:13px;color:var(--mute);margin:6px 0}
 .sheet-in .btn{margin-top:0}
 .sheet-in .row{display:flex;gap:8px}
@@ -333,32 +338,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
 <!-- Page Réglages -->
 <div class="sheet" id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sethead">
+    <button class="back" id="setClose" type="button" aria-label="Retour">←</button>
+    <h2 id="setTitle">⚙️ Réglages</h2>
+  </div>
   <div class="sheet-in">
-    <div class="qhead">
-      <h2 id="setTitle">⚙️ Réglages</h2>
-      <button class="del" id="setClose" type="button" aria-label="Fermer les réglages">×</button>
-    </div>
 
     <h3>Affichage</h3>
-    <button class="btn ghost" id="themeBtn" type="button"></button>
+    <section class="grp">
+      <button class="btn ghost" id="themeBtn" type="button"></button>
+    </section>
 
     <h3>Clé The Odds API</h3>
+    <section class="grp">
     <div class="keyrow">
       <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici" aria-label="Clé The Odds API">
       <button class="btn2" id="saveKey" type="button">Enregistrer</button>
     </div>
     <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
+    </section>
 
     <h3>Sauvegarde</h3>
-    <p class="note">Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
+    <section class="grp">
+    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
     <div class="row">
       <button class="btn" id="bkExport" type="button">Exporter</button>
       <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
     </div>
     <input type="file" id="bkFile" accept=".json,application/json" hidden>
+    </section>
 
     <h3>Aide</h3>
-  <details class="how">
+    <section class="grp">
+  <details class="how" style="margin:0">
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
@@ -366,8 +378,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
-    <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
+    <p>Le choix 1N2 ne compte que les points du résultat, sans bonus de score exact.</p>
   </details>
+    </section>
     <p class="store" id="store"></p>
   </div>
 </div>
@@ -1489,11 +1502,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
 
   /* ---------- réglages ---------- */
-  function openSettings(){ $('settings').hidden = false; document.body.classList.add('noscroll'); }
-  function closeSettings(){ $('settings').hidden = true; document.body.classList.remove('noscroll'); }
+  function openSettings(){
+    $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
+    var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
+  }
+  function closeSettings(){ $('settings').hidden = true; document.body.classList.remove('noscroll'); renderAll(); }
   $('setBtn').addEventListener('click', openSettings);
   $('setClose').addEventListener('click', closeSettings);
-  $('settings').addEventListener('click', function(e){ if (e.target === $('settings')) closeSettings(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); });
 
 
