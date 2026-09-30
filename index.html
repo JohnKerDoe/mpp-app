@@ -237,6 +237,40 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 body.swL .panel,body.swL .recap,body.swL #list{animation:inL .22s ease-out}
 body.swR .panel,body.swR .recap,body.swR #list{animation:inR .22s ease-out}
 @media (prefers-reduced-motion: reduce){body.swL .panel,body.swL .recap,body.swL #list,body.swR .panel,body.swR .recap,body.swR #list{animation:none}}
+/* barre fixe en bas */
+body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))}
+.bbar{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:8px 12px calc(10px + env(safe-area-inset-bottom, 0px));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+.bbar > *{max-width:536px;margin-left:auto;margin-right:auto}
+.bbar .impbox{margin:0 auto 8px;max-height:38vh;overflow:auto}
+/* page Réglages */
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(8,12,24,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet-in{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 16px calc(20px + env(safe-area-inset-bottom, 0px))}
+.sheet-in h3{font-size:14px;color:var(--ink-2);margin:18px 0 8px}
+.sheet-in .note{font-size:13px;color:var(--mute);margin:6px 0}
+.sheet-in .btn{margin-top:0}
+.sheet-in .row{display:flex;gap:8px}
+.sheet-in .row .btn{flex:1}
+body.noscroll{overflow:hidden}
+/* match en direct / terminé */
+:root{--live:#E5243B;--live-tint:#FDE3E6;--live-ink:#B3102A;--done-tint:#EEF1F6}
+html[data-theme="dark"]{--live:#FF4D63;--live-tint:#3A1219;--live-ink:#FF8A99;--done-tint:#1E2533}
+.stb{display:none;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:5px 6px 5px 10px}
+.card.st-live .stb,.card.st-done .stb{display:flex}
+.card.st-live{border:2px solid var(--live) !important;box-shadow:0 0 0 3px var(--live-tint) !important}
+.card.st-live .stb{background:var(--live-tint);color:var(--live-ink)}
+.card.st-done{background:var(--done-tint)}
+.card.st-done .stb{background:var(--line);color:var(--ink-2)}
+.stb .sc2{font-size:16px;font-weight:800;margin-left:2px}
+.stb .rf{margin-left:auto;border:0;background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:700;padding:4px 8px;cursor:pointer;border-radius:6px}
+.ldot{width:8px;height:8px;border-radius:50%;background:var(--live);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.ldot{animation:none}}
+.c input:disabled{opacity:.7;background:transparent;border-style:dashed}
+.recap li.live{box-shadow:inset 4px 0 0 var(--live)}
+.recap li.done{background:var(--done-tint)}
+.lb{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;border-radius:999px;padding:2px 7px;margin-right:6px;vertical-align:1px;white-space:nowrap}
+.lb.live{background:var(--live);color:#fff}
+.lb.done{background:var(--line);color:var(--ink-2)}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
 </head>
@@ -246,7 +280,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <h1>JKD+</h1>
     <div class="topr">
       <span class="credits" id="credits" hidden></span>
-      <button class="themebtn" id="themeBtn" type="button"></button>
+      <button class="themebtn" id="setBtn" type="button" aria-label="Réglages">⚙️</button>
     </div>
   </div>
   <p class="sub">Points du jeu × probabilités tirées des cotes</p>
@@ -269,36 +303,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <ul id="recapList"></ul>
   </section>
 
-  <details class="how" style="margin-top:14px">
-    <summary>Comment lire les résultats</summary>
-    <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
-    <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
-    <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
-    <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
-    <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
-    <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
-  </details>
 
-  <section class="imp">
-    <div class="improw">
-      <button class="btn" id="qShot" type="button">📷 Points MPP</button>
-      <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes Pinnacle</button>
-    </div>
-    <input type="file" id="qFile" accept="image/*" multiple hidden>
-    <div class="impbox" id="impBox" hidden>
-      <p class="impstatus" id="impStatus" aria-live="polite"></p>
-      <button class="del" id="impClose" type="button" aria-label="Masquer le message">×</button>
-    </div>
-    <details class="how" id="keyBox">
-      <summary>Clé The Odds API</summary>
-      <div class="keyrow">
-        <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici" aria-label="Clé The Odds API">
-        <button class="btn2" id="saveKey" type="button">Enregistrer</button>
-      </div>
-      <p>La clé reste sur ce téléphone. Chaque import coûte 2 crédits de ton quota The Odds API (résultat + nombre de buts).</p>
-    </details>
-  </section>
 
   <section class="quick" id="review" hidden aria-labelledby="rTitle">
     <div class="qhead">
@@ -311,17 +316,60 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </section>
 
   <div id="list"></div>
+</div>
 
-  <details class="how backup">
-    <summary>Sauvegarde</summary>
-    <p>Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
+<!-- Barre fixe en bas : imports et messages -->
+<div class="bbar" id="bbar">
+  <div class="impbox" id="impBox" hidden>
+    <p class="impstatus" id="impStatus" aria-live="polite"></p>
+    <button class="del" id="impClose" type="button" aria-label="Masquer le message">×</button>
+  </div>
+  <div class="improw">
+    <button class="btn" id="qShot" type="button">📷 Points MPP</button>
+    <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes Pinnacle</button>
+  </div>
+  <input type="file" id="qFile" accept="image/*" multiple hidden>
+</div>
+
+<!-- Page Réglages -->
+<div class="sheet" id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sheet-in">
+    <div class="qhead">
+      <h2 id="setTitle">⚙️ Réglages</h2>
+      <button class="del" id="setClose" type="button" aria-label="Fermer les réglages">×</button>
+    </div>
+
+    <h3>Affichage</h3>
+    <button class="btn ghost" id="themeBtn" type="button"></button>
+
+    <h3>Clé The Odds API</h3>
+    <div class="keyrow">
+      <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici" aria-label="Clé The Odds API">
+      <button class="btn2" id="saveKey" type="button">Enregistrer</button>
+    </div>
+    <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
+
+    <h3>Sauvegarde</h3>
+    <p class="note">Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
     <div class="row">
       <button class="btn" id="bkExport" type="button">Exporter</button>
       <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
     </div>
     <input type="file" id="bkFile" accept=".json,application/json" hidden>
+
+    <h3>Aide</h3>
+  <details class="how">
+    <summary>Comment lire les résultats</summary>
+    <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
+    <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
+    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
+    <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
+    <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
+    <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
+    <p>Le calcul ne compte que le bon résultat 1N2, sans bonus de score exact.</p>
   </details>
-  <p class="store" id="store"></p>
+    <p class="store" id="store"></p>
+  </div>
 </div>
 
 <script>
@@ -576,6 +624,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     return '<article class="card' + (isOpen(m) ? ' open' : '') + '" data-i="' + i + '">' +
       '<div class="chgb" data-meta="chg" role="status"></div>' +
+      '<div class="stb" data-meta="st"></div>' +
       '<header class="ch">' +
         '<input class="team" data-f="home" value="' + esc(m.home) + '" aria-label="Équipe à domicile">' +
         '<span class="hsc" data-meta="hscore" aria-label="Score conseillé">–</span>' +
@@ -623,8 +672,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return '';
   }
 
+  // État d'un match : à venir, en direct (≈ 2 h après le coup d'envoi) ou terminé
+  function matchState(m){
+    var ko = kickoff(m);
+    if (!isFinite(ko)) return 'pre';
+    var now = Date.now();
+    if (now < ko) return 'pre';
+    return now < ko + 125 * 6e4 ? 'live' : 'done';
+  }
+
   function updateCard(card, m){
     var c = calc(m);
+    var st = matchState(m);
+    card.classList.toggle('st-live', st === 'live');
+    card.classList.toggle('st-done', st === 'done');
+    card.querySelectorAll('input[data-k]').forEach(function(x){ x.disabled = st !== 'pre'; });
+    card.querySelector('[data-meta="st"]').innerHTML = st === 'live'
+      ? '<span class="ldot" aria-hidden="true"></span>EN DIRECT'
+      : st === 'done' ? 'Terminé' : '';
     var b = baseline(m);
     var bc = b ? calcFrom(b.odds, b.pts, b.tot) : null;
     var cell = function(out, o){ return card.querySelector('.c[data-out="' + out + '"][data-o="' + o + '"]'); };
@@ -779,7 +844,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (!c.ev) return;
       n++; ev += c.ev[c.best]; ok += c.p[c.best];
       var b0 = baseline(m);
-      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts, b0.tot) : null, m)});
+      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts, b0.tot) : null, m), st:matchState(m)});
     });
     var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
     $('sOK').innerHTML = n ? '<b>' + nf1.format(ok) + ' / ' + n + '</b><br>bons pronos attendus' : 'Aucun match<br>à calculer';
@@ -799,14 +864,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('pChg').hidden = !n;
     updateImpAge();
 
-    $('recapList').innerHTML = rows.length ? rows.map(function(r){
+    $('recapList').innerHTML = !rows.length ? '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>'
+      : rows.map(function(r){
+      var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
+        : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
-      return '<li' + (r.ch ? ' class="chg"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
+      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : ''].join(' ').trim();
+      return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
-        '<span class="rp">' + (function(){ var rs = rawScore(r.m); return rs ? '<span class="raw' + (rs !== scoreOf(r.c, r.c.best) ? ' diff' : '') + '" title="Score sans retirer la marge du bookmaker">(' + rs + ')</span>' : ''; })() + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
-    }).join('') : '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>';
+        '<span class="rp">' + lb + (function(){ var rs = rawScore(r.m); return rs ? '<span class="raw' + (rs !== scoreOf(r.c, r.c.best) ? ' diff' : '') + '" title="Score sans retirer la marge du bookmaker">(' + rs + ')</span>' : ''; })() + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+    }).join('');
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
@@ -831,7 +900,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var t = theme();
     document.documentElement.setAttribute('data-theme', t);
     var b = $('themeBtn');
-    b.textContent = t === 'dark' ? '☀️' : '🌙';
+    b.textContent = t === 'dark' ? '☀️ Passer en mode clair' : '🌙 Passer en mode sombre';
     b.setAttribute('aria-label', t === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
   }
   function renderAll(){
@@ -1074,7 +1143,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   function applyEvents(events){
     var list = cur(), linked = [], used = [], res = {updated:0, notes:[]};
+    var frozen = 0;
     var setOdds = function(m, ev, odds){
+      if (matchState(m) !== 'pre'){ frozen++; return; }   // match commencé : les cotes d'avant-match restent
       var d = new Date(ev.commence_time);
       if (!m.hist){
         m.hist = [];
@@ -1123,6 +1194,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
     });
 
+    if (frozen) res.notes.push(frozen + ' match' + (frozen > 1 ? 's' : '') + ' déjà commencé' + (frozen > 1 ? 's' : '') + ' : cotes d\'avant-match conservées.');
     if (list.every(function(x){ return x.ts; })){
       list.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
     }
@@ -1157,8 +1229,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   $('fetchOdds').addEventListener('click', async function(){
     var key = getKey();
     if (!key){
-      status('Ajoute d\'abord ta clé The Odds API ci-dessous.');
-      $('keyBox').open = true;
+      status('Ajoute d\'abord ta clé The Odds API dans les réglages ⚙️.');
+      openSettings();
       $('apiKey').focus();
       return;
     }
@@ -1212,7 +1284,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('apiKey').value = '';
     $('apiKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé ici';
     status(k ? 'Clé enregistrée. Tu peux importer les cotes.' : 'Clé supprimée.');
-    if (k) $('keyBox').open = false;
+    if (k) closeSettings();
   });
 
 
@@ -1415,10 +1487,30 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     }
   });
 
+
+  /* ---------- réglages ---------- */
+  function openSettings(){ $('settings').hidden = false; document.body.classList.add('noscroll'); }
+  function closeSettings(){ $('settings').hidden = true; document.body.classList.remove('noscroll'); }
+  $('setBtn').addEventListener('click', openSettings);
+  $('setClose').addEventListener('click', closeSettings);
+  $('settings').addEventListener('click', function(e){ if (e.target === $('settings')) closeSettings(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); });
+
+
+
+  // Passage automatique « à venir → en direct → terminé » sans recharger
+  var lastStates = '';
+  setInterval(function(){
+    var sig = cur().map(matchState).join(',');
+    if (sig !== lastStates){ lastStates = sig; renderAll(); }
+  }, 30000);
+
   /* ---------- démarrage ---------- */
   if (!load()) seed();
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ m.home = shortName(m.home); m.away = shortName(m.away); }); });
   S.method = 'pow';
+  delete S.filter;
+  MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ delete m.live; }); });
   delete S.scoreMode;
   $('store').textContent = storageOK
     ? 'Les matchs, les cotes et les estimations précédentes restent enregistrés sur cet appareil.'
@@ -1441,7 +1533,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (e.touches.length !== 1){ active = false; return; }
       var t = e.touches[0], el = e.target;
       // pas depuis un champ de saisie, ni depuis le bord de l'écran (geste « retour » d'Android)
-      active = !(el.closest && el.closest('input, textarea, select')) && t.clientX > 24 && t.clientX < window.innerWidth - 24;
+      active = $('settings').hidden && !(el.closest && el.closest('input, textarea, select, .bbar')) && t.clientX > 24 && t.clientX < window.innerWidth - 24;
       sx = t.clientX; sy = t.clientY; st = Date.now();
     }, {passive:true});
     document.addEventListener('touchend', function(e){
