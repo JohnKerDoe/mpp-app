@@ -360,14 +360,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     </section>
 
 
-    <h3>OddsPapi (scores exacts, test)</h3>
+    <h3>OddsPapi (scores exacts)</h3>
     <section class="grp">
       <div class="keyrow">
         <input id="opKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé OddsPapi" aria-label="Clé OddsPapi">
         <button class="btn2" id="opSave" type="button">Enregistrer</button>
       </div>
       <button class="btn" id="opTest" type="button" style="margin-top:8px">🧪 Tester OddsPapi</button>
-      <p class="note">Cherche quels bookmakers proposent le score exact sur le prochain match de l'onglet ouvert. Coût : 4 requêtes au premier test, puis 2 (sur 250 par mois).</p>
+      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet, sinon bet365) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois. Le test montre qui propose le score exact sur le prochain match (2 requêtes).</p>
       <p class="note" id="opOut" style="white-space:pre-line;color:var(--ink)"></p>
     </section>
 
@@ -387,7 +387,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>🎯 Scores : récupère les cotes « score exact » d'un bookmaker, seulement pour les matchs des prochaines 48 h et au plus une fois toutes les 12 h par match (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
+    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet, sinon bet365) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h et au plus une fois toutes les 12 h par match (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
     <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
@@ -1577,6 +1577,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   $('fetchCS').addEventListener('click', async function(){
+    if (opKey()) return csFromOddsPapi();
     var key = getKey();
     if (!key){ status('Ajoute d\'abord ta clé The Odds API dans les réglages ⚙️.'); openSettings(); return; }
     var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
@@ -1654,6 +1655,80 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Clé OddsPapi refusée.' : r.status === 429 ? 'Limite de requêtes OddsPapi atteinte.' : 'OddsPapi : erreur ' + r.status + (body && body.message ? ' (' + body.message + ')' : '') + '.');
     return body;
   }
+  async function opEnsure(){
+    var c = opCache();
+    if (!c.tour){
+      var tours = await opGet('/tournaments?sportId=10');
+      var find = function(re, cat){ var t = (tours || []).filter(function(x){ var n = (x.tournamentName || '') + ' ' + (x.tournamentSlug || ''); return re.test(n) && (!cat || cat.test((x.categorySlug || '') + ' ' + (x.categoryName || ''))) && !/women|femin|u19|u21|youth|qualif/i.test(n); }); return t[0] ? t[0].tournamentId : null; };
+      c.tour = {l1:find(/ligue[- ]?1\b/i, /france/i), l2:find(/ligue[- ]?2\b/i, /france/i), ldc:find(/champions[- ]league/i, null)};
+      opSaveCache(c);
+    }
+    if (!c.cs){
+      var mk = await opGet('/markets');
+      c.cs = {};
+      (mk || []).filter(function(m){ return m.sportId === 10 && /correct score/i.test(m.marketName || '') && (!m.period || m.period === 'fulltime'); })
+        .forEach(function(m){ (m.outcomes || []).forEach(function(o){ c.cs[o.outcomeId] = o.outcomeName; }); c.cs['m' + m.marketId] = m.marketName; });
+      opSaveCache(c);
+    }
+    return c;
+  }
+
+  // 🎯 Scores via OddsPapi : 2 à 4 requêtes pour tout l'onglet
+  var OP_BOOKS = [['singbet', 'Singbet'], ['sbobet', 'SBOBet'], ['bet365', 'bet365']];
+  async function csFromOddsPapi(){
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    var todo = cur().filter(function(m){ return matchState(m) === 'pre'; });
+    if (!todo.length){ status('Aucun match à venir dans cet onglet.'); return; }
+    var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
+    try {
+      var c = await opEnsure(), tid = c.tour[S.mode];
+      if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
+      var fx = await opGet('/fixtures?tournamentId=' + tid + '&from=' + new Date(Date.now() - 864e5).toISOString().slice(0, 10));
+      var byFix = {};
+      todo.forEach(function(m){
+        var f = (fx || []).filter(function(x){ return sameTeam(m.home, x.participant1Name) && sameTeam(m.away, x.participant2Name); })[0];
+        if (f) byFix[f.fixtureId] = m;
+      });
+      var done = {}, used = {}, notFound = todo.filter(function(m){ return Object.keys(byFix).every(function(k){ return byFix[k] !== m; }); });
+      for (var i = 0; i < OP_BOOKS.length; i++){
+        if (Object.keys(byFix).every(function(k){ return done[k]; })) break;
+        var data = await opGet('/odds-by-tournaments?bookmaker=' + OP_BOOKS[i][0] + '&tournamentIds=' + tid + '&oddsFormat=decimal');
+        (data || []).forEach(function(f){
+          var m = byFix[f.fixtureId];
+          if (!m || done[f.fixtureId]) return;
+          var bo = f.bookmakerOdds && f.bookmakerOdds[OP_BOOKS[i][0]];
+          var o = {};
+          Object.keys((bo && bo.markets) || {}).forEach(function(mid){
+            if (!c.cs['m' + mid]) return;
+            var oc = bo.markets[mid].outcomes || {};
+            Object.keys(oc).forEach(function(oid){
+              var name = String(c.cs[oid] || ''), pl = oc[oid].players && oc[oid].players['0'];
+              var g = name.match(/^\s*(\d+)\s*[:\-]\s*(\d+)\s*$/);
+              if (g && pl && pl.active !== false && pl.price > 1) o[(+g[1]) + '-' + (+g[2])] = pl.price;
+            });
+          });
+          if (Object.keys(o).length >= 6){
+            m.cs = {bk:OP_BOOKS[i][1], at:new Date().toISOString(), o:o};
+            done[f.fixtureId] = true; used[OP_BOOKS[i][1]] = (used[OP_BOOKS[i][1]] || 0) + 1;
+          }
+        });
+      }
+      renderAll(); save();
+      var n = Object.keys(done).length, miss = Object.keys(byFix).filter(function(k){ return !done[k]; }).map(function(k){ return byFix[k].home + ' – ' + byFix[k].away; });
+      var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length +
+        (n ? ' (' + Object.keys(used).map(function(b){ return b + ' ' + used[b]; }).join(', ') + ')' : '') + '.'];
+      if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.');
+      if (notFound.length) msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
+      try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
+        if (sub && sub.request_limit) msg.push('Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } catch (e) {}
+      status(msg.join('\n'));
+    } catch (e) {
+      status(e.message || 'Import impossible.');
+    } finally {
+      btn.disabled = false; btn.textContent = '🎯 Scores';
+    }
+  }
+
   $('opTest').addEventListener('click', async function(){
     var out = $('opOut'), btn = $('opTest');
     if (!opKey()){ out.textContent = 'Enregistre d\'abord ta clé OddsPapi ci-dessus.'; return; }
