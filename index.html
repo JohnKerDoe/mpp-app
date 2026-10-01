@@ -1672,12 +1672,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('opOut').textContent = k ? 'Clé OddsPapi enregistrée.' : 'Clé OddsPapi supprimée.';
     showOpCredits(); refreshOpCredits();
   });
-  async function opGet(path){
+  // OddsPapi impose un délai entre deux appels (≈ 0,5 à 1 s) : on espace les appels et on réessaie si besoin
+  var opLast = 0;
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  async function opGet(path, tries){
+    tries = tries || 0;
+    var wait = 1300 - (Date.now() - opLast);
+    if (wait > 0) await sleep(wait);
     var r;
     try { r = await fetch(OP + path + (path.indexOf('?') < 0 ? '?' : '&') + 'apiKey=' + encodeURIComponent(opKey())); }
     catch (e) { throw new Error('Connexion à OddsPapi impossible. Soit pas d\'internet, soit le site refuse les appels depuis une appli web.'); }
+    opLast = Date.now();
     var body = null; try { body = await r.json(); } catch (e) {}
-    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Clé OddsPapi refusée.' : r.status === 429 ? 'Limite de requêtes OddsPapi atteinte.' : 'OddsPapi : erreur ' + r.status + (body && body.message ? ' (' + body.message + ')' : '') + '.');
+    if (r.status === 429){
+      var quota = body && (body.code === 'REQUEST_LIMIT_EXCEEDED' || /request limit/i.test(body.message || ''));
+      if (quota) throw new Error('Quota mensuel OddsPapi épuisé : il se recharge au début de ta prochaine période.');
+      if (tries < 3){ await sleep(2500 * (tries + 1)); return opGet(path, tries + 1); }
+      throw new Error('OddsPapi demande de patienter entre deux requêtes. Réessaie dans une minute.');
+    }
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Clé OddsPapi refusée.' : 'OddsPapi : erreur ' + r.status + (body && body.message ? ' (' + body.message + ')' : '') + '.');
     return body;
   }
   // Requêtes OddsPapi restantes, affichées en haut à droite
