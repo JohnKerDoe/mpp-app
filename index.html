@@ -285,6 +285,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <h1>JKD+</h1>
     <div class="topr">
       <span class="credits" id="credits" hidden></span>
+      <span class="credits" id="opCredits" hidden></span>
       <button class="themebtn" id="setBtn" type="button" aria-label="Réglages">⚙️</button>
     </div>
   </div>
@@ -1270,8 +1271,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var el = $('credits');
     if (!c || !isFinite(c.left)){ el.hidden = true; return; }
     var when = new Date(c.at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-    el.innerHTML = '<b>' + nf0.format(c.left) + '</b> crédit' + (c.left > 1 ? 's' : '');
-    el.title = 'Crédits The Odds API restants (mis à jour le ' + when + ')';
+    el.innerHTML = '🔄 <b>' + nf0.format(c.left) + '</b>';
+    el.title = 'Crédits The Odds API restants pour les cotes (mis à jour le ' + when + ')';
     el.setAttribute('aria-label', nf0.format(c.left) + ' crédits The Odds API restants, mis à jour le ' + when);
     el.classList.toggle('out', c.left <= 0);
     el.classList.toggle('low', c.left > 0 && c.left <= 50);
@@ -1646,6 +1647,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     try { if (k) localStorage.setItem(KEY_OP, k); else localStorage.removeItem(KEY_OP); } catch (e) {}
     $('opKey').value = ''; $('opKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé OddsPapi';
     $('opOut').textContent = k ? 'Clé OddsPapi enregistrée.' : 'Clé OddsPapi supprimée.';
+    showOpCredits(); refreshOpCredits();
   });
   async function opGet(path){
     var r;
@@ -1655,6 +1657,32 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Clé OddsPapi refusée.' : r.status === 429 ? 'Limite de requêtes OddsPapi atteinte.' : 'OddsPapi : erreur ' + r.status + (body && body.message ? ' (' + body.message + ')' : '') + '.');
     return body;
   }
+  // Requêtes OddsPapi restantes, affichées en haut à droite
+  var KEY_OPCR = 'mpp-oddspapi-credits';
+  function setOpCredits(left){
+    if (!isFinite(left)) return;
+    try { localStorage.setItem(KEY_OPCR, JSON.stringify({left:Math.max(0, Math.round(left)), at:new Date().toISOString()})); } catch (e) {}
+    showOpCredits();
+  }
+  function showOpCredits(){
+    var c = null; try { c = JSON.parse(localStorage.getItem(KEY_OPCR) || 'null'); } catch (e) {}
+    var el = $('opCredits');
+    if (!c || !opKey()){ el.hidden = true; return; }
+    var when = new Date(c.at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+    el.innerHTML = '🎯 <b>' + nf0.format(c.left) + '</b>';
+    el.title = 'Requêtes OddsPapi restantes pour les scores exacts (mis à jour le ' + when + ')';
+    el.setAttribute('aria-label', nf0.format(c.left) + ' requêtes OddsPapi restantes, mises à jour le ' + when);
+    el.classList.toggle('out', c.left <= 0);
+    el.classList.toggle('low', c.left > 0 && c.left <= 25);
+    el.hidden = false;
+  }
+  // la consultation du quota OddsPapi est gratuite
+  async function refreshOpCredits(){
+    if (!opKey()) return;
+    try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
+      if (sub && sub.request_limit) setOpCredits(sub.request_limit - sub.request_count); } catch (e) {}
+  }
+
   async function opEnsure(){
     var c = opCache();
     if (!c.tour){
@@ -1720,7 +1748,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.');
       if (notFound.length) msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
       try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
-        if (sub && sub.request_limit) msg.push('Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } catch (e) {}
+        if (sub && sub.request_limit){ setOpCredits(sub.request_limit - sub.request_count); msg.push('Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } } catch (e) {}
       status(msg.join('\n'));
     } catch (e) {
       status(e.message || 'Import impossible.');
@@ -1786,7 +1814,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (withCS.length > 4) L.push('', 'Autres avec score exact : ' + withCS.slice(4).map(function(w){ return w.b; }).join(', '));
       // quota (appel non décompté)
       try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
-        if (sub && sub.request_limit) L.push('', 'Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } catch (e) {}
+        if (sub && sub.request_limit){ setOpCredits(sub.request_limit - sub.request_count); L.push('', 'Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } } catch (e) {}
       out.textContent = L.join('\n');
     } catch (e) {
       out.textContent = (L.length ? L.join('\n') + '\n\n' : '') + (e.message || 'Test impossible.');
@@ -1807,6 +1835,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     : 'Enregistrement indisponible ici : les données seront perdues à la fermeture. Il fonctionne quand la page est ouverte depuis un hébergement web.';
   if (getKey()) $('apiKey').placeholder = 'Clé enregistrée';
   showCredits();
+  showOpCredits(); refreshOpCredits();
   renderAll();
 
   $('themeBtn').addEventListener('click', function(){
