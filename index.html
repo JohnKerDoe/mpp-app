@@ -332,8 +332,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </div>
   <div class="improw">
     <button class="btn" id="qShot" type="button">📷 Points</button>
-    <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes</button>
     <button class="btn ghost" id="fetchCS" type="button">🎯 Scores</button>
+    <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes</button>
   </div>
   <input type="file" id="qFile" accept="image/*" multiple hidden>
 </div>
@@ -500,12 +500,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var list = grid.filter(function(s){ return s.r === r; });
       var tp = list.reduce(function(a, s){ return a + s.p; }, 0);
       var w = list.reduce(function(a, s){ return a + Math.pow(s.p / tp, 2); }, 0);
-      var best = null;
-      list.forEach(function(s){
+      var all = list.map(function(s){
         var pc = s.p / tp, share = Math.pow(pc, 2) / w * 100, bonus = bonusFor(share);
-        var o = {score:s.h + '-' + s.a, p:pc * p[r], bonus:bonus, share:share, ev:pc * p[r] * bonus};
-        if (!best || o.p > best.p) best = o;
-      });
+        return {score:s.h + '-' + s.a, p:pc * p[r], bonus:bonus, share:share, ev:pc * p[r] * bonus};
+      }).sort(function(a, b){ return b.p - a.p; });
+      var best = all[0];
+      best.top = all.slice(0, 3);
       return best;
     });
   }
@@ -534,23 +534,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function scoreOf(c, o){ return c && c.sc ? c.sc[o].score : SCORES[o]; }
 
   // Cotes « score exact » (ex. William Hill) : le score le plus probable dans chaque issue
-  function csPick(m, r){
+  // Scores d'une issue selon les cotes « score exact », du plus au moins probable
+  function csList(m, r){
     if (!m.cs || !m.cs.o) return null;
-    var best = null, tot = 0;
+    var list = [];
     Object.keys(m.cs.o).forEach(function(k){
       var g = k.split('-').map(Number), res = g[0] > g[1] ? 0 : g[0] === g[1] ? 1 : 2;
-      if (res !== r) return;
-      var pr = 1 / m.cs.o[k]; tot += pr;
-      if (!best || pr > best.pr) best = {score:k, pr:pr};
+      if (res === r) list.push({score:k, pr:1 / m.cs.o[k]});
     });
-    return best ? {score:best.score, share:best.pr / tot} : null;
+    if (!list.length) return null;
+    var tot = list.reduce(function(a, x){ return a + x.pr; }, 0);
+    var w = list.reduce(function(a, x){ return a + Math.pow(x.pr / tot, 2); }, 0);
+    list.forEach(function(x){ x.pc = x.pr / tot; x.share = Math.pow(x.pc, 2) / w * 100; x.bonus = bonusFor(x.share); });
+    return list.sort(function(a, b){ return b.pr - a.pr; });
   }
+  function csPick(m, r){ var l = csList(m, r); return l ? {score:l[0].score, share:l[0].pc} : null; }
   function applyCS(m, c){
     if (!c.sc || !m.cs) return c;
     c.sc = c.sc.map(function(x, r){
-      var b = csPick(m, r);
-      if (!b) return x;
-      return {score:b.score, p:b.share * c.p[r], bonus:(b.score === x.score ? x.bonus : null), ev:x.ev, src:m.cs.bk};
+      var l = csList(m, r);
+      if (!l) return x;
+      var top = l.slice(0, 3).map(function(y){ return {score:y.score, p:y.pc * c.p[r], bonus:y.bonus, share:y.share}; });
+      return {score:top[0].score, p:top[0].p, bonus:top[0].bonus, ev:x.ev, src:m.cs.bk, top:top};
     });
     return c;
   }
@@ -824,6 +829,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (bc && bc.ev && c.ev){
       var changed = bc.best !== c.best;
       lines.push('Avant (' + whenLabel(b.at) + ') : ' + pickLabel(m, bc.best) + ', ' + nf1.format(bc.ev[bc.best]) + ' pts' + (changed ? ' — le choix a changé' : ''));
+    }
+    if (c.ev && c.sc && c.sc[c.best].top){
+      var tp = c.sc[c.best].top;
+      lines.push('Scores probables (' + pickLabel(m, c.best) + ') : ' + tp.map(function(x){ return x.score + ' ' + pct(x.p * 100); }).join(' · '));
+      var alt = tp.slice(1).filter(function(x){ return x.p >= 0.85 * tp[0].p && x.bonus > tp[0].bonus; })[0];
+      if (alt) lines.push('💡 Pour le bonus : ' + alt.score + ' presque aussi probable, et sans doute moins joué (bonus estimé +' + alt.bonus + ' au lieu de +' + tp[0].bonus + ').');
     }
     if (m.cs && m.cs.bk && c.ev) lines.push('🎯 Scores exacts : cotes ' + m.cs.bk + ' (' + whenLabel(m.cs.at) + ')');
     card.querySelector('[data-out="note"]').innerHTML = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
@@ -1243,7 +1254,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           res.notes.push(m.home + ' – ' + m.away + ' : reçu sous le nom « ' + ev.home_team + ' – ' + ev.away_team + ' », mais pas encore de cote Pinnacle.');
         }
       } else {
-        res.notes.push(m.home + ' – ' + m.away + ' : absent des matchs reçus. Pinnacle ne le propose sans doute pas encore via The Odds API.');
+        res.notes.push(m.home + ' – ' + m.away + ' : absent des matchs reçus. Pinnacle ne le propose sans doute pas encore.');
       }
     });
 
@@ -1281,7 +1292,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   $('fetchOdds').addEventListener('click', async function(){
     var key = getKey();
-    if (!key){
+    if (!key && !opKey()){
       status('Ajoute d\'abord ta clé The Odds API dans les réglages ⚙️.');
       openSettings();
       $('apiKey').focus();
@@ -1292,12 +1303,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     btn.disabled = true; btn.textContent = 'Import en cours…';
     status('');
     try {
+      var events, left = null, viaOP = '';
+      try {
+      if (!key) throw new Error('Pas de clé The Odds API.');
       var url = 'https://api.the-odds-api.com/v4/sports/' + mode.sport + '/odds?apiKey=' + encodeURIComponent(key) +
         '&bookmakers=pinnacle&markets=h2h,totals&oddsFormat=american&dateFormat=iso';
       var r;
       try { r = await fetch(url); }
-      catch (e) { throw new Error('Connexion impossible. Vérifie ta connexion internet.'); }
-      var left = r.headers.get('x-requests-remaining');
+      catch (e) { throw new Error('Connexion à The Odds API impossible.'); }
+      left = r.headers.get('x-requests-remaining');
       setCredits(left);
       if (!r.ok){
         var msg = '';
@@ -1309,7 +1323,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           'Erreur ' + r.status + (msg ? ' : ' + msg : '')
         );
       }
-      var events = await r.json();
+      events = await r.json();
+      } catch (e1) {
+        if (!opKey()) throw e1;
+        status('The Odds API indisponible (' + e1.message + ') : je passe par OddsPapi…');
+        events = await oddsFromOddsPapi();
+        viaOP = e1.message;
+        refreshOpCredits();
+      }
       if (!cur().length){
         status('Importe d\'abord ta capture MPP : seuls ses matchs reçoivent des cotes.');
       } else if (!Array.isArray(events) || !events.length){
@@ -1320,7 +1341,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
         var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' sur ' + cur().length + '.'];
         res.notes.forEach(function(t){ lines.push('• ' + t); });
-        if (left !== null) lines.push('Crédits restants : ' + left + '.');
+        if (viaOP) lines.push('Cotes Pinnacle récupérées via OddsPapi (The Odds API : ' + viaOP + ').');
+        else if (left !== null) lines.push('Crédits restants : ' + left + '.');
         status(lines.join('\n'));
         renderAll(); save();
       }
@@ -1585,7 +1607,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var base = 'https://api.the-odds-api.com/v4/sports/' + mode.sport;
     var now = Date.now();
     var upcoming = cur().filter(function(m){ return matchState(m) === 'pre'; });
-    var todo = upcoming.filter(function(m){
+    var CS_GUARD = false;   // garde-fous temporairement désactivés : remettre true pour limiter à 48 h / 12 h
+    var todo = !CS_GUARD ? upcoming : upcoming.filter(function(m){
       var ko = kickoff(m);
       var soon = !isFinite(ko) || ko - now <= 48 * 36e5;                                   // match dans les 48 h
       var fresh = m.cs && m.cs.at && now - Date.parse(m.cs.at) < 12 * 36e5;              // déjà récupéré il y a moins de 12 h
@@ -1596,7 +1619,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       status('Rien à mettre à jour : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h, et pas plus d\'une fois toutes les 12 h par match. Aucun crédit utilisé.');
       return;
     }
-    if (!confirm('Chercher les cotes score exact pour ' + todo.length + ' match' + (todo.length > 1 ? 's' : '') + ' ?\nCoût : jusqu\'à ' + todo.length + ' crédit' + (todo.length > 1 ? 's' : '') + '.')) return;
+    if (CS_GUARD && !confirm('Chercher les cotes score exact pour ' + todo.length + ' match' + (todo.length > 1 ? 's' : '') + ' ?\nCoût : jusqu\'à ' + todo.length + ' crédit' + (todo.length > 1 ? 's' : '') + '.')) return;
     var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
     var ok = 0, none = [], left = null;
     try {
@@ -1691,14 +1714,47 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       c.tour = {l1:find(/ligue[- ]?1\b/i, /france/i), l2:find(/ligue[- ]?2\b/i, /france/i), ldc:find(/champions[- ]league/i, null)};
       opSaveCache(c);
     }
-    if (!c.cs){
+    if (!c.cs || !c.ou){
       var mk = await opGet('/markets');
+      c.ou = {};
+      (mk || []).filter(function(m){ return m.sportId === 10 && /over ?under/i.test(m.marketName || '') && (!m.period || m.period === 'fulltime') && !m.playerProp && !/team|half|corner|card|booking/i.test(m.marketName || ''); })
+        .forEach(function(m){
+          var ov = (m.outcomes || []).filter(function(o){ return /^over$/i.test(o.outcomeName); })[0];
+          var un = (m.outcomes || []).filter(function(o){ return /^under$/i.test(o.outcomeName); })[0];
+          if (ov && un && m.handicap > 0) c.ou[m.marketId] = {line:m.handicap, over:ov.outcomeId, under:un.outcomeId};
+        });
       c.cs = {};
       (mk || []).filter(function(m){ return m.sportId === 10 && /correct score/i.test(m.marketName || '') && (!m.period || m.period === 'fulltime'); })
         .forEach(function(m){ (m.outcomes || []).forEach(function(o){ c.cs[o.outcomeId] = o.outcomeName; }); c.cs['m' + m.marketId] = m.marketName; });
       opSaveCache(c);
     }
     return c;
+  }
+
+  // Cotes Pinnacle via OddsPapi (secours) : 2 requêtes, renvoyées au format de The Odds API
+  function toAmerican(d){ return d >= 2 ? Math.round((d - 1) * 100) : -Math.round(100 / (d - 1)); }
+  async function oddsFromOddsPapi(){
+    var c = await opEnsure(), tid = c.tour[S.mode];
+    if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
+    var fx = await opGet('/fixtures?tournamentId=' + tid + '&from=' + new Date(Date.now() - 864e5).toISOString().slice(0, 10));
+    var names = {}; (fx || []).forEach(function(f){ names[f.fixtureId] = f; });
+    var data = await opGet('/odds-by-tournaments?bookmaker=pinnacle&tournamentIds=' + tid + '&oddsFormat=decimal');
+    var price = function(mk, oid){ var o = mk && mk.outcomes && mk.outcomes[oid], pl = o && o.players && o.players['0']; return pl && pl.active !== false ? pl.price : NaN; };
+    return (data || []).map(function(f){
+      var n = names[f.fixtureId], bo = f.bookmakerOdds && f.bookmakerOdds.pinnacle;
+      if (!n || !bo || !bo.markets) return null;
+      var m1 = bo.markets['101'], h = price(m1, '101'), d = price(m1, '102'), a = price(m1, '103');
+      if (!(h > 1 && d > 1 && a > 1)) return null;
+      var markets = [{key:'h2h', outcomes:[{name:n.participant1Name, price:toAmerican(h)}, {name:'Draw', price:toAmerican(d)}, {name:n.participant2Name, price:toAmerican(a)}]}];
+      var bestTot = null;
+      Object.keys(bo.markets).forEach(function(mid){
+        var ou = c.ou[mid]; if (!ou) return;
+        var po = price(bo.markets[mid], ou.over), pu = price(bo.markets[mid], ou.under);
+        if (po > 1 && pu > 1 && (!bestTot || Math.abs(po - pu) < Math.abs(bestTot.po - bestTot.pu))) bestTot = {line:ou.line, po:po, pu:pu};
+      });
+      if (bestTot) markets.push({key:'totals', outcomes:[{name:'Over', point:bestTot.line, price:toAmerican(bestTot.po)}, {name:'Under', point:bestTot.line, price:toAmerican(bestTot.pu)}]});
+      return {home_team:n.participant1Name, away_team:n.participant2Name, commence_time:f.startTime || n.startTime, bookmakers:[{key:'pinnacle', markets:markets}]};
+    }).filter(Boolean);
   }
 
   // 🎯 Scores via OddsPapi : 2 à 4 requêtes pour tout l'onglet
