@@ -330,8 +330,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <button class="del" id="impClose" type="button" aria-label="Masquer le message">×</button>
   </div>
   <div class="improw">
-    <button class="btn" id="qShot" type="button">📷 Points MPP</button>
-    <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes Pinnacle</button>
+    <button class="btn" id="qShot" type="button">📷 Points</button>
+    <button class="btn ghost" id="fetchOdds" type="button">🔄 Cotes</button>
+    <button class="btn ghost" id="fetchCS" type="button">🎯 Scores</button>
   </div>
   <input type="file" id="qFile" accept="image/*" multiple hidden>
 </div>
@@ -358,11 +359,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
     </section>
 
-    <h3>Test : cotes score exact</h3>
+
+    <h3>OddsPapi (scores exacts, test)</h3>
     <section class="grp">
-      <button class="btn" id="csTest" type="button">🎯 Tester les cotes score exact</button>
-      <p class="note">Cherche des cotes « score exact » sur les prochains matchs de l'onglet ouvert (jusqu'à 3 matchs, environ 1 crédit par match testé).</p>
-      <p class="note" id="csOut" style="white-space:pre-line;color:var(--ink)"></p>
+      <div class="keyrow">
+        <input id="opKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé OddsPapi" aria-label="Clé OddsPapi">
+        <button class="btn2" id="opSave" type="button">Enregistrer</button>
+      </div>
+      <button class="btn" id="opTest" type="button" style="margin-top:8px">🧪 Tester OddsPapi</button>
+      <p class="note">Cherche quels bookmakers proposent le score exact sur le prochain match de l'onglet ouvert. Coût : 4 requêtes au premier test, puis 2 (sur 250 par mois).</p>
+      <p class="note" id="opOut" style="white-space:pre-line;color:var(--ink)"></p>
     </section>
 
     <h3>Sauvegarde</h3>
@@ -381,6 +387,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
+    <p>🎯 Scores : récupère les cotes « score exact » d'un bookmaker, seulement pour les matchs des prochaines 48 h et au plus une fois toutes les 12 h par match (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
     <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
@@ -525,9 +532,31 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   function scoreOf(c, o){ return c && c.sc ? c.sc[o].score : SCORES[o]; }
 
+  // Cotes « score exact » (ex. William Hill) : le score le plus probable dans chaque issue
+  function csPick(m, r){
+    if (!m.cs || !m.cs.o) return null;
+    var best = null, tot = 0;
+    Object.keys(m.cs.o).forEach(function(k){
+      var g = k.split('-').map(Number), res = g[0] > g[1] ? 0 : g[0] === g[1] ? 1 : 2;
+      if (res !== r) return;
+      var pr = 1 / m.cs.o[k]; tot += pr;
+      if (!best || pr > best.pr) best = {score:k, pr:pr};
+    });
+    return best ? {score:best.score, share:best.pr / tot} : null;
+  }
+  function applyCS(m, c){
+    if (!c.sc || !m.cs) return c;
+    c.sc = c.sc.map(function(x, r){
+      var b = csPick(m, r);
+      if (!b) return x;
+      return {score:b.score, p:b.share * c.p[r], bonus:(b.score === x.score ? x.bonus : null), ev:x.ev, src:m.cs.bk};
+    });
+    return c;
+  }
+
   function calc(m){
     var odds = nums(m.odds);
-    var c = calcFrom(odds, nums(m.pts), totOf(m));
+    var c = applyCS(m, calcFrom(odds, nums(m.pts), totOf(m)));
     var crowd = nums(m.crowd);
     c.crowd = crowd;
     c.crowdOk = crowd.every(function(x){ return x >= 0; });
@@ -763,7 +792,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       cell('p', o).textContent = c.p ? pct(c.p[o] * 100) : '–';
 
       var scc = cell('sc', o);
-      scc.innerHTML = c.sc ? '<b>' + c.sc[o].score + '</b><span class="d">' + pct(c.sc[o].p * 100) + ' · +' + c.sc[o].bonus + '</span>' : '–';
+      scc.innerHTML = c.sc ? '<b>' + c.sc[o].score + '</b><span class="d">' + pct(c.sc[o].p * 100) +
+        (c.sc[o].src ? ' · 🎯' : ' · +' + c.sc[o].bonus) + '</span>' : '–';
 
       var v = cell('ev', o);
       if (c.ev){
@@ -794,6 +824,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var changed = bc.best !== c.best;
       lines.push('Avant (' + whenLabel(b.at) + ') : ' + pickLabel(m, bc.best) + ', ' + nf1.format(bc.ev[bc.best]) + ' pts' + (changed ? ' — le choix a changé' : ''));
     }
+    if (m.cs && m.cs.bk && c.ev) lines.push('🎯 Scores exacts : cotes ' + m.cs.bk + ' (' + whenLabel(m.cs.at) + ')');
     card.querySelector('[data-out="note"]').innerHTML = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
   }
 
@@ -853,7 +884,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var ev = pr.map(function(x, k){ return x * pts[k]; });   // points ÷ cote
     var best = 0;
     ev.forEach(function(x, k){ if (x > ev[best]) best = k; });
-    return sc[best].score;
+    var b = csPick(m, best);
+    return b ? b.score : sc[best].score;
   }
 
   function updateSummary(){
@@ -1294,7 +1326,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     } catch (e) {
       status(e.message || 'Import impossible.');
     } finally {
-      btn.disabled = false; btn.textContent = '🔄 Cotes Pinnacle';
+      btn.disabled = false; btn.textContent = '🔄 Cotes';
     }
   });
 
@@ -1503,7 +1535,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       status(err.message && err.message !== 'image' ? err.message : 'Capture illisible. Réessaie avec une autre image.');
     } finally {
       if (worker) { try { await worker.terminate(); } catch (e) {} }
-      btn.disabled = false; btn.textContent = '📷 Points MPP';
+      btn.disabled = false; btn.textContent = '📷 Points';
     }
   });
 
@@ -1528,49 +1560,163 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }, 30000);
 
 
-  /* ---------- test : cotes score exact ---------- */
-  $('csTest').addEventListener('click', async function(){
-    var out = $('csOut'), btn = $('csTest');
+  /* ---------- cotes « score exact » (≈ 1 crédit par match) ---------- */
+  function parseCS(o, ev){
+    // format The Odds API : « Lille:2|Le Havre:0 »
+    var g = {};
+    String(o.name || '').split('|').forEach(function(part){
+      var i = part.lastIndexOf(':');
+      if (i > 0) g[part.slice(0, i).trim()] = parseInt(part.slice(i + 1), 10);
+    });
+    var teams = Object.keys(g), h = NaN, a = NaN;
+    teams.forEach(function(t){
+      if (t === ev.home_team || sameTeam(t, ev.home_team)) h = g[t];
+      else if (t === ev.away_team || sameTeam(t, ev.away_team)) a = g[t];
+    });
+    return isFinite(h) && isFinite(a) ? h + '-' + a : null;
+  }
+
+  $('fetchCS').addEventListener('click', async function(){
     var key = getKey();
-    if (!key){ out.textContent = 'Ajoute d\'abord ta clé The Odds API ci-dessus.'; return; }
+    if (!key){ status('Ajoute d\'abord ta clé The Odds API dans les réglages ⚙️.'); openSettings(); return; }
     var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
     var base = 'https://api.the-odds-api.com/v4/sports/' + mode.sport;
-    btn.disabled = true; btn.textContent = 'Test en cours…'; out.textContent = '';
+    var now = Date.now();
+    var upcoming = cur().filter(function(m){ return matchState(m) === 'pre'; });
+    var todo = upcoming.filter(function(m){
+      var ko = kickoff(m);
+      var soon = !isFinite(ko) || ko - now <= 48 * 36e5;                                   // match dans les 48 h
+      var fresh = m.cs && m.cs.at && now - Date.parse(m.cs.at) < 12 * 36e5;              // déjà récupéré il y a moins de 12 h
+      return soon && !fresh;
+    });
+    if (!upcoming.length){ status('Aucun match à venir dans cet onglet.'); return; }
+    if (!todo.length){
+      status('Rien à mettre à jour : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h, et pas plus d\'une fois toutes les 12 h par match. Aucun crédit utilisé.');
+      return;
+    }
+    if (!confirm('Chercher les cotes score exact pour ' + todo.length + ' match' + (todo.length > 1 ? 's' : '') + ' ?\nCoût : jusqu\'à ' + todo.length + ' crédit' + (todo.length > 1 ? 's' : '') + '.')) return;
+    var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
+    var ok = 0, none = [], left = null;
     try {
       var r = await fetch(base + '/events?apiKey=' + encodeURIComponent(key) + '&dateFormat=iso');
-      if (!r.ok) throw new Error('Liste des matchs indisponible (erreur ' + r.status + ').');
+      if (!r.ok) throw new Error(r.status === 401 ? 'Clé refusée : vérifie ta clé The Odds API.' : 'Liste des matchs indisponible (erreur ' + r.status + ').');
       var evs = (await r.json()) || [];
-      var mine = evs.filter(function(e){ return cur().some(function(m){ return sameTeam(m.home, e.home_team) && sameTeam(m.away, e.away_team); }); });
-      var cand = (mine.length ? mine : evs).filter(function(e){ return Date.parse(e.commence_time) > Date.now(); })
-        .sort(function(a, b){ return Date.parse(a.commence_time) - Date.parse(b.commence_time); }).slice(0, 3);
-      if (!cand.length) throw new Error(mode.name + ' : aucun match à venir.');
-      var lines = [], found = false;
-      for (var i = 0; i < cand.length && !found; i++){
-        var ev = cand[i];
+      for (var i = 0; i < todo.length; i++){
+        var m = todo[i];
+        btn.textContent = (i + 1) + '/' + todo.length;
+        var ev = evs.filter(function(e){ return sameTeam(m.home, e.home_team) && sameTeam(m.away, e.away_team); })[0];
+        if (!ev){ none.push(m.home + ' – ' + m.away); continue; }
         r = await fetch(base + '/events/' + ev.id + '/odds?apiKey=' + encodeURIComponent(key) + '&regions=eu&markets=correct_score&oddsFormat=decimal&dateFormat=iso');
-        setCredits(r.headers.get('x-requests-remaining'));
-        if (!r.ok){ lines.push(ev.home_team + ' – ' + ev.away_team + ' : erreur ' + r.status); continue; }
+        left = r.headers.get('x-requests-remaining'); setCredits(left);
+        if (!r.ok){ none.push(m.home + ' – ' + m.away); continue; }
         var data = await r.json();
-        var bks = (data.bookmakers || []).filter(function(b){ return (b.markets || []).some(function(m){ return m.key === 'correct_score'; }); });
-        var when = new Date(ev.commence_time).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-        if (!bks.length){ lines.push(ev.home_team + ' – ' + ev.away_team + ' (' + when + ') : pas encore de cotes score exact.'); continue; }
-        found = true;
-        lines.push('✅ ' + ev.home_team + ' – ' + ev.away_team + ' (' + when + ')');
-        bks.forEach(function(b){
-          var mk = b.markets.filter(function(m){ return m.key === 'correct_score'; })[0];
-          var oc = (mk.outcomes || []).slice().sort(function(a, b2){ return a.price - b2.price; });
-          lines.push('', b.title + ' — ' + oc.length + ' scores proposés. Les 10 plus probables :');
-          oc.slice(0, 10).forEach(function(o){
-            lines.push('  ' + [o.name, o.description, o.point].filter(function(x){ return x !== undefined && x !== null && x !== ''; }).join(' ') + ' : ' + o.price);
-          });
-        });
+        var bks = (data.bookmakers || []).map(function(b){
+          var mk = (b.markets || []).filter(function(x){ return x.key === 'correct_score'; })[0];
+          return mk ? {b:b, mk:mk} : null;
+        }).filter(Boolean).sort(function(x, y){ return (y.mk.outcomes || []).length - (x.mk.outcomes || []).length; });
+        if (!bks.length){ none.push(m.home + ' – ' + m.away); continue; }
+        var o = {};
+        bks[0].mk.outcomes.forEach(function(oc){ var k = parseCS(oc, ev); if (k && oc.price > 1) o[k] = oc.price; });
+        if (!Object.keys(o).length){ none.push(m.home + ' – ' + m.away); continue; }
+        m.cs = {bk:bks[0].b.title, at:new Date().toISOString(), o:o};
+        ok++;
       }
-      if (!found) lines.push('', 'Aucune cote score exact pour l\'instant : elles arrivent souvent à l\'approche du match. Réessaie quelques jours avant.');
-      out.textContent = lines.join('\n');
+      renderAll(); save();
+      var msg = [mode.name + ' : scores exacts mis à jour pour ' + ok + ' match' + (ok > 1 ? 's' : '') + ' sur ' + todo.length + '.'];
+      if (none.length) msg.push('Pas encore de cotes score exact : ' + none.join(', ') + '. Elles arrivent souvent à l\'approche du match.');
+      if (left !== null) msg.push('Crédits restants : ' + left + '.');
+      status(msg.join('\n'));
     } catch (e) {
-      out.textContent = e.message || 'Test impossible. Vérifie ta connexion internet.';
+      status(e.message || 'Import impossible. Vérifie ta connexion internet.');
     } finally {
-      btn.disabled = false; btn.textContent = '🎯 Tester les cotes score exact';
+      btn.disabled = false; btn.textContent = '🎯 Scores';
+    }
+  });
+
+
+  /* ---------- OddsPapi : test des cotes score exact ---------- */
+  var OP = 'https://api.oddspapi.io/v4', KEY_OP = 'mpp-oddspapi-key', KEY_OPC = 'mpp-oddspapi-cache';
+  function opKey(){ try { return localStorage.getItem(KEY_OP) || ''; } catch (e) { return ''; } }
+  function opCache(){ try { return JSON.parse(localStorage.getItem(KEY_OPC) || '{}'); } catch (e) { return {}; } }
+  function opSaveCache(c){ try { localStorage.setItem(KEY_OPC, JSON.stringify(c)); } catch (e) {} }
+  $('opKey').placeholder = opKey() ? 'Clé enregistrée' : 'Colle ta clé OddsPapi';
+  $('opSave').addEventListener('click', function(){
+    var k = $('opKey').value.trim();
+    try { if (k) localStorage.setItem(KEY_OP, k); else localStorage.removeItem(KEY_OP); } catch (e) {}
+    $('opKey').value = ''; $('opKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé OddsPapi';
+    $('opOut').textContent = k ? 'Clé OddsPapi enregistrée.' : 'Clé OddsPapi supprimée.';
+  });
+  async function opGet(path){
+    var r;
+    try { r = await fetch(OP + path + (path.indexOf('?') < 0 ? '?' : '&') + 'apiKey=' + encodeURIComponent(opKey())); }
+    catch (e) { throw new Error('Connexion à OddsPapi impossible. Soit pas d\'internet, soit le site refuse les appels depuis une appli web.'); }
+    var body = null; try { body = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Clé OddsPapi refusée.' : r.status === 429 ? 'Limite de requêtes OddsPapi atteinte.' : 'OddsPapi : erreur ' + r.status + (body && body.message ? ' (' + body.message + ')' : '') + '.');
+    return body;
+  }
+  $('opTest').addEventListener('click', async function(){
+    var out = $('opOut'), btn = $('opTest');
+    if (!opKey()){ out.textContent = 'Enregistre d\'abord ta clé OddsPapi ci-dessus.'; return; }
+    btn.disabled = true; btn.textContent = 'Test en cours…'; out.textContent = '';
+    var L = [];
+    try {
+      var c = opCache();
+      // 1) identifiants des compétitions (gardés en mémoire)
+      if (!c.tour){
+        var tours = await opGet('/tournaments?sportId=10');
+        var find = function(re, cat){ var t = (tours || []).filter(function(x){ var n = (x.tournamentName || '') + ' ' + (x.tournamentSlug || ''); return re.test(n) && (!cat || cat.test((x.categorySlug || '') + ' ' + (x.categoryName || ''))) && !/women|femin|u19|u21|youth|qualif/i.test(n); }); return t[0] ? t[0].tournamentId : null; };
+        c.tour = {l1:find(/ligue[- ]?1\b/i, /france/i), l2:find(/ligue[- ]?2\b/i, /france/i), ldc:find(/champions[- ]league/i, null)};
+        opSaveCache(c);
+      }
+      // 2) marchés « score exact » (gardés en mémoire)
+      if (!c.cs){
+        var mk = await opGet('/markets');
+        c.cs = {};
+        (mk || []).filter(function(m){ return m.sportId === 10 && /correct score/i.test(m.marketName || '') && (!m.period || m.period === 'fulltime'); })
+          .forEach(function(m){ (m.outcomes || []).forEach(function(o){ c.cs[o.outcomeId] = o.outcomeName; }); c.cs['m' + m.marketId] = m.marketName; });
+        opSaveCache(c);
+      }
+      var tid = c.tour[S.mode];
+      if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
+      // 3) prochains matchs de la compétition (via Pinnacle)
+      var fx = await opGet('/odds-by-tournaments?bookmaker=pinnacle&tournamentIds=' + tid);
+      var next = (fx || []).filter(function(f){ return Date.parse(f.startTime) > Date.now(); })
+        .sort(function(a, b){ return Date.parse(a.startTime) - Date.parse(b.startTime); })[0];
+      if (!next) throw new Error('Aucun match à venir trouvé chez OddsPapi pour cet onglet.');
+      // 4) toutes les cotes de ce match, tous bookmakers
+      var od = await opGet('/odds?fixtureId=' + encodeURIComponent(next.fixtureId) + '&oddsFormat=decimal');
+      var when = new Date(next.startTime).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+      L.push((od.participant1Name || '?') + ' – ' + (od.participant2Name || '?') + ' (' + when + ')');
+      var bk = od.bookmakerOdds || {}, withCS = [];
+      Object.keys(bk).forEach(function(b){
+        var mks = bk[b].markets || {};
+        Object.keys(mks).forEach(function(mid){
+          if (!c.cs['m' + mid]) return;
+          var oc = mks[mid].outcomes || {}, list = [];
+          Object.keys(oc).forEach(function(oid){
+            var pl = oc[oid].players && oc[oid].players['0'];
+            if (pl && pl.active !== false && pl.price > 1) list.push({n:c.cs[oid] || oid, p:pl.price});
+          });
+          if (list.length) withCS.push({b:b, list:list.sort(function(x, y){ return x.p - y.p; })});
+        });
+      });
+      L.push(Object.keys(bk).length + ' bookmakers couvrent ce match.');
+      if (!withCS.length) L.push('', 'Aucun ne propose encore le score exact. Réessaie la veille ou le jour du match.');
+      withCS.sort(function(x, y){ return y.list.length - x.list.length; }).forEach(function(w, i){
+        if (i < 4){
+          L.push('', '✅ ' + w.b + ' — ' + w.list.length + ' scores. Les plus probables :');
+          w.list.slice(0, 6).forEach(function(x){ L.push('  ' + x.n + ' : ' + x.p); });
+        }
+      });
+      if (withCS.length > 4) L.push('', 'Autres avec score exact : ' + withCS.slice(4).map(function(w){ return w.b; }).join(', '));
+      // quota (appel non décompté)
+      try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
+        if (sub && sub.request_limit) L.push('', 'Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } catch (e) {}
+      out.textContent = L.join('\n');
+    } catch (e) {
+      out.textContent = (L.length ? L.join('\n') + '\n\n' : '') + (e.message || 'Test impossible.');
+    } finally {
+      btn.disabled = false; btn.textContent = '🧪 Tester OddsPapi';
     }
   });
 
