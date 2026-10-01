@@ -358,6 +358,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
     </section>
 
+    <h3>Test : cotes score exact</h3>
+    <section class="grp">
+      <button class="btn" id="csTest" type="button">🎯 Tester les cotes score exact</button>
+      <p class="note">Cherche des cotes « score exact » sur les prochains matchs de l'onglet ouvert (jusqu'à 3 matchs, environ 1 crédit par match testé).</p>
+      <p class="note" id="csOut" style="white-space:pre-line;color:var(--ink)"></p>
+    </section>
+
     <h3>Sauvegarde</h3>
     <section class="grp">
     <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
@@ -1519,6 +1526,53 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var sig = cur().map(matchState).join(',');
     if (sig !== lastStates){ lastStates = sig; renderAll(); }
   }, 30000);
+
+
+  /* ---------- test : cotes score exact ---------- */
+  $('csTest').addEventListener('click', async function(){
+    var out = $('csOut'), btn = $('csTest');
+    var key = getKey();
+    if (!key){ out.textContent = 'Ajoute d\'abord ta clé The Odds API ci-dessus.'; return; }
+    var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    var base = 'https://api.the-odds-api.com/v4/sports/' + mode.sport;
+    btn.disabled = true; btn.textContent = 'Test en cours…'; out.textContent = '';
+    try {
+      var r = await fetch(base + '/events?apiKey=' + encodeURIComponent(key) + '&dateFormat=iso');
+      if (!r.ok) throw new Error('Liste des matchs indisponible (erreur ' + r.status + ').');
+      var evs = (await r.json()) || [];
+      var mine = evs.filter(function(e){ return cur().some(function(m){ return sameTeam(m.home, e.home_team) && sameTeam(m.away, e.away_team); }); });
+      var cand = (mine.length ? mine : evs).filter(function(e){ return Date.parse(e.commence_time) > Date.now(); })
+        .sort(function(a, b){ return Date.parse(a.commence_time) - Date.parse(b.commence_time); }).slice(0, 3);
+      if (!cand.length) throw new Error(mode.name + ' : aucun match à venir.');
+      var lines = [], found = false;
+      for (var i = 0; i < cand.length && !found; i++){
+        var ev = cand[i];
+        r = await fetch(base + '/events/' + ev.id + '/odds?apiKey=' + encodeURIComponent(key) + '&regions=eu&markets=correct_score&oddsFormat=decimal&dateFormat=iso');
+        setCredits(r.headers.get('x-requests-remaining'));
+        if (!r.ok){ lines.push(ev.home_team + ' – ' + ev.away_team + ' : erreur ' + r.status); continue; }
+        var data = await r.json();
+        var bks = (data.bookmakers || []).filter(function(b){ return (b.markets || []).some(function(m){ return m.key === 'correct_score'; }); });
+        var when = new Date(ev.commence_time).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+        if (!bks.length){ lines.push(ev.home_team + ' – ' + ev.away_team + ' (' + when + ') : pas encore de cotes score exact.'); continue; }
+        found = true;
+        lines.push('✅ ' + ev.home_team + ' – ' + ev.away_team + ' (' + when + ')');
+        bks.forEach(function(b){
+          var mk = b.markets.filter(function(m){ return m.key === 'correct_score'; })[0];
+          var oc = (mk.outcomes || []).slice().sort(function(a, b2){ return a.price - b2.price; });
+          lines.push('', b.title + ' — ' + oc.length + ' scores proposés. Les 10 plus probables :');
+          oc.slice(0, 10).forEach(function(o){
+            lines.push('  ' + [o.name, o.description, o.point].filter(function(x){ return x !== undefined && x !== null && x !== ''; }).join(' ') + ' : ' + o.price);
+          });
+        });
+      }
+      if (!found) lines.push('', 'Aucune cote score exact pour l\'instant : elles arrivent souvent à l\'approche du match. Réessaie quelques jours avant.');
+      out.textContent = lines.join('\n');
+    } catch (e) {
+      out.textContent = e.message || 'Test impossible. Vérifie ta connexion internet.';
+    } finally {
+      btn.disabled = false; btn.textContent = '🎯 Tester les cotes score exact';
+    }
+  });
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
