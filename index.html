@@ -280,6 +280,8 @@ html[data-theme="dark"]{--live:#FF4D63;--live-tint:#3A1219;--live-ink:#FF8A99;--
 .x2c{font-size:12px;font-weight:800;color:var(--mute);white-space:nowrap}
 .x2c.on{color:#B07A00}
 html[data-theme="dark"] .x2c.on{color:#FFC94D}
+.recap li.x2wait{outline:2px dashed #E0A800;outline-offset:-4px;border-radius:10px}
+html[data-theme="dark"] .recap li.x2wait{outline-color:#FFC94D}
 .recap li.x2gold{box-shadow:inset 0 0 0 3px #E0A800;border-radius:10px;position:relative;z-index:1}
 html[data-theme="dark"] .recap li.x2gold{box-shadow:inset 0 0 0 3px #FFC94D}
 .x2t{display:inline-block;font-size:11px;font-weight:800;padding:2px 6px;border-radius:999px;background:#FFC94D;color:#3A2A00;margin-left:6px;vertical-align:1px}
@@ -1034,9 +1036,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
-      var gold = X2 && ((X2.m === r.m && (X2.status === 'play' || X2.status === 'last')) ||
+      // or plein : x2 à jouer (ou journée inconnue) / x2 validé ici ; or pointillé : meilleur match, mais mieux vaut attendre
+      var gold = X2 && ((X2.m === r.m && (X2.status === 'play' || X2.status === 'last' || X2.status === 'nojn')) ||
         (X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(r.m) && (X2.blk === 'x' || X2.usedOn.jn === X2.jn)));
-      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : ''].join(' ').trim();
+      var goldWait = X2 && X2.m === r.m && X2.status === 'wait';
+      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
       return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
