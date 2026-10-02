@@ -334,7 +334,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </section>
 
   <section class="recap">
-    <h2 class="day"><span>Pronos conseillés</span></h2>
+    <h2 class="day"><span id="recapTitle">Pronos conseillés</span></h2>
     <ul id="recapList"></ul>
   </section>
 
@@ -1088,6 +1088,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   function renderAll(){
     X2 = x2Info();
+    var jt = tabJ();   // numéro de journée lu sur la capture MPP
+    $('recapTitle').textContent = 'Pronos conseillés' + (jt ? ' pour la ' + jt + (jt === 1 ? 're' : 'e') + ' journée' : '');
     document.body.setAttribute('data-mode', S.mode);
     applyTheme();
     document.documentElement.style.backgroundColor = BGS[theme()][S.mode];
