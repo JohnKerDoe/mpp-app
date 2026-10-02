@@ -381,6 +381,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </div>
 </div>
 
+<!-- Raccourci « Importer une capture » : un appui est nécessaire pour ouvrir la galerie -->
+<div class="sheet ask" id="capAsk" hidden role="dialog" aria-modal="true" aria-labelledby="capT">
+  <div class="askin">
+    <h2 id="capT">📷 Importer une capture MPP</h2>
+    <p class="note">Choisis ta capture dans la galerie, puis vérifie les points lus.</p>
+    <div class="askbtns">
+      <button type="button" class="btn" id="capGo">Choisir la capture</button>
+      <button type="button" class="btn ghost" id="capNo">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <!-- Page Réglages -->
 <div class="sheet" id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
   <div class="sethead">
@@ -1654,6 +1666,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   $('qShot').addEventListener('click', function(){ $('qFile').click(); });
+  $('capGo').addEventListener('click', function(){ $('capAsk').hidden = true; $('qFile').click(); });
+  $('capNo').addEventListener('click', function(){ $('capAsk').hidden = true; });
 
   $('qFile').addEventListener('change', function(e){
     var files = Array.prototype.slice.call(e.target.files || []);
@@ -1932,8 +1946,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   async function oddsFromOddsPapi(){
     var c = await opEnsure(), tid = c.tour[S.mode];
     if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
-    var fx = await opGet('/fixtures?tournamentId=' + tid + '&from=' + new Date(Date.now() - 864e5).toISOString().slice(0, 10));
-    var names = {}; (fx || []).forEach(function(f){ names[f.fixtureId] = f; });
+    var F = await opFixtures(c, tid, cur().filter(function(m){ return matchState(m) === 'pre'; }));
+    var names = {}; F.list.forEach(function(f){ names[f.fixtureId] = f; });
     var data = await opGet('/odds-by-tournaments?bookmaker=pinnacle&tournamentIds=' + tid + '&oddsFormat=decimal');
     var price = function(mk, oid){ var o = mk && mk.outcomes && mk.outcomes[oid], pl = o && o.players && o.players['0']; return pl && pl.active !== false ? pl.price : NaN; };
     return (data || []).map(function(f){
@@ -1954,21 +1968,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   // 🎯 Scores via OddsPapi : 2 à 4 requêtes pour tout l'onglet
-  var OP_BOOKS = [['singbet', 'Singbet'], ['sbobet', 'SBOBet'], ['bet365', 'bet365']];
+  var OP_BOOKS = [['singbet', 'Singbet'], ['sbobet', 'SBOBet']];   // bet365 retiré : moins fiable, et une requête de plus
+  async function opFixtures(c, tid, matches){
+    c.fx = c.fx || {};
+    var e = c.fx[tid], fresh = e && Date.now() - Date.parse(e.at) < 7 * 864e5;
+    var findIn = function(list, m){ return (list || []).filter(function(x){ return sameTeam(m.home, x.participant1Name) && sameTeam(m.away, x.participant2Name); })[0]; };
+    if (fresh && matches.every(function(m){ return findIn(e.list, m); })) return {list:e.list, find:findIn, cost:0};
+    var fx = await opGet('/fixtures?tournamentId=' + tid + '&from=' + new Date(Date.now() - 864e5).toISOString().slice(0, 10));
+    c.fx[tid] = {at:new Date().toISOString(), list:(fx || []).map(function(x){ return {fixtureId:x.fixtureId, participant1Name:x.participant1Name, participant2Name:x.participant2Name, startTime:x.startTime}; })};
+    opSaveCache(c);
+    return {list:c.fx[tid].list, find:findIn, cost:1};
+  }
   async function csFromOddsPapi(){
     var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
-    var todo = cur().filter(function(m){ return matchState(m) === 'pre'; });
-    if (!todo.length){ status('Aucun match à venir dans cet onglet.'); return; }
+    var now = Date.now();
+    var todo = cur().filter(function(m){
+      if (matchState(m) !== 'pre') return false;
+      var ko = kickoff(m), soon = !isFinite(ko) || ko - now <= 48 * 36e5;
+      var fresh = m.cs && m.cs.at && now - Date.parse(m.cs.at) < 12 * 36e5;
+      return soon && !fresh;
+    });
+    if (!cur().some(function(m){ return matchState(m) === 'pre'; })){ status('Aucun match à venir dans cet onglet.'); return; }
+    if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h, et pas plus d\'une fois toutes les 12 h.'); return; }
     var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
     try {
       var c = await opEnsure(), tid = c.tour[S.mode];
       if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
-      var fx = await opGet('/fixtures?tournamentId=' + tid + '&from=' + new Date(Date.now() - 864e5).toISOString().slice(0, 10));
-      var byFix = {};
-      todo.forEach(function(m){
-        var f = (fx || []).filter(function(x){ return sameTeam(m.home, x.participant1Name) && sameTeam(m.away, x.participant2Name); })[0];
-        if (f) byFix[f.fixtureId] = m;
-      });
+      var F = await opFixtures(c, tid, todo), byFix = {};
+      todo.forEach(function(m){ var f = F.find(F.list, m); if (f) byFix[f.fixtureId] = m; });
       var done = {}, used = {}, notFound = todo.filter(function(m){ return Object.keys(byFix).every(function(k){ return byFix[k] !== m; }); });
       for (var i = 0; i < OP_BOOKS.length; i++){
         if (Object.keys(byFix).every(function(k){ return done[k]; })) break;
@@ -1995,7 +2022,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
       renderAll(); save();
       var n = Object.keys(done).length, miss = Object.keys(byFix).filter(function(k){ return !done[k]; }).map(function(k){ return byFix[k].home + ' – ' + byFix[k].away; });
-      var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length +
+      var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length + ' à chercher' +
         (n ? ' (' + Object.keys(used).map(function(b){ return b + ' ' + used[b]; }).join(', ') + ')' : '') + '.'];
       if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.');
       if (notFound.length) msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
@@ -2013,6 +2040,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- démarrage ---------- */
   if (!load()) seed();
   if (/[?&]share=1/.test(location.search)) setTimeout(handleShared, 300);
+  // Raccourcis de l'icône (appui long) : ouvrir un onglet, ou lancer l'import d'une capture
+  (function(){
+    var q = new URLSearchParams(location.search), tab = q.get('tab'), act = q.get('action');
+    if (tab && MODES.some(function(x){ return x.id === tab; })) S.mode = tab;
+    if (tab || act){ try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+    if (act === 'capture') setTimeout(function(){ $('capAsk').hidden = false; }, 300);
+  })();
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ m.home = shortName(m.home); m.away = shortName(m.away); }); });
   S.method = 'pow';
   delete S.filter;
