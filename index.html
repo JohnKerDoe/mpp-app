@@ -276,6 +276,28 @@ html[data-theme="dark"]{--live:#FF4D63;--live-tint:#3A1219;--live-ink:#FF8A99;--
 .lb{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;border-radius:999px;padding:2px 7px;margin-right:6px;vertical-align:1px;white-space:nowrap}
 .lb.live{background:var(--live);color:#fff}
 .lb.done{background:var(--line);color:var(--ink-2)}
+/* bonus x2, test de score, règles, partage */
+.x2c{font-size:12px;font-weight:800;color:var(--mute);white-space:nowrap}
+.x2c.on{color:#B07A00}
+html[data-theme="dark"] .x2c.on{color:#FFC94D}
+.x2t{display:inline-block;font-size:11px;font-weight:800;padding:2px 6px;border-radius:999px;background:#FFC94D;color:#3A2A00;margin-left:6px;vertical-align:1px}
+.x2b{padding:0 10px}
+.x2btn{border:1px dashed var(--mute);background:transparent;color:var(--ink-2);font:inherit;font-size:13px;font-weight:700;border-radius:8px;padding:7px 10px;margin:6px 0 0;cursor:pointer}
+.card:not(.open) .tst,.card:not(.open) .x2b{display:none}
+.tst{padding:8px 10px 0;font-size:13px;color:var(--ink-2)}
+.tst label{display:flex;align-items:center;gap:8px;font-weight:700}
+.tst input{width:80px;font:inherit;font-size:16px;text-align:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
+.tst [data-tst-out]{display:block;margin-top:6px;line-height:1.4}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:8px 0}
+.rules label,.x2rule{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink-2)}
+.rules input,.x2rule input{width:60px;font:inherit;font-size:16px;text-align:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
+.x2rule{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+.sheet.ask{display:flex;align-items:center;justify-content:center;background:rgba(8,12,24,.6);z-index:40}
+.sheet.ask[hidden]{display:none !important}
+.askin{background:var(--bg);border-radius:16px;padding:18px;width:min(92vw,360px)}
+.askin h2{margin:0 0 4px;font-size:18px}
+.askbtns{display:grid;gap:8px;margin-top:10px}
+.askbtns .btn{margin:0}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
 </head>
@@ -289,7 +311,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <button class="themebtn" id="setBtn" type="button" aria-label="Réglages">⚙️</button>
     </div>
   </div>
-  <p class="sub">Points du jeu × probabilités tirées des cotes</p>
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
 
@@ -301,6 +322,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     </div>
     <div class="pline" id="pImp"></div>
     <div class="pline" id="pChg"></div>
+    <div class="pline" id="pX2" hidden></div>
     <div class="cd" id="cd" hidden></div>
   </section>
 
@@ -338,6 +360,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <input type="file" id="qFile" accept="image/*" multiple hidden>
 </div>
 
+<!-- Capture reçue par partage : choix de la compétition -->
+<div class="sheet ask" id="shareAsk" hidden role="dialog" aria-modal="true" aria-labelledby="askT">
+  <div class="askin">
+    <h2 id="askT">📷 <span data-n></span></h2>
+    <p class="note">Pour quelle compétition ?</p>
+    <div class="askbtns">
+      <button type="button" class="btn" data-share-mode="l1">Ligue 1</button>
+      <button type="button" class="btn" data-share-mode="l2">Ligue 2</button>
+      <button type="button" class="btn" data-share-mode="ldc">Champions</button>
+      <button type="button" class="btn ghost" data-share-mode="cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <!-- Page Réglages -->
 <div class="sheet" id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
   <div class="sethead">
@@ -370,6 +406,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <button class="btn" id="opTest" type="button" style="margin-top:8px">🧪 Tester OddsPapi</button>
       <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet, sinon bet365) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois. Le test montre qui propose le score exact sur le prochain match (2 requêtes).</p>
       <p class="note" id="opOut" style="white-space:pre-line;color:var(--ink)"></p>
+    </section>
+
+    <h3>Règles MPP</h3>
+    <section class="grp">
+      <p class="note" style="margin-top:0">Bonus de rareté selon la part des joueurs ayant le bon résultat qui ont aussi le score exact :</p>
+      <div class="rules">
+        <label>plus de 30 %<input data-rule="0" inputmode="numeric"></label>
+        <label>20 à 30 %<input data-rule="1" inputmode="numeric"></label>
+        <label>5 à 20 %<input data-rule="2" inputmode="numeric"></label>
+        <label>0,5 à 5 %<input data-rule="3" inputmode="numeric"></label>
+        <label>moins de 0,5 %<input data-rule="4" inputmode="numeric"></label>
+      </div>
+      <label class="x2rule">Un bonus x2 toutes les <input id="x2every" inputmode="numeric"> journées, dans chaque compétition</label>
     </section>
 
     <h3>Sauvegarde</h3>
@@ -480,7 +529,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var io = 1 / tot.over, iu = 1 / tot.under;
     return fitMu(tot.line, io / (io + iu));
   }
-  function bonusFor(share){ return share > 30 ? 20 : share >= 20 ? 30 : share >= 5 ? 50 : share >= 0.5 ? 70 : 100; }
+  var RULES_DEF = {bonus:[20, 30, 50, 70, 100], x2every:5};
+  function rules(){ var r = S.rules || {}; return {bonus:(r.bonus && r.bonus.length === 5) ? r.bonus : RULES_DEF.bonus, x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every}; }
+  function bonusFor(share){ var b = rules().bonus; return share > 30 ? b[0] : share >= 20 ? b[1] : share >= 5 ? b[2] : share >= 0.5 ? b[3] : b[4]; }
   function scoreModel(p, tot){
     var mu = totMu(tot) || MU_DEFAULT;
     var target = p[0] / (p[0] + p[2]), lo = 0.02, hi = 0.98, grid, ph, pa;
@@ -506,6 +557,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }).sort(function(a, b){ return b.p - a.p; });
       var best = all[0];
       best.top = all.slice(0, 3);
+      best.all = all;
       return best;
     });
   }
@@ -555,7 +607,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var l = csList(m, r);
       if (!l) return x;
       var top = l.slice(0, 3).map(function(y){ return {score:y.score, p:y.pc * c.p[r], bonus:y.bonus, share:y.share}; });
-      return {score:top[0].score, p:top[0].p, bonus:top[0].bonus, ev:x.ev, src:m.cs.bk, top:top};
+      var all = l.map(function(y){ return {score:y.score, p:y.pc * c.p[r], bonus:y.bonus}; });
+      return {score:top[0].score, p:top[0].p, bonus:top[0].bonus, ev:x.ev, src:m.cs.bk, top:top, all:all};
     });
     return c;
   }
@@ -691,9 +744,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<input class="when" data-f="time" value="' + esc(m.time) + '" placeholder="Heure" aria-label="Heure du match">' +
         '<span class="lvl" data-meta="lvl"></span>' +
         '<span class="lvl mute" data-meta="prevsc"></span>' +
+        '<span class="x2c" data-meta="x2"></span>' +
         '<span class="score" data-meta="score"></span>' +
       '</div>' +
       '<div class="grid">' + g + '</div>' +
+      '<div class="tst"><label>Tester un score <input data-tst="1" inputmode="numeric" placeholder="ex. 2-1" aria-label="Score à tester"></label><span data-tst-out></span></div>' +
+      '<div class="x2b" data-meta="x2b"></div>' +
       '<div class="cf" data-out="note"></div>' +
     '</article>';
   }
@@ -736,8 +792,48 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return now < ko + 125 * 6e4 ? 'live' : 'done';
   }
 
+  /* ---------- bonus x2 : un toutes les N journées, par compétition ---------- */
+  function totEV(c){ return c.ev ? c.ev[c.best] + (c.sc ? c.sc[c.best].p * (c.sc[c.best].bonus || 0) : 0) : 0; }
+  function tabJ(){
+    var n = {}; cur().forEach(function(m){ if (m.jn) n[m.jn] = (n[m.jn] || 0) + 1; });
+    var best = null; Object.keys(n).forEach(function(k){ if (best === null || n[k] > n[best]) best = k; });
+    return best === null ? null : +best;
+  }
+  function x2State(){ S.x2 = S.x2 || {}; S.x2[S.mode] = S.x2[S.mode] || {used:{}, bests:{}}; return S.x2[S.mode]; }
+  function x2Info(){
+    var st = x2State(), jn = tabJ(), N = rules().x2every, best = null, bestTot = 0;
+    cur().forEach(function(m){
+      if (matchState(m) !== 'pre') return;
+      var c = calc(m); if (!c.ev) return;
+      var t = totEV(c); if (!best || t > bestTot){ best = m; bestTot = t; }
+    });
+    if (!jn) return best ? {m:best, tot:bestTot, status:'nojn'} : null;
+    var blk = Math.floor((jn - 1) / N), pos = (jn - 1) % N + 1, from = blk * N + 1, to = from + N - 1;
+    var info = {jn:jn, blk:blk, pos:pos, N:N, from:from, to:to};
+    if (st.used[blk]) { info.status = 'used'; info.usedOn = st.used[blk]; return info; }
+    if (!best) return null;
+    st.bests[jn] = Math.round(bestTot * 10) / 10;
+    info.m = best; info.tot = bestTot;
+    var prev = [], others = [];
+    Object.keys(st.bests).forEach(function(k){ k = +k; if (k === jn) return; others.push(st.bests[k]); if (k >= from && k < jn) prev.push(st.bests[k]); });
+    var avg = others.length >= 3 ? others.reduce(function(a, b){ return a + b; }, 0) / others.length : null;
+    if (pos >= N) info.status = 'last';
+    else if (pos <= Math.floor(N / 2)) info.status = (avg !== null && bestTot >= 1.12 * avg) ? 'play' : 'wait';
+    else info.status = (!prev.length || bestTot >= Math.max.apply(null, prev)) ? 'play' : 'wait';
+    return info;
+  }
+  var X2 = null;   // calculé à chaque rendu
+
   function updateCard(card, m){
     var c = calc(m);
+    // ⭐ bonus x2
+    var xc = card.querySelector('[data-meta="x2"]'), xb = card.querySelector('[data-meta="x2b"]');
+    var isBest = X2 && X2.m === m, usedHere = X2 && X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(m) && X2.usedOn.jn === X2.jn;
+    var lbl = {play:'⭐ x2 à jouer', last:'⭐ x2 : dernière journée', wait:'⭐ x2 : attends', nojn:'⭐ meilleur x2'};
+    xc.textContent = usedHere ? '⭐ x2 joué' : isBest ? lbl[X2.status] || '' : '';
+    xc.className = 'x2c' + (usedHere || (isBest && (X2.status === 'play' || X2.status === 'last')) ? ' on' : '');
+    xb.innerHTML = usedHere ? '<button type="button" class="x2btn" data-x2undo>Annuler mon x2 ici</button>'
+      : (X2 && X2.status !== 'used' && X2.status !== 'nojn' && matchState(m) === 'pre' && c.ev) ? '<button type="button" class="x2btn" data-x2use>J\'ai joué mon x2 sur ce match</button>' : '';
     var st = matchState(m);
     card.classList.toggle('st-live', st === 'live');
     card.classList.toggle('st-done', st === 'done');
@@ -919,6 +1015,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       return '<span class="pl" aria-label="' + cnt[x[0]] + ' ' + x[1] + '"><i class="dot ' + x[0] + '"></i>' + cnt[x[0]] + '</span>';
     }).join('');
     // 3) Pronos modifiés au dernier import
+    var px = $('pX2'), xi = X2;
+    if (xi){
+      var nm = xi.m ? esc(xi.m.home) + ' – ' + esc(xi.m.away) : '', gain = xi.tot ? ' <span>(≈ +' + nf0.format(xi.tot) + ' pts)</span>' : '';
+      var bloc = xi.jn ? ' <span>· J' + xi.from + '–J' + xi.to + ', journée ' + xi.pos + '/' + xi.N + '</span>' : '';
+      px.innerHTML = xi.status === 'used' ? '⭐ x2 déjà joué dans ce bloc' + (xi.usedOn ? ' <span>(' + esc(xi.usedOn.name) + ')</span>' : '') + bloc
+        : xi.status === 'play' ? '⭐ <b>x2 à jouer</b> sur ' + nm + gain + bloc
+        : xi.status === 'last' ? '⭐ <b>Dernière journée du bloc</b> : x2 sur ' + nm + gain + bloc
+        : xi.status === 'wait' ? '⭐ x2 : <b>attends</b>, meilleur match du jour ' + nm + gain + bloc
+        : '⭐ Meilleur match pour un x2 : ' + nm + gain + ' <span>(journée non lue sur la capture)</span>';
+      px.hidden = false;
+    } else px.hidden = true;
     var nP = rows.filter(function(r){ return r.ch === 'pick'; }).length, nL = rows.filter(function(r){ return r.ch === 'level'; }).length;
     $('pChg').innerHTML = !n ? '' : (nP || nL)
       ? '🔄 ' + (nP ? '<b>' + nP + ' prono' + (nP > 1 ? 's' : '') + ' modifié' + (nP > 1 ? 's' : '') + '</b>' : '') +
@@ -933,6 +1040,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
+      if (X2 && X2.m === r.m && (X2.status === 'play' || X2.status === 'last')) tag += '<span class="x2t">⭐ x2</span>';
       var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : ''].join(' ').trim();
       return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
@@ -968,6 +1076,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     b.setAttribute('aria-label', t === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
   }
   function renderAll(){
+    X2 = x2Info();
     document.body.setAttribute('data-mode', S.mode);
     applyTheme();
     document.documentElement.style.backgroundColor = BGS[theme()][S.mode];
@@ -1006,6 +1115,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var t = e.target, card = t.closest('.card');
     if (!card) return;
     var m = cur()[+card.dataset.i];
+    if (t.dataset.tst){
+      var out = card.querySelector('[data-tst-out]'), g = t.value.match(/^\s*(\d{1,2})\s*[-:\s]\s*(\d{1,2})\s*$/);
+      if (!g){ out.textContent = ''; return; }
+      var cc = calc(m), h = +g[1], a = +g[2], r = h > a ? 0 : h === a ? 1 : 2;
+      if (!cc.ev || !cc.sc){ out.textContent = 'Il faut d\'abord les points et les cotes.'; return; }
+      var it = (cc.sc[r].all || []).filter(function(x){ return x.score === h + '-' + a; })[0];
+      var ps = it ? it.p : 0, bn = it ? it.bonus : rules().bonus[4], pts = N(m.pts[r]);
+      var evT = cc.p[r] * pts + ps * bn, evB = totEV(cc);
+      out.innerHTML = '<b>' + h + '-' + a + '</b> : ' + (ps ? pct(ps * 100) : 'moins de 0,1 %') + ' de chances · si juste : ' + nf0.format(pts) + ' + ' + bn + ' = ' + nf0.format(pts + bn) + ' pts' +
+        '<br>Espérance bonus compris : <b>' + nf1.format(evT) + ' pts</b> (conseillé ' + scoreOf(cc, cc.best) + ' : ' + nf1.format(evB) + ' pts)';
+      return;
+    }
     if (t.dataset.f){
       m[t.dataset.f] = t.value;
       updateNames(card, m);
@@ -1030,6 +1151,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   $('list').addEventListener('click', function(e){
+    var xu = e.target.closest('[data-x2use]'), xn = e.target.closest('[data-x2undo]');
+    if (xu || xn){
+      var mm = cur()[+e.target.closest('.card').dataset.i], st = x2State(), info = x2Info();
+      if (info && info.jn !== undefined && info.blk !== undefined){
+        if (xu) st.used[info.blk] = {key:mkey(mm), jn:info.jn, name:mm.home + ' – ' + mm.away};
+        else delete st.used[info.blk];
+        renderAll(); save();
+      }
+      return;
+    }
     if (e.target.closest('[data-foldall]')){
       var all = cur().every(isOpen);
       cur().forEach(function(m){ var k = S.mode + ':' + mkey(m); if (all) delete openSet[k]; else openSet[k] = true; });
@@ -1405,7 +1536,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   // Sur MPP : titre du jour, puis « J.6 - 20h45 », puis une ligne « équipe 85 117 104 équipe », puis les %
   var DAYS = /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+([a-zéèûô]+)/i;
   function parseOcr(text){
-    var out = [], lines = text.split(/\n/), curDay = '', curTime = '';
+    var out = [], lines = text.split(/\n/), curDay = '', curTime = '', curJ = null;
     var pctIn = function(str){ return (str.match(/\d{1,3}\s?[%°]/g) || []).map(function(x){ return x.replace(/\D/g, ''); }); };
     var clean = function(arr){
       return arr.filter(function(t){ return !/^\d+[eè]?$/i.test(t); }).join(' ')
@@ -1421,6 +1552,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
       }
       if (k < 0){
+        var jm = line.match(/\bJ\s?\.?\s?(\d{1,2})\b/);
+        if (jm) curJ = +jm[1];
         var tm = line.match(/(\d{1,2})\s?[hH]\s?(\d{2})/);
         if (tm) curTime = tm[1] + 'h' + tm[2];
         continue;
@@ -1436,7 +1569,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           if (sum >= 97 && sum <= 103) crowd = ps.slice(0, 3);
         }
       }
-      out.push({home:home.length >= 2 ? home : '', away:away.length >= 2 ? away : '', pts:pts, crowd:crowd, day:curDay, time:curTime});
+      out.push({home:home.length >= 2 ? home : '', away:away.length >= 2 ? away : '', pts:pts, crowd:crowd, day:curDay, time:curTime, jn:curJ});
     }
     return out;
   }
@@ -1507,6 +1640,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       else m = newMatch(x.day || 'Journée', x.time || '', shortName(x.home), shortName(x.away), ['','',''], ['','',''], ['','','']);
       m.home = shortName(m.home); m.away = shortName(m.away);
       m.pts = x.pts.slice();
+      if (x.jn) m.jn = x.jn;
       if (x.crowd) m.crowd = x.crowd.slice();
       commit(m);
       next.push(m);
@@ -1521,10 +1655,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   $('qShot').addEventListener('click', function(){ $('qFile').click(); });
 
-  $('qFile').addEventListener('change', async function(e){
+  $('qFile').addEventListener('change', function(e){
     var files = Array.prototype.slice.call(e.target.files || []);
     e.target.value = '';
-    if (!files.length) return;
+    if (files.length) processShots(files);
+  });
+
+  async function processShots(files){
     var btn = $('qShot'), worker = null, found = [];
     btn.disabled = true;
     try {
@@ -1560,11 +1697,57 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (worker) { try { await worker.terminate(); } catch (e) {} }
       btn.disabled = false; btn.textContent = '📷 Points';
     }
-  });
+  }
 
+  /* ---------- capture reçue via « Partager » d'Android ---------- */
+  async function handleShared(){
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    var files = [];
+    try {
+      var c = await caches.open('jkd-share'), keys = await c.keys();
+      for (var i = 0; i < keys.length; i++){
+        var r = await c.match(keys[i]), b = await r.blob();
+        files.push(new File([b], 'capture-' + i, {type:b.type || 'image/png'}));
+      }
+      await caches.delete('jkd-share');
+    } catch (e) {}
+    if (!files.length){ status('Aucune image reçue depuis le partage.'); return; }
+    var box = $('shareAsk');
+    box.querySelector('[data-n]').textContent = files.length + ' capture' + (files.length > 1 ? 's' : '') + ' reçue' + (files.length > 1 ? 's' : '');
+    box.hidden = false;
+    box.onclick = function(e){
+      var b = e.target.closest('[data-share-mode]');
+      if (!b) return;
+      box.hidden = true;
+      if (b.dataset.shareMode === 'cancel') return;
+      S.mode = b.dataset.shareMode; renderAll(); save();
+      processShots(files);
+    };
+  }
+
+
+  /* ---------- règles MPP ---------- */
+  function fillRules(){
+    var r = rules();
+    document.querySelectorAll('[data-rule]').forEach(function(x){ x.value = r.bonus[+x.dataset.rule]; });
+    $('x2every').value = r.x2every;
+  }
+  document.querySelectorAll('[data-rule]').forEach(function(x){
+    x.addEventListener('change', function(){
+      var b = rules().bonus.slice(), v = parseInt(x.value, 10);
+      if (v >= 0){ b[+x.dataset.rule] = v; S.rules = S.rules || {}; S.rules.bonus = b; save(); }
+      fillRules();
+    });
+  });
+  $('x2every').addEventListener('change', function(){
+    var v = parseInt($('x2every').value, 10);
+    if (v >= 1 && v <= 38){ S.rules = S.rules || {}; S.rules.x2every = v; save(); }
+    fillRules();
+  });
 
   /* ---------- réglages ---------- */
   function openSettings(){
+    fillRules();
     $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
     var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
   }
@@ -1894,6 +2077,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
+  if (/[?&]share=1/.test(location.search)) setTimeout(handleShared, 300);
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ m.home = shortName(m.home); m.away = shortName(m.away); }); });
   S.method = 'pow';
   delete S.filter;
