@@ -454,7 +454,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet, sinon bet365) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h et au plus une fois toutes les 12 h par match (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
+    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet, sinon bet365) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
@@ -1806,16 +1806,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var base = 'https://api.the-odds-api.com/v4/sports/' + mode.sport;
     var now = Date.now();
     var upcoming = cur().filter(function(m){ return matchState(m) === 'pre'; });
-    var CS_GUARD = false;   // garde-fous temporairement désactivés : remettre true pour limiter à 48 h / 12 h
+    var CS_GUARD = false;   // garde-fous temporairement désactivés : remettre true pour limiter à 48 h
     var todo = !CS_GUARD ? upcoming : upcoming.filter(function(m){
       var ko = kickoff(m);
-      var soon = !isFinite(ko) || ko - now <= 48 * 36e5;                                   // match dans les 48 h
-      var fresh = m.cs && m.cs.at && now - Date.parse(m.cs.at) < 12 * 36e5;              // déjà récupéré il y a moins de 12 h
-      return soon && !fresh;
+      return !isFinite(ko) || ko - now <= 48 * 36e5;                                       // match dans les 48 h
     });
     if (!upcoming.length){ status('Aucun match à venir dans cet onglet.'); return; }
     if (!todo.length){
-      status('Rien à mettre à jour : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h, et pas plus d\'une fois toutes les 12 h par match. Aucun crédit utilisé.');
+      status('Rien à mettre à jour : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h. Aucun crédit utilisé.');
       return;
     }
     if (CS_GUARD && !confirm('Chercher les cotes score exact pour ' + todo.length + ' match' + (todo.length > 1 ? 's' : '') + ' ?\nCoût : jusqu\'à ' + todo.length + ' crédit' + (todo.length > 1 ? 's' : '') + '.')) return;
@@ -1986,12 +1984,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var now = Date.now();
     var todo = cur().filter(function(m){
       if (matchState(m) !== 'pre') return false;
-      var ko = kickoff(m), soon = !isFinite(ko) || ko - now <= 48 * 36e5;
-      var fresh = m.cs && m.cs.at && now - Date.parse(m.cs.at) < 12 * 36e5;
-      return soon && !fresh;
+      var ko = kickoff(m);
+      return !isFinite(ko) || ko - now <= 48 * 36e5;                                       // match dans les 48 h
     });
     if (!cur().some(function(m){ return matchState(m) === 'pre'; })){ status('Aucun match à venir dans cet onglet.'); return; }
-    if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h, et pas plus d\'une fois toutes les 12 h.'); return; }
+    if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h.'); return; }
     var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
     try {
       var c = await opEnsure(), tid = c.tour[S.mode];
