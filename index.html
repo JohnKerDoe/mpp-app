@@ -280,8 +280,14 @@ html[data-theme="dark"]{--live:#FF4D63;--live-tint:#3A1219;--live-ink:#FF8A99;--
 .x2c{font-size:12px;font-weight:800;color:var(--mute);white-space:nowrap}
 .x2c.on{color:#B07A00}
 html[data-theme="dark"] .x2c.on{color:#FFC94D}
+.recap li.x2gold{box-shadow:inset 0 0 0 3px #E0A800;border-radius:10px;position:relative;z-index:1}
+html[data-theme="dark"] .recap li.x2gold{box-shadow:inset 0 0 0 3px #FFC94D}
 .x2t{display:inline-block;font-size:11px;font-weight:800;padding:2px 6px;border-radius:999px;background:#FFC94D;color:#3A2A00;margin-left:6px;vertical-align:1px}
 .x2b{padding:0 10px}
+.x2btn.on{border-style:solid;border-color:#E0A800;color:#8A6200;background:rgba(224,168,0,.12)}
+html[data-theme="dark"] .x2btn.on{border-color:#FFC94D;color:#FFC94D}
+.card.x2used{box-shadow:0 0 0 3px #E0A800}
+html[data-theme="dark"] .card.x2used{box-shadow:0 0 0 3px #FFC94D}
 .x2btn{border:1px dashed var(--mute);background:transparent;color:var(--ink-2);font:inherit;font-size:13px;font-weight:700;border-radius:8px;padding:7px 10px;margin:6px 0 0;cursor:pointer}
 .card:not(.open) .tst,.card:not(.open) .x2b{display:none}
 .tst{padding:8px 10px 0;font-size:13px;color:var(--ink-2)}
@@ -322,7 +328,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     </div>
     <div class="pline" id="pImp"></div>
     <div class="pline" id="pChg"></div>
-    <div class="pline" id="pX2" hidden></div>
     <div class="cd" id="cd" hidden></div>
   </section>
 
@@ -403,9 +408,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <input id="opKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé OddsPapi" aria-label="Clé OddsPapi">
         <button class="btn2" id="opSave" type="button">Enregistrer</button>
       </div>
-      <button class="btn" id="opTest" type="button" style="margin-top:8px">🧪 Tester OddsPapi</button>
-      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet, sinon bet365) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois. Le test montre qui propose le score exact sur le prochain match (2 requêtes).</p>
-      <p class="note" id="opOut" style="white-space:pre-line;color:var(--ink)"></p>
+      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet, sinon bet365) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois.</p>
     </section>
 
     <h3>Règles MPP</h3>
@@ -439,7 +442,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
     <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet, sinon bet365) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h et au plus une fois toutes les 12 h par match (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
-    <p>Dans le récap, le score entre parenthèses est celui qu'on obtient sans retirer la marge : l'issue qui rapporte le plus avec points ÷ cote, puis son score le plus probable. Il est en rouge quand il diffère du score conseillé.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
     <p>Le choix 1N2 ne compte que les points du résultat, sans bonus de score exact.</p>
@@ -807,7 +809,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var c = calc(m); if (!c.ev) return;
       var t = totEV(c); if (!best || t > bestTot){ best = m; bestTot = t; }
     });
-    if (!jn) return best ? {m:best, tot:bestTot, status:'nojn'} : null;
+    if (!jn) return st.used.x ? {status:'used', blk:'x', usedOn:st.used.x} : best ? {m:best, tot:bestTot, status:'nojn', blk:'x'} : null;
     var blk = Math.floor((jn - 1) / N), pos = (jn - 1) % N + 1, from = blk * N + 1, to = from + N - 1;
     var info = {jn:jn, blk:blk, pos:pos, N:N, from:from, to:to};
     if (st.used[blk]) { info.status = 'used'; info.usedOn = st.used[blk]; return info; }
@@ -828,12 +830,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var c = calc(m);
     // ⭐ bonus x2
     var xc = card.querySelector('[data-meta="x2"]'), xb = card.querySelector('[data-meta="x2b"]');
-    var isBest = X2 && X2.m === m, usedHere = X2 && X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(m) && X2.usedOn.jn === X2.jn;
+    var isBest = X2 && X2.m === m, usedHere = X2 && X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(m) && (X2.blk === 'x' || X2.usedOn.jn === X2.jn);
     var lbl = {play:'⭐ x2 à jouer', last:'⭐ x2 : dernière journée', wait:'⭐ x2 : attends', nojn:'⭐ meilleur x2'};
-    xc.textContent = usedHere ? '⭐ x2 joué' : isBest ? lbl[X2.status] || '' : '';
+    xc.textContent = '';
     xc.className = 'x2c' + (usedHere || (isBest && (X2.status === 'play' || X2.status === 'last')) ? ' on' : '');
-    xb.innerHTML = usedHere ? '<button type="button" class="x2btn" data-x2undo>Annuler mon x2 ici</button>'
-      : (X2 && X2.status !== 'used' && X2.status !== 'nojn' && matchState(m) === 'pre' && c.ev) ? '<button type="button" class="x2btn" data-x2use>J\'ai joué mon x2 sur ce match</button>' : '';
+    xb.innerHTML = usedHere
+      ? '<button type="button" class="x2btn on" data-x2toggle aria-pressed="true">⭐ Bonus x2 validé sur ce match · toucher pour annuler</button>'
+      : (X2 && c.ev && matchState(m) === 'pre')
+      ? '<button type="button" class="x2btn" data-x2toggle aria-pressed="false">☆ Valider mon bonus x2 sur ce match</button>' : '';
+    card.classList.toggle('x2used', !!usedHere);
     var st = matchState(m);
     card.classList.toggle('st-live', st === 'live');
     card.classList.toggle('st-done', st === 'done');
@@ -1015,17 +1020,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       return '<span class="pl" aria-label="' + cnt[x[0]] + ' ' + x[1] + '"><i class="dot ' + x[0] + '"></i>' + cnt[x[0]] + '</span>';
     }).join('');
     // 3) Pronos modifiés au dernier import
-    var px = $('pX2'), xi = X2;
-    if (xi){
-      var nm = xi.m ? esc(xi.m.home) + ' – ' + esc(xi.m.away) : '', gain = xi.tot ? ' <span>(≈ +' + nf0.format(xi.tot) + ' pts)</span>' : '';
-      var bloc = xi.jn ? ' <span>· J' + xi.from + '–J' + xi.to + ', journée ' + xi.pos + '/' + xi.N + '</span>' : '';
-      px.innerHTML = xi.status === 'used' ? '⭐ x2 déjà joué dans ce bloc' + (xi.usedOn ? ' <span>(' + esc(xi.usedOn.name) + ')</span>' : '') + bloc
-        : xi.status === 'play' ? '⭐ <b>x2 à jouer</b> sur ' + nm + gain + bloc
-        : xi.status === 'last' ? '⭐ <b>Dernière journée du bloc</b> : x2 sur ' + nm + gain + bloc
-        : xi.status === 'wait' ? '⭐ x2 : <b>attends</b>, meilleur match du jour ' + nm + gain + bloc
-        : '⭐ Meilleur match pour un x2 : ' + nm + gain + ' <span>(journée non lue sur la capture)</span>';
-      px.hidden = false;
-    } else px.hidden = true;
     var nP = rows.filter(function(r){ return r.ch === 'pick'; }).length, nL = rows.filter(function(r){ return r.ch === 'level'; }).length;
     $('pChg').innerHTML = !n ? '' : (nP || nL)
       ? '🔄 ' + (nP ? '<b>' + nP + ' prono' + (nP > 1 ? 's' : '') + ' modifié' + (nP > 1 ? 's' : '') + '</b>' : '') +
@@ -1040,18 +1034,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
-      if (X2 && X2.m === r.m && (X2.status === 'play' || X2.status === 'last')) tag += '<span class="x2t">⭐ x2</span>';
-      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : ''].join(' ').trim();
+      var gold = X2 && ((X2.m === r.m && (X2.status === 'play' || X2.status === 'last')) ||
+        (X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(r.m) && (X2.blk === 'x' || X2.usedOn.jn === X2.jn)));
+      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : ''].join(' ').trim();
       return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
-        '<span class="rp">' + lb + (function(){ var rs = rawScore(r.m); return rs ? '<span class="raw' + (rs !== scoreOf(r.c, r.c.best) ? ' diff' : '') + '" title="Score sans retirer la marge du bookmaker">(' + rs + ')</span>' : ''; })() + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+        '<span class="rp">' + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('');
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
-      return r.m.home + ' ' + scoreOf(r.c, r.c.best) + ' ' + r.m.away + ' (brut ' + (rawScore(r.m) || '–') + ' / ' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
+      return r.m.home + ' ' + scoreOf(r.c, r.c.best) + ' ' + r.m.away + ' (' + nf1.format(r.c.ev[r.c.best]) + ' pts, écart ' + nf1.format(r.c.gap) + ')';
     }).join('\n') : '';
   }
 
@@ -1151,12 +1146,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   $('list').addEventListener('click', function(e){
-    var xu = e.target.closest('[data-x2use]'), xn = e.target.closest('[data-x2undo]');
-    if (xu || xn){
+    var xt = e.target.closest('[data-x2toggle]');
+    if (xt){
       var mm = cur()[+e.target.closest('.card').dataset.i], st = x2State(), info = x2Info();
-      if (info && info.jn !== undefined && info.blk !== undefined){
-        if (xu) st.used[info.blk] = {key:mkey(mm), jn:info.jn, name:mm.home + ' – ' + mm.away};
-        else delete st.used[info.blk];
+      if (info && info.blk !== undefined){
+        var u = st.used[info.blk];
+        if (u && u.key === mkey(mm)) delete st.used[info.blk];                       // dévalider
+        else st.used[info.blk] = {key:mkey(mm), jn:info.jn || null, name:mm.home + ' – ' + mm.away};   // valider (ou déplacer)
         renderAll(); save();
       }
       return;
@@ -1852,7 +1848,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var k = $('opKey').value.trim();
     try { if (k) localStorage.setItem(KEY_OP, k); else localStorage.removeItem(KEY_OP); } catch (e) {}
     $('opKey').value = ''; $('opKey').placeholder = k ? 'Clé enregistrée' : 'Colle ta clé OddsPapi';
-    $('opOut').textContent = k ? 'Clé OddsPapi enregistrée.' : 'Clé OddsPapi supprimée.';
+    status(k ? 'Clé OddsPapi enregistrée.' : 'Clé OddsPapi supprimée.');
     showOpCredits(); refreshOpCredits();
   });
   // OddsPapi impose un délai entre deux appels (≈ 0,5 à 1 s) : on espace les appels et on réessaie si besoin
@@ -2009,71 +2005,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     }
   }
 
-  $('opTest').addEventListener('click', async function(){
-    var out = $('opOut'), btn = $('opTest');
-    if (!opKey()){ out.textContent = 'Enregistre d\'abord ta clé OddsPapi ci-dessus.'; return; }
-    btn.disabled = true; btn.textContent = 'Test en cours…'; out.textContent = '';
-    var L = [];
-    try {
-      var c = opCache();
-      // 1) identifiants des compétitions (gardés en mémoire)
-      if (!c.tour){
-        var tours = await opGet('/tournaments?sportId=10');
-        var find = function(re, cat){ var t = (tours || []).filter(function(x){ var n = (x.tournamentName || '') + ' ' + (x.tournamentSlug || ''); return re.test(n) && (!cat || cat.test((x.categorySlug || '') + ' ' + (x.categoryName || ''))) && !/women|femin|u19|u21|youth|qualif/i.test(n); }); return t[0] ? t[0].tournamentId : null; };
-        c.tour = {l1:find(/ligue[- ]?1\b/i, /france/i), l2:find(/ligue[- ]?2\b/i, /france/i), ldc:find(/champions[- ]league/i, null)};
-        opSaveCache(c);
-      }
-      // 2) marchés « score exact » (gardés en mémoire)
-      if (!c.cs){
-        var mk = await opGet('/markets');
-        c.cs = {};
-        (mk || []).filter(function(m){ return m.sportId === 10 && /correct score/i.test(m.marketName || '') && (!m.period || m.period === 'fulltime'); })
-          .forEach(function(m){ (m.outcomes || []).forEach(function(o){ c.cs[o.outcomeId] = o.outcomeName; }); c.cs['m' + m.marketId] = m.marketName; });
-        opSaveCache(c);
-      }
-      var tid = c.tour[S.mode];
-      if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
-      // 3) prochains matchs de la compétition (via Pinnacle)
-      var fx = await opGet('/odds-by-tournaments?bookmaker=pinnacle&tournamentIds=' + tid);
-      var next = (fx || []).filter(function(f){ return Date.parse(f.startTime) > Date.now(); })
-        .sort(function(a, b){ return Date.parse(a.startTime) - Date.parse(b.startTime); })[0];
-      if (!next) throw new Error('Aucun match à venir trouvé chez OddsPapi pour cet onglet.');
-      // 4) toutes les cotes de ce match, tous bookmakers
-      var od = await opGet('/odds?fixtureId=' + encodeURIComponent(next.fixtureId) + '&oddsFormat=decimal');
-      var when = new Date(next.startTime).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-      L.push((od.participant1Name || '?') + ' – ' + (od.participant2Name || '?') + ' (' + when + ')');
-      var bk = od.bookmakerOdds || {}, withCS = [];
-      Object.keys(bk).forEach(function(b){
-        var mks = bk[b].markets || {};
-        Object.keys(mks).forEach(function(mid){
-          if (!c.cs['m' + mid]) return;
-          var oc = mks[mid].outcomes || {}, list = [];
-          Object.keys(oc).forEach(function(oid){
-            var pl = oc[oid].players && oc[oid].players['0'];
-            if (pl && pl.active !== false && pl.price > 1) list.push({n:c.cs[oid] || oid, p:pl.price});
-          });
-          if (list.length) withCS.push({b:b, list:list.sort(function(x, y){ return x.p - y.p; })});
-        });
-      });
-      L.push(Object.keys(bk).length + ' bookmakers couvrent ce match.');
-      if (!withCS.length) L.push('', 'Aucun ne propose encore le score exact. Réessaie la veille ou le jour du match.');
-      withCS.sort(function(x, y){ return y.list.length - x.list.length; }).forEach(function(w, i){
-        if (i < 4){
-          L.push('', '✅ ' + w.b + ' — ' + w.list.length + ' scores. Les plus probables :');
-          w.list.slice(0, 6).forEach(function(x){ L.push('  ' + x.n + ' : ' + x.p); });
-        }
-      });
-      if (withCS.length > 4) L.push('', 'Autres avec score exact : ' + withCS.slice(4).map(function(w){ return w.b; }).join(', '));
-      // quota (appel non décompté)
-      try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
-        if (sub && sub.request_limit){ setOpCredits(sub.request_limit - sub.request_count); L.push('', 'Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } } catch (e) {}
-      out.textContent = L.join('\n');
-    } catch (e) {
-      out.textContent = (L.length ? L.join('\n') + '\n\n' : '') + (e.message || 'Test impossible.');
-    } finally {
-      btn.disabled = false; btn.textContent = '🧪 Tester OddsPapi';
-    }
-  });
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
