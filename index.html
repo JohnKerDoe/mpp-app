@@ -422,19 +422,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <input id="opKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé OddsPapi" aria-label="Clé OddsPapi">
         <button class="btn2" id="opSave" type="button">Enregistrer</button>
       </div>
-      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet, sinon bet365) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois.</p>
+      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois.</p>
     </section>
 
     <h3>Règles MPP</h3>
     <section class="grp">
-      <p class="note" style="margin-top:0">Bonus de rareté selon la part des joueurs ayant le bon résultat qui ont aussi le score exact :</p>
-      <div class="rules">
-        <label>plus de 30 %<input data-rule="0" inputmode="numeric"></label>
-        <label>20 à 30 %<input data-rule="1" inputmode="numeric"></label>
-        <label>5 à 20 %<input data-rule="2" inputmode="numeric"></label>
-        <label>0,5 à 5 %<input data-rule="3" inputmode="numeric"></label>
-        <label>moins de 0,5 %<input data-rule="4" inputmode="numeric"></label>
-      </div>
       <label class="x2rule">Un bonus x2 toutes les <input id="x2every" inputmode="numeric"> journées, dans chaque compétition</label>
     </section>
 
@@ -454,11 +446,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet, sinon bet365) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
-    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité et son bonus de rareté estimé (+20 à +100), qui n'entre pas dans le choix de l'issue.</p>
+    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
+    <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité. Le bonus de rareté MPP n'est pas estimé : il dépend des choix des autres joueurs, inconnus avant le match.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
-    <p>Le choix 1N2 ne compte que les points du résultat, sans bonus de score exact.</p>
+    <p>Le choix 1N2 et le conseil x2 ne comptent que les points du résultat.</p>
   </details>
     </section>
     <p class="store" id="store"></p>
@@ -545,9 +537,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var io = 1 / tot.over, iu = 1 / tot.under;
     return fitMu(tot.line, io / (io + iu));
   }
-  var RULES_DEF = {bonus:[20, 30, 50, 70, 100], x2every:5};
-  function rules(){ var r = S.rules || {}; return {bonus:(r.bonus && r.bonus.length === 5) ? r.bonus : RULES_DEF.bonus, x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every}; }
-  function bonusFor(share){ var b = rules().bonus; return share > 30 ? b[0] : share >= 20 ? b[1] : share >= 5 ? b[2] : share >= 0.5 ? b[3] : b[4]; }
+  var RULES_DEF = {x2every:5};
+  function rules(){ var r = S.rules || {}; return {x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every}; }
   function scoreModel(p, tot){
     var mu = totMu(tot) || MU_DEFAULT;
     var target = p[0] / (p[0] + p[2]), lo = 0.02, hi = 0.98, grid, ph, pa;
@@ -566,11 +557,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return [0, 1, 2].map(function(r){
       var list = grid.filter(function(s){ return s.r === r; });
       var tp = list.reduce(function(a, s){ return a + s.p; }, 0);
-      var w = list.reduce(function(a, s){ return a + Math.pow(s.p / tp, 2); }, 0);
-      var all = list.map(function(s){
-        var pc = s.p / tp, share = Math.pow(pc, 2) / w * 100, bonus = bonusFor(share);
-        return {score:s.h + '-' + s.a, p:pc * p[r], bonus:bonus, share:share, ev:pc * p[r] * bonus};
-      }).sort(function(a, b){ return b.p - a.p; });
+      var all = list.map(function(s){ return {score:s.h + '-' + s.a, p:s.p / tp * p[r]}; }).sort(function(a, b){ return b.p - a.p; });
       var best = all[0];
       best.top = all.slice(0, 3);
       best.all = all;
@@ -612,8 +599,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     if (!list.length) return null;
     var tot = list.reduce(function(a, x){ return a + x.pr; }, 0);
-    var w = list.reduce(function(a, x){ return a + Math.pow(x.pr / tot, 2); }, 0);
-    list.forEach(function(x){ x.pc = x.pr / tot; x.share = Math.pow(x.pc, 2) / w * 100; x.bonus = bonusFor(x.share); });
+    list.forEach(function(x){ x.pc = x.pr / tot; });
     return list.sort(function(a, b){ return b.pr - a.pr; });
   }
   function csPick(m, r){ var l = csList(m, r); return l ? {score:l[0].score, share:l[0].pc} : null; }
@@ -622,9 +608,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     c.sc = c.sc.map(function(x, r){
       var l = csList(m, r);
       if (!l) return x;
-      var top = l.slice(0, 3).map(function(y){ return {score:y.score, p:y.pc * c.p[r], bonus:y.bonus, share:y.share}; });
-      var all = l.map(function(y){ return {score:y.score, p:y.pc * c.p[r], bonus:y.bonus}; });
-      return {score:top[0].score, p:top[0].p, bonus:top[0].bonus, ev:x.ev, src:m.cs.bk, top:top, all:all};
+      var all = l.map(function(y){ return {score:y.score, p:y.pc * c.p[r]}; });
+      return {score:all[0].score, p:all[0].p, src:m.cs.bk, top:all.slice(0, 3), all:all};
     });
     return c;
   }
@@ -809,7 +794,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   /* ---------- bonus x2 : un toutes les N journées, par compétition ---------- */
-  function totEV(c){ return c.ev ? c.ev[c.best] + (c.sc ? c.sc[c.best].p * (c.sc[c.best].bonus || 0) : 0) : 0; }
+  function totEV(c){ return c.ev ? c.ev[c.best] : 0; }
   function tabJ(){
     var n = {}; cur().forEach(function(m){ if (m.jn) n[m.jn] = (n[m.jn] || 0) + 1; });
     var best = null; Object.keys(n).forEach(function(k){ if (best === null || n[k] > n[best]) best = k; });
@@ -914,7 +899,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
       var scc = cell('sc', o);
       scc.innerHTML = c.sc ? '<b>' + c.sc[o].score + '</b><span class="d">' + pct(c.sc[o].p * 100) +
-        (c.sc[o].src ? ' · 🎯' : ' · +' + c.sc[o].bonus) + '</span>' : '–';
+        (c.sc[o].src ? ' · 🎯' : '') + '</span>' : '–';
 
       var v = cell('ev', o);
       if (c.ev){
@@ -948,8 +933,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (c.ev && c.sc && c.sc[c.best].top){
       var tp = c.sc[c.best].top;
       lines.push('Scores probables (' + pickLabel(m, c.best) + ') : ' + tp.map(function(x){ return x.score + ' ' + pct(x.p * 100); }).join(' · '));
-      var alt = tp.slice(1).filter(function(x){ return x.p >= 0.85 * tp[0].p && x.bonus > tp[0].bonus; })[0];
-      if (alt) lines.push('💡 Pour le bonus : ' + alt.score + ' presque aussi probable, et sans doute moins joué (bonus estimé +' + alt.bonus + ' au lieu de +' + tp[0].bonus + ').');
     }
     if (m.cs && m.cs.bk && c.ev) lines.push('🎯 Scores exacts : cotes ' + m.cs.bk + ' (' + whenLabel(m.cs.at) + ')');
     card.querySelector('[data-out="note"]').innerHTML = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
@@ -1134,10 +1117,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var cc = calc(m), h = +g[1], a = +g[2], r = h > a ? 0 : h === a ? 1 : 2;
       if (!cc.ev || !cc.sc){ out.textContent = 'Il faut d\'abord les points et les cotes.'; return; }
       var it = (cc.sc[r].all || []).filter(function(x){ return x.score === h + '-' + a; })[0];
-      var ps = it ? it.p : 0, bn = it ? it.bonus : rules().bonus[4], pts = N(m.pts[r]);
-      var evT = cc.p[r] * pts + ps * bn, evB = totEV(cc);
-      out.innerHTML = '<b>' + h + '-' + a + '</b> : ' + (ps ? pct(ps * 100) : 'moins de 0,1 %') + ' de chances · si juste : ' + nf0.format(pts) + ' + ' + bn + ' = ' + nf0.format(pts + bn) + ' pts' +
-        '<br>Espérance bonus compris : <b>' + nf1.format(evT) + ' pts</b> (conseillé ' + scoreOf(cc, cc.best) + ' : ' + nf1.format(evB) + ' pts)';
+      var ps = it ? it.p : 0;
+      out.innerHTML = '<b>' + h + '-' + a + '</b> : ' + (ps ? pct(ps * 100) : 'moins de 0,1 %') + ' de chances (conseillé ' + scoreOf(cc, cc.best) + ' : ' + pct(cc.sc[cc.best].p * 100) + ')' +
+        '<br>Espérance du résultat : <b>' + nf1.format(cc.ev[r]) + ' pts</b>' + (r === cc.best ? ' (issue conseillée)' : ' (conseillé : ' + nf1.format(cc.ev[cc.best]) + ' pts)');
       return;
     }
     if (t.dataset.f){
@@ -1745,16 +1727,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- règles MPP ---------- */
   function fillRules(){
     var r = rules();
-    document.querySelectorAll('[data-rule]').forEach(function(x){ x.value = r.bonus[+x.dataset.rule]; });
     $('x2every').value = r.x2every;
   }
-  document.querySelectorAll('[data-rule]').forEach(function(x){
-    x.addEventListener('change', function(){
-      var b = rules().bonus.slice(), v = parseInt(x.value, 10);
-      if (v >= 0){ b[+x.dataset.rule] = v; S.rules = S.rules || {}; S.rules.bonus = b; save(); }
-      fillRules();
-    });
-  });
   $('x2every').addEventListener('change', function(){
     var v = parseInt($('x2every').value, 10);
     if (v >= 1 && v <= 38){ S.rules = S.rules || {}; S.rules.x2every = v; save(); }
