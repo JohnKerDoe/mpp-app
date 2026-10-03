@@ -131,6 +131,8 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .chip{display:inline-block;font-size:11px;font-weight:700;line-height:1.2;padding:3px 6px;border-radius:999px;background:var(--best);color:var(--on-best)}
 .chip.maj{background:transparent;color:var(--ink-2);border:1px solid var(--mute);padding:2px 5px}
 .cf{padding:6px 10px 10px;font-size:12px;color:var(--mute)}
+.cf .tie{margin-top:6px;padding:5px 8px;border:1px solid var(--lr);border-left-width:4px;border-radius:6px;color:var(--ink-2)}
+.cf .tie b{color:var(--ink)}
 
 .add{width:100%;padding:13px;border:1.5px dashed var(--mute);background:transparent;border-radius:12px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;margin-top:4px}
 .btn{width:100%;padding:13px;border:0;background:var(--acc);color:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
@@ -629,6 +631,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return c;
   }
 
+  // Match serré : issues à moins de 1 pt de la meilleure espérance ; on regarde laquelle contient le score le plus probable (indicatif)
+  function tieBreak(c){
+    if (!c.ev || !c.sc || c.gap === null || c.gap >= 1) return null;
+    var close = [0, 1, 2].filter(function(o){ return c.ev[c.best] - c.ev[o] < 1; });
+    var o = close.reduce(function(a, k){ return c.sc[k].p > c.sc[a].p ? k : a; }, c.best);
+    return {o:o, close:close};
+  }
   function pickLabel(m, o){ return o === 0 ? (m.home || 'Domicile') : o === 1 ? 'Nul' : (m.away || 'Extérieur'); }
 
   /* ---------- estimation précédente ---------- */
@@ -935,7 +944,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       lines.push('Scores probables (' + pickLabel(m, c.best) + ') : ' + tp.map(function(x){ return x.score + ' ' + pct(x.p * 100); }).join(' · '));
     }
     if (m.cs && m.cs.bk && c.ev) lines.push('🎯 Scores exacts : cotes ' + m.cs.bk + ' (' + whenLabel(m.cs.at) + ')');
-    card.querySelector('[data-out="note"]').innerHTML = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
+    var html = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
+    var tb = tieBreak(c);
+    if (tb){
+      var bs = c.sc[c.best], ts = c.sc[tb.o];
+      html += '<div class="tie">⚖️ Match serré (' + tb.close.map(function(o){ return pickLabel(m, o); }).map(esc).join(' / ') + ' à moins de 1 pt) : ' +
+        (tb.o === c.best
+          ? 'le score le plus probable est déjà dans l\'issue conseillée (<b>' + esc(bs.score) + '</b> ' + pct(bs.p * 100) + ').'
+          : 'le score le plus probable est <b>' + esc(ts.score) + '</b> ' + pct(ts.p * 100) + ' → <b>' + esc(pickLabel(m, tb.o)) + '</b>, au lieu de ' + esc(bs.score) + ' ' + pct(bs.p * 100) + '.') +
+        '</div>';
+    }
+    card.querySelector('[data-out="note"]').innerHTML = html;
   }
 
   var MONTHS = {janvier:0, fevrier:1, mars:2, avril:3, mai:4, juin:5, juillet:6, aout:7, septembre:8, octobre:9, novembre:10, decembre:11};
