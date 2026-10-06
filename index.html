@@ -978,7 +978,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   function fmtLeft(ms){
     var mn = Math.max(1, Math.round(ms / 6e4)), d = Math.floor(mn / 1440), h = Math.floor((mn % 1440) / 60), r = mn % 60;
-    return d ? d + ' j ' + h + ' h' : h ? h + ' h ' + (r < 10 ? '0' : '') + r + ' min' : r + ' min';
+    var m2 = (r < 10 ? '0' : '') + r + ' min';
+    return d ? d + ' j ' + h + ' h ' + m2 : h ? h + ' h ' + m2 : r + ' min';
   }
   // 2) Ancienneté du dernier import des cotes (par onglet)
   function lastImportAt(){
@@ -1009,8 +1010,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     ks.sort(function(a, b){ return a.t - b.t; });
     var next = ks.filter(function(x){ return x.t > now; })[0];
     if (!next){ el.hidden = true; return; }
-    var label = next === ks[0] ? 'Premier match dans ' : 'Prochain match dans ';
-    el.innerHTML = '⏱ ' + label + '<b>' + fmtLeft(next.t - now) + '</b> <span>· ' + esc(next.m.home) + ' – ' + esc(next.m.away) + '</span>';
+    el.innerHTML = '⏱ Prochain match dans <b>' + fmtLeft(next.t - now) + '</b> <span>· ' + esc(next.m.home) + ' – ' + esc(next.m.away) + '</span>';
     el.hidden = false;
   }
 
@@ -1262,9 +1262,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     ['rodez','rodez af','rodez aveyron','rodez aveyron football','raf'],
     ['grenoble','grenoble foot','grenoble foot 38','gf38'],
     ['annecy','fc annecy'],
-    ['laval','stade lavallois','stade laval'],
+    ['laval','stade lavallois','stade laval','laval mfc','stade lavallois mfc'],
     ['amiens','amiens sc'],
-    ['nancy','as nancy','as nancy lorraine','nancy lorraine'],
+    ['nancy','as nancy','as nancy lorraine','nancy lorraine','as nancy l','nancy l'],
     ['dunkerque','usl dunkerque','dunkerque usl'],
     ['caen','sm caen','stade malherbe caen','stade malherbe'],
     ['quevilly','quevilly rouen','qrm','us quevilly rouen'],
@@ -1314,7 +1314,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return stripped.replace(/ /g, '') || n.replace(/ /g, '');
   }
   // Noms courts affichés dans l'appli
-  var SHORT = {annecy:'Annecy', rodez:'Rodez', saintetienne:'ASSE'};
+  var SHORT = {annecy:'Annecy', rodez:'Rodez', saintetienne:'St Étienne', lens:'Lens', lyon:'Lyon', nancy:'Nancy', guingamp:'Guingamp', pau:'Pau', laval:'Laval'};
   function shortName(t){ var c = canon(t); return SHORT[c] || t; }
   function sameTeam(a, b){
     var x = canon(a), y = canon(b);
