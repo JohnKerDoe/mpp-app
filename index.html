@@ -41,10 +41,28 @@ h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
 .logo{position:relative;display:inline-block;font:400 27px/1 'Bungee',system-ui,sans-serif;letter-spacing:0;margin:0 0 6px;--ex:#0F1B3D}
 html[data-theme="dark"] .logo{--ex:#000}
 .logo .ex{display:block;color:var(--ex);text-shadow:1px 1px 0 var(--ex),2px 2px 0 var(--ex),3px 3px 0 var(--ex),4px 4px 0 var(--ex)}
-.logo .fx{position:absolute;left:0;top:0;background:linear-gradient(90deg,#E5484D,#F59E0B,#22A06B,#F5C542,#E5484D) 0 0/6em 100% repeat-x;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:nappe 6s linear infinite}
-@keyframes nappe{to{background-position:6em 0}}
-@media (prefers-reduced-motion: reduce){.logo .fx{animation:none}}
-.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:6px}
+.logo .fx{position:absolute;left:0;top:0;color:transparent;-webkit-text-fill-color:transparent}
+/* Lettres séparées : chacune s'enfonce quand le ballon la touche (relief et nappe ensemble) */
+.logo .jl{display:inline-block;animation:jkdL 3s infinite;animation-delay:var(--d,0s)}
+/* La nappe est portée par chaque lettre, décalée de sa position (--o) pour rester continue */
+.logo .fx .jl{background:linear-gradient(90deg,#E5484D,#F59E0B,#22A06B,#F5C542,#E5484D) 0 0/6em 100% repeat-x;-webkit-background-clip:text;background-clip:text;animation:nappe 6s linear infinite,jkdL 3s infinite;animation-delay:0s,var(--d,0s)}
+@keyframes nappe{from{background-position:calc(-1 * var(--o,0px)) 0}to{background-position:calc(6em - var(--o,0px)) 0}}
+@keyframes jkdL{0%{transform:translateY(0);animation-timing-function:ease-out}3%{transform:translateY(var(--dip,2px));animation-timing-function:ease-in-out}10%,100%{transform:translateY(0)}}
+/* Ballon : chute sur le J (20 %), K (40 %), D (60 %), + (80 %), sortie à droite, cycle de 3 s */
+.logo .ball{position:absolute;left:0;top:var(--y,0px);width:var(--b,9px);height:var(--b,9px);pointer-events:none;opacity:0;animation:jkdX 3s linear infinite}
+.logo .ball-y{display:block;transform-origin:50% 100%;animation:jkdY 3s infinite}
+.logo .ball-r{display:block;font:var(--b,9px)/1 system-ui,sans-serif;animation:jkdR 3s linear infinite}
+@keyframes jkdX{0%{transform:translateX(var(--x0));opacity:0}8%{opacity:1}20%{transform:translateX(var(--x0))}40%{transform:translateX(var(--x1))}60%{transform:translateX(var(--x2))}80%{transform:translateX(var(--x3))}92%{opacity:1}100%{transform:translateX(var(--x4));opacity:0}}
+@keyframes jkdY{
+  0%{transform:translateY(calc(-2 * var(--h)));animation-timing-function:cubic-bezier(.5,0,1,1)}
+  20%,40%,60%{transform:translateY(0) scale(1.2,.8);animation-timing-function:cubic-bezier(0,0,.5,1)}
+  30%,50%,70%,90%{transform:translateY(calc(-1 * var(--h)));animation-timing-function:cubic-bezier(.5,0,1,1)}
+  80%{transform:translateY(var(--dplus)) scale(1.2,.8);animation-timing-function:cubic-bezier(0,0,.5,1)}
+  100%{transform:translateY(var(--h))}
+}
+@keyframes jkdR{to{transform:rotate(720deg)}}
+@media (prefers-reduced-motion: reduce){.logo .jl,.logo .fx .jl{animation:none}.logo .ball{display:none}}
+.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:6px;padding-top:14px}
 .top .logo{grid-column:1;justify-self:center;margin-bottom:8px}
 .credits{flex:none;margin-top:3px;font-size:12px;line-height:1.2;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap}
 .credits b{font-weight:800;color:var(--ink)}
@@ -324,7 +342,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 <body>
 <div class="wrap">
   <div class="top">
-    <h1 class="logo" aria-label="JKD+"><span class="ex" aria-hidden="true">JKD+</span><span class="fx" aria-hidden="true">JKD+</span></h1>
+    <h1 class="logo" aria-label="JKD+"><span class="ex" aria-hidden="true"><span class="jl" style="--d:.6s">J</span><span class="jl" style="--d:1.2s">K</span><span class="jl" style="--d:1.8s">D</span><span class="jl" style="--d:2.4s">+</span></span><span class="fx" aria-hidden="true"><span class="jl" style="--d:.6s">J</span><span class="jl" style="--d:1.2s">K</span><span class="jl" style="--d:1.8s">D</span><span class="jl" style="--d:2.4s">+</span></span><span class="ball" aria-hidden="true"><span class="ball-y"><span class="ball-r">⚽</span></span></span></h1>
     <div class="topr">
       <span class="credits" id="credits" hidden></span>
       <span class="credits" id="opCredits" hidden></span>
@@ -2130,6 +2148,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     };
     rd.readAsText(f);
   });
+
+  // Ballon du logo : positions calculées sur les vraies lettres
+  (function(){
+    var logo = document.querySelector('.logo');
+    if (!logo) return;
+    var SOL = 0.14;  // hauteur du "sol" dans la lettre : augmente si le ballon flotte, baisse s'il s'enfonce
+    var ENF = 0.07;  // descente des lettres à l'impact (0.07 ≈ 2 px)
+    function placer(){
+      var ex = logo.querySelectorAll('.ex .jl'), fx = logo.querySelectorAll('.fx .jl');
+      if (ex.length < 4) return;
+      var w = logo.getBoundingClientRect(), r = [], i;
+      for (i = 0; i < ex.length; i++) r.push(ex[i].getBoundingClientRect());
+      if (!r[0].height) return;
+      var H = r[0].height, b = Math.round(H * 0.34), st = logo.style;
+      st.setProperty('--b', b + 'px');
+      st.setProperty('--h', Math.round(b * 1.6) + 'px');
+      st.setProperty('--y', (r[0].top - w.top + H * SOL - b) + 'px');
+      st.setProperty('--dplus', Math.round(H * 0.12) + 'px');
+      st.setProperty('--dip', Math.max(1, Math.round(H * ENF)) + 'px');
+      for (i = 0; i < 4; i++) st.setProperty('--x' + i, (r[i].left + r[i].width / 2 - w.left - b / 2) + 'px');
+      st.setProperty('--x4', (r[3].right - w.left + b * 1.5) + 'px');
+      for (i = 0; i < fx.length; i++) fx[i].style.setProperty('--o', (r[i].left - r[0].left) + 'px');
+    }
+    placer();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(placer);
+    window.addEventListener('resize', placer);
+  })();
 
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
