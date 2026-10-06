@@ -8,6 +8,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&display=swap">
 <title>JKD+</title>
 <style>
 :root{
@@ -35,7 +38,14 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
 .wrap{max-width:560px;margin:0 auto;padding:16px 12px 48px}
 h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
-.top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.logo{position:relative;display:inline-block;font:400 27px/1 'Bungee',system-ui,sans-serif;letter-spacing:0;margin:0 0 6px;--ex:#0F1B3D}
+html[data-theme="dark"] .logo{--ex:#000}
+.logo .ex{display:block;color:var(--ex);text-shadow:1px 1px 0 var(--ex),2px 2px 0 var(--ex),3px 3px 0 var(--ex),4px 4px 0 var(--ex)}
+.logo .fx{position:absolute;left:0;top:0;background:linear-gradient(90deg,#E5484D,#F59E0B,#22A06B,#F5C542,#E5484D) 0 0/6em 100% repeat-x;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:nappe 6s linear infinite}
+@keyframes nappe{to{background-position:6em 0}}
+@media (prefers-reduced-motion: reduce){.logo .fx{animation:none}}
+.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:6px}
+.top .logo{grid-column:1;justify-self:center;margin-bottom:8px}
 .credits{flex:none;margin-top:3px;font-size:12px;line-height:1.2;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap}
 .credits b{font-weight:800;color:var(--ink)}
 .credits.low{border-color:var(--lo);color:var(--low-ink)}
@@ -191,7 +201,7 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .shot:disabled{opacity:.6;cursor:default}
 
 /* thème, cartes repliables, courbes, compte à rebours, sauvegarde */
-.topr{display:flex;align-items:center;gap:6px;flex:none}
+.topr{grid-column:2 / 4;justify-self:end;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;min-width:0;margin-bottom:6px}
 .themebtn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;width:34px;height:30px;font-size:15px;line-height:1;cursor:pointer;margin-top:1px}
 .fold{flex:none;border:0;background:transparent;color:var(--ink-2);font-size:18px;line-height:1;padding:4px 8px;cursor:pointer;border-radius:6px;transition:transform .15s}
 .card.open .fold{transform:rotate(180deg)}
@@ -314,7 +324,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 <body>
 <div class="wrap">
   <div class="top">
-    <h1>JKD+</h1>
+    <h1 class="logo" aria-label="JKD+"><span class="ex" aria-hidden="true">JKD+</span><span class="fx" aria-hidden="true">JKD+</span></h1>
     <div class="topr">
       <span class="credits" id="credits" hidden></span>
       <span class="credits" id="opCredits" hidden></span>
