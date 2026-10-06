@@ -330,6 +330,16 @@ html[data-theme="dark"] .card.x2used{box-shadow:0 0 0 3px #FFC94D}
 .rules label,.x2rule{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink-2)}
 .rules input,.x2rule input{width:60px;font:inherit;font-size:16px;text-align:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
 .x2rule{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+/* Noms d'équipes (Réglages) */
+.tlg + .tlg{border-top:1px solid var(--line)}
+.tlg summary{cursor:pointer;padding:10px 0;font-size:15px;font-weight:700;color:var(--ink)}
+.tlg summary small{margin-left:6px;font-weight:400;font-size:13px;color:var(--mute)}
+.tlg .note{margin:0 0 10px}
+.tm{padding:9px 0;border-top:1px dashed var(--line)}
+.tmh{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font-size:14px;color:var(--ink)}
+.tmh small{font-size:12px;color:var(--mute)}
+.tm input{display:block;width:100%;margin-top:6px;font:inherit;font-size:16px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
+.tm input[data-f="alt"]{font-size:14px}
 .sheet.ask{display:flex;align-items:center;justify-content:center;background:rgba(8,12,24,.6);z-index:40}
 .sheet.ask[hidden]{display:none !important}
 .askin{background:var(--bg);border-radius:16px;padding:18px;width:min(92vw,360px)}
@@ -458,6 +468,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <h3>Règles MPP</h3>
     <section class="grp">
       <label class="x2rule">Un bonus x2 toutes les <input id="x2every" inputmode="numeric"> journées, dans chaque compétition</label>
+    </section>
+
+    <h3>Noms d'équipes</h3>
+    <section class="grp">
+      <p class="note" style="margin-top:0">Nom affiché : remplace le nom de l'équipe partout dans l'appli. Autres écritures : les autres noms de la même équipe chez MPP ou les sites de cotes, séparés par des virgules. Utile quand un import indique « reçu sous le nom … » ou « absent des matchs reçus ».</p>
+      <div id="teamsBox"></div>
     </section>
 
     <h3>Sauvegarde</h3>
@@ -1342,6 +1358,49 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return !known && x.length >= 4 && y.length >= 4 && (x.indexOf(y) >= 0 || y.indexOf(x) >= 0);
   }
 
+  // Noms d'équipes réglés dans ⚙️ Réglages (enregistrés dans S.teams, donc inclus dans la sauvegarde)
+  //   names : nom affiché choisi · alt : autres écritures · orig : nom avant personnalisation · lg : compétition
+  var ALIAS0 = Object.assign({}, ALIAS), SHORT0 = Object.assign({}, SHORT);
+  function teamPrefs(){
+    S.teams = S.teams || {};
+    ['names', 'alt', 'orig', 'lg'].forEach(function(k){ S.teams[k] = S.teams[k] || {}; });
+    return S.teams;
+  }
+  function applyTeamPrefs(){
+    var t = S.teams || {};
+    ALIAS = Object.assign({}, ALIAS0); SHORT = Object.assign({}, SHORT0);
+    Object.keys(t.orig || {}).forEach(function(k){ var n = norm(t.orig[k]); if (n && !ALIAS[n]) ALIAS[n] = k; });
+    Object.keys(t.alt || {}).forEach(function(k){ (t.alt[k] || []).forEach(function(v){ var n = norm(v); if (n) ALIAS[n] = k; }); });
+    Object.keys(t.names || {}).forEach(function(k){ var v = t.names[k]; if (v){ SHORT[k] = v; var n = norm(v); if (n) ALIAS[n] = k; } });
+  }
+  // Applique un changement de réglage puis renomme les équipes déjà enregistrées
+  function renameTeams(change){
+    var t = teamPrefs();
+    var keys = MODES.map(function(md){ return S.data[md.id].map(function(m){ return [canon(m.home), canon(m.away)]; }); });
+    change(t);
+    applyTeamPrefs();
+    MODES.forEach(function(md, i){
+      S.data[md.id].forEach(function(m, j){
+        var k = keys[i][j];
+        m.home = SHORT[k[0]] || t.orig[k[0]] || m.home;
+        m.away = SHORT[k[1]] || t.orig[k[1]] || m.away;
+      });
+    });
+    save();
+  }
+  function teamName(k){
+    var found = '';
+    MODES.some(function(md){
+      return S.data[md.id].some(function(m){
+        if (canon(m.home) === k){ found = m.home; return true; }
+        if (canon(m.away) === k){ found = m.away; return true; }
+        return false;
+      });
+    });
+    var t = S.teams || {};
+    return found || SHORT[k] || (t.orig && t.orig[k]) || k;
+  }
+
   function dayLabel(d){
     var t = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -1782,9 +1841,54 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     fillRules();
   });
 
+  /* ---------- noms d'équipes ---------- */
+  function renderTeams(){
+    var t = teamPrefs(), html = '';
+    MODES.forEach(function(md){
+      var seen = {}, list = [];
+      var add = function(k, nm){ if (k && !seen[k]){ seen[k] = 1; list.push({k:k, nm:nm}); } };
+      S.data[md.id].forEach(function(m){ add(canon(m.home), m.home); add(canon(m.away), m.away); });
+      Object.keys(t.lg).forEach(function(k){ if (t.lg[k] === md.id) add(k, teamName(k)); });
+      list.sort(function(a, b){ return a.nm.localeCompare(b.nm, 'fr'); });
+      html += '<details class="tlg"' + (md.id === S.mode ? ' open' : '') + '><summary>' + esc(md.tab) +
+        '<small>' + (list.length ? list.length + ' équipe' + (list.length > 1 ? 's' : '') : 'vide') + '</small></summary>';
+      if (!list.length) html += '<p class="note">Aucune équipe pour l\'instant : importe d\'abord une capture MPP dans cet onglet.</p>';
+      list.forEach(function(x){
+        var o = t.orig[x.k] && t.names[x.k] && t.orig[x.k] !== x.nm ? '<small>nom d\'origine : ' + esc(t.orig[x.k]) + '</small>' : '';
+        var a = ' data-k="' + esc(x.k) + '" data-lg="' + md.id + '" autocomplete="off" spellcheck="false"';
+        html += '<div class="tm"><div class="tmh"><b>' + esc(x.nm) + '</b>' + o + '</div>' +
+          '<input' + a + ' data-f="name" value="' + esc(t.names[x.k] || '') + '" placeholder="Nom affiché" aria-label="Nom affiché pour ' + esc(x.nm) + '">' +
+          '<input' + a + ' data-f="alt" value="' + esc((t.alt[x.k] || []).join(', ')) + '" placeholder="Autres écritures, séparées par des virgules" aria-label="Autres écritures de ' + esc(x.nm) + '">' +
+          '</div>';
+      });
+      html += '</details>';
+    });
+    $('teamsBox').innerHTML = html;
+  }
+  $('teamsBox').addEventListener('change', function(e){
+    var el = e.target, k = el.getAttribute && el.getAttribute('data-k');
+    if (!k) return;
+    var v = el.value.trim(), f = el.getAttribute('data-f');
+    renameTeams(function(t){
+      if (!t.orig[k]) t.orig[k] = teamName(k);
+      t.lg[k] = el.getAttribute('data-lg');
+      if (f === 'name'){ if (v) t.names[k] = v.slice(0, 30); else delete t.names[k]; }
+      else {
+        var list = v.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+        if (list.length) t.alt[k] = list; else delete t.alt[k];
+      }
+    });
+    var t = S.teams;
+    if (!t.names[k] && !t.alt[k]){ delete t.orig[k]; delete t.lg[k]; applyTeamPrefs(); save(); }
+    // Met à jour le nom affiché de la ligne sans tout redessiner (le clavier reste ouvert)
+    var row = el.closest('.tm'), b = row && row.querySelector('b');
+    if (b) b.textContent = teamName(k);
+  });
+
   /* ---------- réglages ---------- */
   function openSettings(){
     fillRules();
+    renderTeams();
     $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
     var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
   }
@@ -2067,6 +2171,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (tab || act){ try { history.replaceState(null, '', location.pathname); } catch (e) {} }
     if (act === 'capture') setTimeout(function(){ $('capAsk').hidden = false; }, 300);
   })();
+  applyTeamPrefs();
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ m.home = shortName(m.home); m.away = shortName(m.away); }); });
   S.method = 'pow';
   delete S.filter;
@@ -2138,6 +2243,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var when = o.at ? new Date(o.at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
         if (!confirm('Remplacer tes données actuelles par cette sauvegarde' + (when ? ' du ' + when : '') + ' (' + n + ' matchs) ?')) return;
         S = st; S.method = 'pow';
+        applyTeamPrefs();
         if (!MODES.some(function(md){ return md.id === S.mode; })) S.mode = 'l1';
         openSet = {};
         renderAll(); save();
