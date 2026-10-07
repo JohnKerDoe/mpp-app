@@ -462,12 +462,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <input id="opKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé OddsPapi" aria-label="Clé OddsPapi">
         <button class="btn2" id="opSave" type="button">Enregistrer</button>
       </div>
-      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Singbet, sinon SBOBet) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois.</p>
+      <p class="note">Avec cette clé, 🎯 Scores utilise OddsPapi (Pinnacle, sinon Singbet puis SBOBet) : 2 à 4 requêtes pour tout l'onglet, sur 250 par mois.</p>
     </section>
 
     <h3>Règles MPP</h3>
     <section class="grp">
       <label class="x2rule">Un bonus x2 toutes les <input id="x2every" inputmode="numeric"> journées, dans chaque compétition</label>
+    </section>
+
+    <h3>Scores exacts</h3>
+    <section class="grp">
+      <label class="x2rule">🎯 met à jour les matchs des <input id="csHours" inputmode="numeric"> prochaines heures</label>
+      <p class="note">Le coût OddsPapi ne dépend pas de ce délai (une requête couvre tout l'onglet). Un délai court évite surtout d'aller chercher un autre bookmaker pour des matchs encore lointains.</p>
     </section>
 
     <h3>Noms d'équipes</h3>
@@ -492,7 +498,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <summary>Comment lire les résultats</summary>
     <p>Espérance = probabilité × points de l'issue. Les probabilités viennent des cotes, une fois la marge du bookmaker retirée. La marge est retirée surtout sur les outsiders, dont les cotes sont les plus réduites par les bookmakers.</p>
     <p>Pastille : écart entre les deux meilleures espérances. Verte au-dessus de 5, orange de 1 à 5, rouge en dessous de 1.</p>
-    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Singbet (sinon SBOBet) pour tout l'onglet en 2 à 4 requêtes. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
+    <p>🎯 Scores : avec une clé OddsPapi, récupère les cotes « score exact » de Pinnacle (sinon Singbet, puis SBOBet) pour les matchs des prochaines heures (délai réglable dans ⚙️ Réglages), en 1 à 4 requêtes pour tout l'onglet. Sans clé OddsPapi, utilise The Odds API (William Hill), seulement pour les matchs des prochaines 48 h (1 crédit par match, coût affiché avant de lancer). Quand elles existent, le score conseillé est le plus probable selon ces cotes, dans l'issue choisie (repère 🎯 sur la carte). Sinon, JKD+ utilise son propre modèle.</p>
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité. Le bonus de rareté MPP n'est pas estimé : il dépend des choix des autres joueurs, inconnus avant le match.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
@@ -583,8 +589,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var io = 1 / tot.over, iu = 1 / tot.under;
     return fitMu(tot.line, io / (io + iu));
   }
-  var RULES_DEF = {x2every:5};
-  function rules(){ var r = S.rules || {}; return {x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every}; }
+  var RULES_DEF = {x2every:5, csHours:12};
+  function rules(){ var r = S.rules || {}; return {x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every, csHours:r.csHours > 0 ? r.csHours : RULES_DEF.csHours}; }
   function scoreModel(p, tot){
     var mu = totMu(tot) || MU_DEFAULT;
     var target = p[0] / (p[0] + p[2]), lo = 0.02, hi = 0.98, grid, ph, pa;
@@ -1834,7 +1840,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function fillRules(){
     var r = rules();
     $('x2every').value = r.x2every;
+    $('csHours').value = r.csHours;
   }
+  $('csHours').addEventListener('change', function(){
+    var v = parseInt($('csHours').value, 10);
+    if (v >= 1 && v <= 168){ S.rules = S.rules || {}; S.rules.csHours = v; save(); }
+    fillRules();
+  });
   $('x2every').addEventListener('change', function(){
     var v = parseInt($('x2every').value, 10);
     if (v >= 1 && v <= 38){ S.rules = S.rules || {}; S.rules.x2every = v; save(); }
@@ -2092,8 +2104,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     }).filter(Boolean);
   }
 
-  // 🎯 Scores via OddsPapi : 2 à 4 requêtes pour tout l'onglet
-  var OP_BOOKS = [['singbet', 'Singbet'], ['sbobet', 'SBOBet']];   // bet365 retiré : moins fiable, et une requête de plus
+  // 🎯 Scores via OddsPapi : 1 à 4 requêtes pour tout l'onglet
+  var OP_BOOKS = [['pinnacle', 'Pinnacle'], ['singbet', 'Singbet'], ['sbobet', 'SBOBet']];   // bet365 retiré : moins fiable, et une requête de plus
   async function opFixtures(c, tid, matches){
     c.fx = c.fx || {};
     var e = c.fx[tid], fresh = e && Date.now() - Date.parse(e.at) < 7 * 864e5;
@@ -2110,10 +2122,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var todo = cur().filter(function(m){
       if (matchState(m) !== 'pre') return false;
       var ko = kickoff(m);
-      return !isFinite(ko) || ko - now <= 48 * 36e5;                                       // match dans les 48 h
+      return !isFinite(ko) || ko - now <= rules().csHours * 36e5;                          // délai réglable
     });
     if (!cur().some(function(m){ return matchState(m) === 'pre'; })){ status('Aucun match à venir dans cet onglet.'); return; }
-    if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines 48 h.'); return; }
+    if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines ' + rules().csHours + ' h (⚙️ Réglages).'); return; }
     var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
     try {
       var c = await opEnsure(), tid = c.tour[S.mode];
