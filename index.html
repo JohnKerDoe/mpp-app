@@ -167,6 +167,7 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .recap li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
 .recap li:first-child{border-top:0}
+
 .recap .rm{color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0}
 .recap .rp{text-align:right;white-space:nowrap}
 .recap .rp em{font-style:normal;color:var(--mute);font-size:13px}
@@ -278,6 +279,14 @@ html[data-theme="dark"] .sheet{--acc:#5B6475;--bg:#12151B}
 .sethead{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;background:var(--acc);color:#fff;padding:calc(10px + env(safe-area-inset-top, 0px)) 8px 10px}
 .sethead h2{margin:0;font-size:19px;flex:1}
 .sethead .back{border:0;background:transparent;color:#fff;font-size:24px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:8px}
+.card .fullbar{display:none}
+/* Carte ouverte en grand (plein écran), au-dessus de la barre du bas */
+.card.full{position:fixed;inset:0;z-index:25;margin:0;border:0;border-radius:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px))}
+.card.full .fullbar{display:flex;position:sticky;top:0;z-index:2;align-items:center;gap:6px;background:var(--acc);color:#fff;padding:calc(10px + env(safe-area-inset-top, 0px)) 8px 10px}
+.card.full .fullbar .back{border:0;background:transparent;color:#fff;font-size:24px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:8px}
+.card.full .fullt{flex:1;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.full .fold{display:none}
+body.cardfull{overflow:hidden}
 .sheet-in{max-width:560px;margin:0 auto;padding:6px 16px calc(24px + env(safe-area-inset-bottom, 0px))}
 .sheet-in h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:22px 0 8px}
 .sheet-in section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
@@ -791,6 +800,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
     });
     return '<article class="card' + (isOpen(m) ? ' open' : '') + '" data-i="' + i + '">' +
+      '<div class="fullbar"><button class="back" type="button" data-fullx aria-label="Fermer la carte">←</button><span class="fullt">' + esc(m.home) + ' – ' + esc(m.away) + '</span></div>' +
       '<div class="chgb" data-meta="chg" role="status"></div>' +
       '<div class="stb" data-meta="st"></div>' +
       '<header class="ch">' +
@@ -1118,6 +1128,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     }).join('\n') : '';
   }
 
+  // Carte en grand : un appui sur l'en-tête d'une carte l'ouvre en plein écran ;
+  // la flèche ← ou le retour Android la referment.
+  var fullKey = null;
+  function fullApply(){
+    var list = cur(), found = false;
+    document.querySelectorAll('#list .card').forEach(function(card){
+      var m = list[+card.dataset.i], on = !!fullKey && fullKey === S.mode + ':' + mkey(m);
+      if (on && !card.classList.contains('open')){ card.classList.add('open'); updateCard(card, m); }
+      if (!on && card.classList.contains('full') && !isOpen(m)){ card.classList.remove('open'); updateCard(card, m); }
+      card.classList.toggle('full', on);
+      if (on) found = true;
+    });
+    if (fullKey && !found) fullKey = null;
+    document.body.classList.toggle('cardfull', !!fullKey);
+  }
+  function openFull(card){
+    if (!card) return;
+    fullKey = S.mode + ':' + mkey(cur()[+card.dataset.i]);
+    fullApply();
+    card.scrollTop = 0;
+    try { history.pushState({jkdFull:1}, ''); } catch (e) {}
+  }
+  function closeFull(){
+    if (history.state && history.state.jkdFull){ history.back(); return; }
+    fullKey = null; fullApply();
+  }
+  window.addEventListener('popstate', function(){ if (fullKey){ fullKey = null; fullApply(); } });
+
   function renderTabs(){
     $('tabs').innerHTML = MODES.map(function(x){
       return '<button type="button" role="tab" data-mode="' + x.id + '" aria-selected="' + (x.id === S.mode) + '" aria-label="' + x.name + '">' +
@@ -1166,6 +1204,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       updateCard(card, m);
     });
     updateSummary();
+    fullApply();
   }
 
   /* ---------- événements ---------- */
@@ -1232,7 +1271,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       renderAll();
       return;
     }
+    if (e.target.closest('[data-fullx]')){ closeFull(); return; }
     var f = e.target.closest('[data-fold]') || (e.target.closest('.meta') && !e.target.closest('input') ? e.target.closest('.meta') : null);
+    if (f && !f.closest('.card.full')){ openFull(f.closest('.card')); return; }
+    if (f) return;
     if (f){
       var card = f.closest('.card'), m = cur()[+card.dataset.i], k = S.mode + ':' + mkey(m);
       if (openSet[k]) delete openSet[k]; else openSet[k] = true;
