@@ -501,7 +501,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
     <h3>Sauvegarde</h3>
     <section class="grp">
-    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets) dans un fichier, pour les retrouver sur un autre téléphone ou après avoir vidé Chrome. La clé The Odds API n'est pas incluse.</p>
+    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Sur Android, Exporter ouvre le menu Partager : choisis « Drive » pour l'enregistrer sur Google Drive. Pour restaurer, choisis le fichier dans Drive depuis le sélecteur. Les clés API ne sont pas incluses.</p>
     <div class="row">
       <button class="btn" id="bkExport" type="button">Exporter</button>
       <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
@@ -2332,12 +2332,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   // Sauvegarde : export / restauration d'un fichier JSON
   $('bkExport').addEventListener('click', function(){
     var data = JSON.stringify({app:'esperance-mpp', v:1, at:new Date().toISOString(), state:S}, null, 1);
-    var name = 'JKD-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
+    var d = new Date(), p2 = function(x){ return String(x).padStart(2, '0'); };
+    var name = 'JKD-SAVE-' + p2(d.getMonth() + 1) + p2(d.getDate()) + p2(d.getHours()) + p2(d.getMinutes()) + '.json';   // ex. JKD-SAVE-10091638
     var blob = new Blob([data], {type:'application/json'});
-    var url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
-    status('Sauvegarde exportée : ' + name + '.');
+    var download = function(){
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+      status('Sauvegarde téléchargée : ' + name + '.');
+    };
+    // Partage Android : choisir « Drive » pour l'enregistrer directement sur Google Drive
+    var file = null;
+    try { file = new File([blob], name, {type:'application/json'}); } catch (err) {}
+    if (file && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:name}).then(function(){
+        status('Sauvegarde envoyée : ' + name + '.');
+      }).catch(function(err){
+        if (err && err.name === 'AbortError') status('Sauvegarde annulée.');
+        else download();
+      });
+    } else download();
   });
   $('bkImport').addEventListener('click', function(){ $('bkFile').click(); });
   $('bkFile').addEventListener('change', function(e){
