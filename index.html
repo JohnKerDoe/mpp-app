@@ -339,6 +339,13 @@ html[data-theme="dark"] .card.x2used{box-shadow:0 0 0 3px #FFC94D}
 .rules label,.x2rule{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink-2)}
 .rules input,.x2rule input{width:60px;font:inherit;font-size:16px;text-align:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
 .x2rule{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+.x2row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px 10px;padding:8px 0;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-2)}
+.x2row:first-child{border-top:0}
+.x2row b{font-size:14px;color:var(--ink)}
+.x2row label{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--mute)}
+.x2row input{width:56px;font:inherit;font-size:16px;text-align:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
+.x2row small{grid-column:1/-1;color:var(--mute);font-size:12px}
+.x2c.wait{color:var(--mute)}
 /* Noms d'équipes (Réglages) */
 .tlg + .tlg{border-top:1px solid var(--line)}
 .tlg summary{cursor:pointer;padding:10px 0;font-size:15px;font-weight:700;color:var(--ink)}
@@ -476,7 +483,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
     <h3>Règles MPP</h3>
     <section class="grp">
-      <label class="x2rule">Un bonus x2 toutes les <input id="x2every" inputmode="numeric"> journées, dans chaque compétition</label>
+      <p class="note" style="margin-top:0">Bonus x2 : dans une ligue privée, tous les bonus sont donnés au départ (1 pour 5 journées de ligue) et s'utilisent quand tu veux. Indique pour chaque compétition le nombre total de bonus de ta ligue et sa dernière journée.</p>
+      <div id="x2Rules"></div>
     </section>
 
     <h3>Scores exacts</h3>
@@ -511,7 +519,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p>Score exact : pour chaque issue, le score le plus probable d'après les cotes 1N2 et « plus/moins de buts » de Pinnacle. Il est choisi une fois l'issue (1, N ou 2) décidée. Sous le score : sa probabilité. Le bonus de rareté MPP n'est pas estimé : il dépend des choix des autres joueurs, inconnus avant le match.</p>
     <p>Avant : quand tu changes les cotes ou les points, l'estimation précédente est gardée : espérance, score conseillé et pastille. Les flèches montrent l'évolution de l'espérance de chaque issue.</p>
     <p>Match encadré en violet : le prono conseillé a changé depuis l'estimation précédente. Bande violette à gauche : même prono, mais la pastille a changé de couleur.</p>
-    <p>Le choix 1N2 et le conseil x2 ne comptent que les points du résultat.</p>
+    <p>Le choix 1N2 et le conseil x2 ne comptent que les points du résultat. Bonus x2 : JKD+ propose le meilleur match de la journée quand il fait partie des meilleures journées de la saison, compte tenu des bonus et des journées qui restent (liseré or plein = à jouer, pointillé = mieux vaut attendre).</p>
   </details>
     </section>
     <p class="store" id="store"></p>
@@ -598,8 +606,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var io = 1 / tot.over, iu = 1 / tot.under;
     return fitMu(tot.line, io / (io + iu));
   }
-  var RULES_DEF = {x2every:5, csHours:12};
-  function rules(){ var r = S.rules || {}; return {x2every:r.x2every > 0 ? r.x2every : RULES_DEF.x2every, csHours:r.csHours > 0 ? r.csHours : RULES_DEF.csHours}; }
+  var RULES_DEF = {csHours:12};
+  // Bonus x2 par compétition : total de bonus de la ligue et dernière journée
+  var X2_DEF = {l1:{n:6, last:34}, l2:{n:6, last:34}, ldc:{n:1, last:8}};
+  function rules(){ var r = S.rules || {}; return {csHours:r.csHours > 0 ? r.csHours : RULES_DEF.csHours}; }
+  function x2Rule(mode){
+    var r = (S.rules && S.rules.x2 && S.rules.x2[mode]) || {}, d = X2_DEF[mode] || {n:6, last:34};
+    return {n:r.n >= 0 ? r.n : d.n, last:r.last > 0 ? r.last : d.last};
+  }
   function scoreModel(p, tot){
     var mu = totMu(tot) || MU_DEFAULT;
     var target = p[0] / (p[0] + p[2]), lo = 0.02, hi = 0.98, grid, ph, pa;
@@ -862,34 +876,64 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return now < ko + 125 * 6e4 ? 'live' : 'done';
   }
 
-  /* ---------- bonus x2 : un toutes les N journées, par compétition ---------- */
+  /* ---------- bonus x2 : stock de bonus pour la saison, par compétition ----------
+     Règle MPP (ligues privées) : tous les bonus sont donnés au départ, à utiliser quand on veut.
+     Conseil : avec R bonus restants et J journées restantes (celle-ci comprise), on joue le
+     meilleur match de la journée s'il fait partie des R/J meilleures journées connues ;
+     s'il reste au moins autant de bonus que de journées, on en joue à chaque journée. */
   function totEV(c){ return c.ev ? c.ev[c.best] : 0; }
   function tabJ(){
     var n = {}; cur().forEach(function(m){ if (m.jn) n[m.jn] = (n[m.jn] || 0) + 1; });
     var best = null; Object.keys(n).forEach(function(k){ if (best === null || n[k] > n[best]) best = k; });
     return best === null ? null : +best;
   }
-  function x2State(){ S.x2 = S.x2 || {}; S.x2[S.mode] = S.x2[S.mode] || {used:{}, bests:{}}; return S.x2[S.mode]; }
+  var X2_SEUIL0 = 40;   // seuil de départ (pts) tant qu'il y a moins de 4 journées connues
+  function x2State(){
+    S.x2 = S.x2 || {};
+    var st = S.x2[S.mode] = S.x2[S.mode] || {};
+    st.bests = st.bests || {};
+    if (!Array.isArray(st.list)){                       // ancien format (un bonus par bloc) → liste
+      st.list = [];
+      Object.keys(st.used || {}).forEach(function(k){ var u = st.used[k]; if (u && u.key) st.list.push({key:u.key, jn:u.jn || null, name:u.name || ''}); });
+    }
+    delete st.used;
+    return st;
+  }
+  function x2Used(m, jn){
+    var k = mkey(m);
+    return x2State().list.some(function(u){ return u.key === k && (!jn || !u.jn || u.jn === jn); });
+  }
   function x2Info(){
-    var st = x2State(), jn = tabJ(), N = rules().x2every, best = null, bestTot = 0;
+    var st = x2State(), jn = tabJ(), R0 = x2Rule(S.mode), info = {jn:jn, n:R0.n, last:R0.last};
+    info.left = Math.max(0, R0.n - st.list.length);
+    var cands = [];
     cur().forEach(function(m){
-      if (matchState(m) !== 'pre') return;
-      var c = calc(m); if (!c.ev) return;
-      var t = totEV(c); if (!best || t > bestTot){ best = m; bestTot = t; }
+      if (matchState(m) !== 'pre' || x2Used(m, jn)) return;
+      var c = calc(m); if (c.ev) cands.push({m:m, t:totEV(c)});
     });
-    if (!jn) return st.used.x ? {status:'used', blk:'x', usedOn:st.used.x} : best ? {m:best, tot:bestTot, status:'nojn', blk:'x'} : null;
-    var blk = Math.floor((jn - 1) / N), pos = (jn - 1) % N + 1, from = blk * N + 1, to = from + N - 1;
-    var info = {jn:jn, blk:blk, pos:pos, N:N, from:from, to:to};
-    if (st.used[blk]) { info.status = 'used'; info.usedOn = st.used[blk]; return info; }
-    if (!best) return null;
-    st.bests[jn] = Math.round(bestTot * 10) / 10;
-    info.m = best; info.tot = bestTot;
-    var prev = [], others = [];
-    Object.keys(st.bests).forEach(function(k){ k = +k; if (k === jn) return; others.push(st.bests[k]); if (k >= from && k < jn) prev.push(st.bests[k]); });
-    var avg = others.length >= 3 ? others.reduce(function(a, b){ return a + b; }, 0) / others.length : null;
-    if (pos >= N) info.status = 'last';
-    else if (pos <= Math.floor(N / 2)) info.status = (avg !== null && bestTot >= 1.12 * avg) ? 'play' : 'wait';
-    else info.status = (!prev.length || bestTot >= Math.max.apply(null, prev)) ? 'play' : 'wait';
+    cands.sort(function(a, b){ return b.t - a.t; });
+    info.picks = [];
+    if (!info.left || !cands.length) { info.status = info.left ? 'none' : 'empty'; return info; }
+    var bestTot = cands[0].t;
+    if (jn) st.bests[jn] = Math.round(bestTot * 10) / 10;
+    var J = jn ? Math.max(1, R0.last - jn + 1) : null;
+    info.J = J;
+    if (J && info.left >= J){
+      // plus assez de journées : jouer à chaque journée (plusieurs si besoin)
+      info.status = 'must';
+      info.picks = cands.slice(0, Math.min(cands.length, Math.ceil(info.left / J))).map(function(x){ return x.m; });
+      return info;
+    }
+    // seuil : quantile des meilleures espérances par journée déjà vues
+    var past = Object.keys(st.bests).filter(function(k){ return +k !== jn; }).map(function(k){ return st.bests[k]; }).sort(function(a, b){ return a - b; });
+    var frac = J ? info.left / J : 0.2, seuil;
+    if (past.length >= 4){
+      var q = Math.min(past.length - 1, Math.max(0, Math.floor((1 - frac) * past.length)));
+      seuil = past[q];
+    } else seuil = X2_SEUIL0;
+    info.seuil = seuil;
+    info.picks = [cands[0].m];
+    info.status = bestTot >= seuil ? 'play' : 'wait';
     return info;
   }
   var X2 = null;   // calculé à chaque rendu
@@ -898,14 +942,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var c = calc(m);
     // ⭐ bonus x2
     var xc = card.querySelector('[data-meta="x2"]'), xb = card.querySelector('[data-meta="x2b"]');
-    var isBest = X2 && X2.m === m, usedHere = X2 && X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(m) && (X2.blk === 'x' || X2.usedOn.jn === X2.jn);
-    var lbl = {play:'⭐ x2 à jouer', last:'⭐ x2 : dernière journée', wait:'⭐ x2 : attends', nojn:'⭐ meilleur x2'};
-    xc.textContent = '';
-    xc.className = 'x2c' + (usedHere || (isBest && (X2.status === 'play' || X2.status === 'last')) ? ' on' : '');
+    var usedHere = X2 && x2Used(m, X2.jn), isPick = X2 && X2.picks.indexOf(m) >= 0;
+    var lbl = {play:'⭐ x2 à jouer', must:'⭐ x2 à jouer', wait:'⭐ x2 : attends'};
+    xc.textContent = usedHere ? '⭐ x2 validé' : isPick ? lbl[X2.status] : '';
+    xc.className = 'x2c' + (usedHere || (isPick && X2.status !== 'wait') ? ' on' : isPick ? ' wait' : '');
+    var stock = X2 ? ' · ' + X2.left + ' bonus restant' + (X2.left > 1 ? 's' : '') + (X2.J ? ' sur ' + X2.J + ' journée' + (X2.J > 1 ? 's' : '') : '') : '';
+    var why = isPick && X2.seuil ? '<p class="note" style="margin:4px 0 0">' + (X2.status === 'play'
+        ? 'Meilleur match de la journée, au-dessus du seuil de ' + nf1.format(X2.seuil) + ' pts' : 'Meilleur match de la journée, mais sous le seuil de ' + nf1.format(X2.seuil) + ' pts : mieux vaut garder ce bonus') + stock + '.</p>'
+      : isPick && X2.status === 'must' ? '<p class="note" style="margin:4px 0 0">Il reste autant de bonus que de journées : à jouer maintenant' + stock + '.</p>' : '';
     xb.innerHTML = usedHere
       ? '<button type="button" class="x2btn on" data-x2toggle aria-pressed="true">⭐ Bonus x2 validé sur ce match · toucher pour annuler</button>'
-      : (X2 && c.ev && matchState(m) === 'pre')
-      ? '<button type="button" class="x2btn" data-x2toggle aria-pressed="false">☆ Valider mon bonus x2 sur ce match</button>' : '';
+      : (X2 && X2.left > 0 && c.ev && matchState(m) === 'pre')
+      ? why + '<button type="button" class="x2btn" data-x2toggle aria-pressed="false">☆ Valider mon bonus x2 sur ce match</button>' : '';
     card.classList.toggle('x2used', !!usedHere);
     var st = matchState(m);
     card.classList.toggle('st-live', st === 'live');
@@ -1111,9 +1159,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
       // or plein : x2 à jouer (ou journée inconnue) / x2 validé ici ; or pointillé : meilleur match, mais mieux vaut attendre
-      var gold = X2 && ((X2.m === r.m && (X2.status === 'play' || X2.status === 'last' || X2.status === 'nojn')) ||
-        (X2.status === 'used' && X2.usedOn && X2.usedOn.key === mkey(r.m) && (X2.blk === 'x' || X2.usedOn.jn === X2.jn)));
-      var goldWait = X2 && X2.m === r.m && X2.status === 'wait';
+      var pick = X2 && X2.picks.indexOf(r.m) >= 0;
+      var gold = X2 && ((pick && X2.status !== 'wait') || x2Used(r.m, X2.jn));
+      var goldWait = pick && X2.status === 'wait';
       var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
       return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
@@ -1256,13 +1304,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   $('list').addEventListener('click', function(e){
     var xt = e.target.closest('[data-x2toggle]');
     if (xt){
-      var mm = cur()[+e.target.closest('.card').dataset.i], st = x2State(), info = x2Info();
-      if (info && info.blk !== undefined){
-        var u = st.used[info.blk];
-        if (u && u.key === mkey(mm)) delete st.used[info.blk];                       // dévalider
-        else st.used[info.blk] = {key:mkey(mm), jn:info.jn || null, name:mm.home + ' – ' + mm.away};   // valider (ou déplacer)
-        renderAll(); save();
-      }
+      var mm = cur()[+e.target.closest('.card').dataset.i], st = x2State(), jn = tabJ(), k = mkey(mm);
+      var at = -1;
+      st.list.forEach(function(u, n){ if (u.key === k && (!jn || !u.jn || u.jn === jn)) at = n; });
+      if (at >= 0) st.list.splice(at, 1);                                                         // dévalider
+      else if (st.list.length < x2Rule(S.mode).n) st.list.push({key:k, jn:jn || null, name:mm.home + ' – ' + mm.away});   // valider
+      else { status('Plus de bonus x2 disponible dans cette compétition (' + x2Rule(S.mode).n + ' au total, réglable dans ⚙️ Réglages).'); return; }
+      renderAll(); save();
       return;
     }
     if (e.target.closest('[data-foldall]')){
@@ -1881,17 +1929,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- règles MPP ---------- */
   function fillRules(){
     var r = rules();
-    $('x2every').value = r.x2every;
     $('csHours').value = r.csHours;
+    $('x2Rules').innerHTML = MODES.map(function(md){
+      var x = x2Rule(md.id), used = (S.x2 && S.x2[md.id] && Array.isArray(S.x2[md.id].list)) ? S.x2[md.id].list : [];
+      return '<div class="x2row"><b>' + esc(md.tab) + '</b>' +
+        '<label>bonus<input data-x2r="n" data-md="' + md.id + '" inputmode="numeric" value="' + x.n + '"></label>' +
+        '<label>dern. journée<input data-x2r="last" data-md="' + md.id + '" inputmode="numeric" value="' + x.last + '"></label>' +
+        '<small>' + (used.length ? used.length + ' utilisé' + (used.length > 1 ? 's' : '') + ' : ' + used.map(function(u){ return esc(u.name) + (u.jn ? ' (J' + u.jn + ')' : ''); }).join(', ') : 'aucun utilisé') + '</small></div>';
+    }).join('');
   }
   $('csHours').addEventListener('change', function(){
     var v = parseInt($('csHours').value, 10);
     if (v >= 1 && v <= 168){ S.rules = S.rules || {}; S.rules.csHours = v; save(); }
     fillRules();
   });
-  $('x2every').addEventListener('change', function(){
-    var v = parseInt($('x2every').value, 10);
-    if (v >= 1 && v <= 38){ S.rules = S.rules || {}; S.rules.x2every = v; save(); }
+  $('x2Rules').addEventListener('change', function(e){
+    var el = e.target, f = el.getAttribute('data-x2r'), md = el.getAttribute('data-md');
+    if (!f) return;
+    var v = parseInt(el.value, 10), ok = f === 'n' ? (v >= 0 && v <= 20) : (v >= 1 && v <= 60);
+    if (ok){ S.rules = S.rules || {}; S.rules.x2 = S.rules.x2 || {}; S.rules.x2[md] = Object.assign(x2Rule(md), S.rules.x2[md] || {}); S.rules.x2[md][f] = v; save(); }
     fillRules();
   });
 
