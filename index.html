@@ -457,6 +457,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </div>
   <div class="sheet-in">
 
+    <h3>Sauvegarde</h3>
+    <section class="grp">
+    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Sur Android, Exporter ouvre le menu Partager : choisis « Drive » pour l'enregistrer sur Google Drive. Pour restaurer, choisis le fichier dans Drive depuis le sélecteur. Les clés API ne sont pas incluses.</p>
+    <div class="row">
+      <button class="btn" id="bkExport" type="button">Exporter</button>
+      <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
+    </div>
+    <input type="file" id="bkFile" accept=".json,application/json" hidden>
+    </section>
+
     <h3>Affichage</h3>
     <section class="grp">
       <button class="btn ghost" id="themeBtn" type="button"></button>
@@ -497,16 +507,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <section class="grp">
       <p class="note" style="margin-top:0">Nom affiché : remplace le nom de l'équipe partout dans l'appli. Autres écritures : les autres noms de la même équipe chez MPP ou les sites de cotes, séparés par des virgules. Utile quand un import indique « reçu sous le nom … » ou « absent des matchs reçus ».</p>
       <div id="teamsBox"></div>
-    </section>
-
-    <h3>Sauvegarde</h3>
-    <section class="grp">
-    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Sur Android, Exporter ouvre le menu Partager : choisis « Drive » pour l'enregistrer sur Google Drive. Pour restaurer, choisis le fichier dans Drive depuis le sélecteur. Les clés API ne sont pas incluses.</p>
-    <div class="row">
-      <button class="btn" id="bkExport" type="button">Exporter</button>
-      <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
-    </div>
-    <input type="file" id="bkFile" accept=".json,application/json" hidden>
     </section>
 
     <h3>Aide</h3>
@@ -1960,7 +1960,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       S.data[md.id].forEach(function(m){ add(canon(m.home), m.home); add(canon(m.away), m.away); });
       Object.keys(t.lg).forEach(function(k){ if (t.lg[k] === md.id) add(k, teamName(k)); });
       list.sort(function(a, b){ return a.nm.localeCompare(b.nm, 'fr'); });
-      html += '<details class="tlg"' + (md.id === S.mode ? ' open' : '') + '><summary>' + esc(md.tab) +
+      html += '<details class="tlg"><summary>' + esc(md.tab) +
         '<small>' + (list.length ? list.length + ' équipe' + (list.length > 1 ? 's' : '') : 'vide') + '</small></summary>';
       if (!list.length) html += '<p class="note">Aucune équipe pour l\'instant : importe d\'abord une capture MPP dans cet onglet.</p>';
       list.forEach(function(x){
@@ -2002,7 +2002,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
     var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
   }
-  function closeSettings(){ $('settings').hidden = true; document.body.classList.remove('noscroll'); renderAll(); }
+  function closeSettings(){ document.querySelectorAll('#teamsBox details[open]').forEach(function(d){ d.open = false; }); $('settings').hidden = true; document.body.classList.remove('noscroll'); renderAll(); }
   $('setBtn').addEventListener('click', openSettings);
   $('setClose').addEventListener('click', closeSettings);
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); });
