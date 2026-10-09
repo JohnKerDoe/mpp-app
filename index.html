@@ -1360,7 +1360,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     ['psg','paris sg','paris saint germain','paris st germain','paris saint germain fc'],
     ['parisfc','paris fc','paris'],
     ['marseille','om','olympique de marseille','olympique marseille'],
-    ['lyon','ol','olympique lyonnais','olympique de lyon'],
+    ['lyon','ol','olympique lyonnais','olympique de lyon','olympique lyon'],
     ['lille','losc','losc lille','lille osc'],
     ['lens','rc lens','racing club de lens'],
     ['monaco','as monaco'],
@@ -1435,6 +1435,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   }
+  function stripName(t){ return norm(t).split(' ').filter(function(w){ return STOP.indexOf(w) < 0; }).join(' '); }
   function canon(t){
     var n = norm(t);
     if (ALIAS[n]) return ALIAS[n];
@@ -1450,8 +1451,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var x = canon(a), y = canon(b);
     if (!x || !y) return false;
     if (x === y) return true;
-    var known = ALIAS[norm(a)] || ALIAS[norm(b)];
-    return !known && x.length >= 4 && y.length >= 4 && (x.indexOf(y) >= 0 || y.indexOf(x) >= 0);
+    // Deux noms connus et différents : équipes différentes. Sinon (au moins un nom inconnu,
+    // ex. « US Boulogne CO » ou « Olympique Lyon ») : on accepte si l'un contient l'autre.
+    var ka = ALIAS[norm(a)] || ALIAS[stripName(a)], kb = ALIAS[norm(b)] || ALIAS[stripName(b)];
+    if (ka && kb) return false;
+    var sx = ka ? x : stripName(a).replace(/ /g, ''), sy = kb ? y : stripName(b).replace(/ /g, '');
+    return x.length >= 4 && y.length >= 4 && (sx.indexOf(sy) >= 0 || sy.indexOf(sx) >= 0 || x.indexOf(y) >= 0 || y.indexOf(x) >= 0);
   }
 
   // Noms d'équipes réglés dans ⚙️ Réglages (enregistrés dans S.teams, donc inclus dans la sauvegarde)
@@ -2259,7 +2264,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length + ' à chercher' +
         (n ? ' (' + Object.keys(used).map(function(b){ return b + ' ' + used[b]; }).join(', ') + ')' : '') + '.'];
       if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.');
-      if (notFound.length) msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
+      if (notFound.length){
+        msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
+        // Matchs d'OddsPapi non reconnus à la même période : souvent le même match écrit autrement (à ajouter dans ⚙️ Noms d'équipes)
+        var usedF = {}; Object.keys(byFix).forEach(function(k){ usedF[k] = 1; });
+        var lim = Date.now() + rules().csHours * 36e5;
+        var odd = F.list.filter(function(f){ var t = Date.parse(f.startTime); return !usedF[f.fixtureId] && isFinite(t) && t > Date.now() - 3 * 36e5 && t <= lim; });
+        if (odd.length) msg.push('Noms chez OddsPapi non reconnus : ' + odd.slice(0, 6).map(function(f){ return f.participant1Name + ' – ' + f.participant2Name; }).join(', ') + '.');
+      }
       try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
         if (sub && sub.request_limit){ setOpCredits(sub.request_limit - sub.request_count); msg.push('Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } } catch (e) {}
       status(msg.join('\n'));
