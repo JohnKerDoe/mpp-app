@@ -2235,6 +2235,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (!tid) throw new Error('Compétition introuvable chez OddsPapi pour cet onglet.');
       var F = await opFixtures(c, tid, todo), byFix = {};
       todo.forEach(function(m){ var f = F.find(F.list, m); if (f) byFix[f.fixtureId] = m; });
+      // Une seule équipe reconnue : on associe si c'est le seul match d'OddsPapi à la même heure (± 3 h)
+      todo.forEach(function(m){
+        if (Object.keys(byFix).some(function(k){ return byFix[k] === m; })) return;
+        var ko = kickoff(m);
+        var cands = F.list.filter(function(f){
+          var t = Date.parse(f.startTime);
+          return !byFix[f.fixtureId] && (sameTeam(m.home, f.participant1Name) || sameTeam(m.away, f.participant2Name)) &&
+            (!isFinite(ko) || !isFinite(t) || Math.abs(t - ko) <= 3 * 36e5);
+        });
+        if (cands.length === 1) byFix[cands[0].fixtureId] = m;
+      });
       var done = {}, used = {}, notFound = todo.filter(function(m){ return Object.keys(byFix).every(function(k){ return byFix[k] !== m; }); });
       for (var i = 0; i < OP_BOOKS.length; i++){
         if (Object.keys(byFix).every(function(k){ return done[k]; })) break;
