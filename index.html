@@ -280,6 +280,12 @@ html[data-theme="dark"] .sheet{--acc:#5B6475;--bg:#12151B}
 .sethead h2{margin:0;font-size:19px;flex:1}
 .sethead .back{border:0;background:transparent;color:#fff;font-size:24px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:8px}
 .card .fullbar{display:none}
+/* L'écran principal ne montre que le récap : les cartes ne s'affichent qu'en plein écran */
+#list > .day,#list > .card:not(.full){display:none}
+.recap li[data-k]{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.recap li[data-k]:active{filter:brightness(.9)}
+.recap li.inc .mt{color:var(--mute)}
+.recap li.inc em{font-style:normal;font-size:13px;color:var(--mute)}
 /* Carte ouverte en grand (plein écran), au-dessus de la barre du bas */
 .card.full{position:fixed;inset:0;z-index:25;margin:0;border:0;border-radius:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px))}
 .card.full .fullbar{display:flex;position:sticky;top:0;z-index:2;align-items:center;gap:6px;background:var(--acc);color:#fff;padding:calc(10px + env(safe-area-inset-top, 0px)) 8px 10px}
@@ -1163,12 +1169,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var gold = X2 && ((pick && X2.status !== 'wait') || x2Used(r.m, X2.jn));
       var goldWait = pick && X2.status === 'wait';
       var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
-      return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
+      return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
         '<span class="rp">' + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('');
+    // Matchs sans calcul possible (cotes ou points manquants) : ouvrables quand même
+    var inc = cur().filter(function(m){ return !calc(m).ev; });
+    if (inc.length){
+      if (!rows.length) $('recapList').innerHTML = '';
+      $('recapList').innerHTML += inc.map(function(m){
+        return '<li class="inc" data-k="' + esc(mkey(m)) + '" role="button" tabindex="0"><span class="rm"><span class="mt">' +
+          esc(m.home) + ' – ' + esc(m.away) + '</span></span><span class="rp"><em>à compléter</em></span></li>';
+      }).join('');
+    }
 
     var modeName = MODES.filter(function(x){ return x.id === S.mode; })[0].name;
     recapText = rows.length ? 'Pronos MPP ' + modeName + ' (espérance ' + nf0.format(ev) + ' pts)\n' + rows.map(function(r){
@@ -1203,6 +1218,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     fullKey = null; fullApply();
   }
   window.addEventListener('popstate', function(){ if (fullKey){ fullKey = null; fullApply(); } });
+  function openFromRecap(li){
+    var k = li.getAttribute('data-k'), list = cur();
+    for (var i = 0; i < list.length; i++) if (mkey(list[i]) === k){ openFull(document.querySelector('#list .card[data-i="' + i + '"]')); return; }
+  }
+  $('recapList').addEventListener('click', function(e){ var li = e.target.closest('li[data-k]'); if (li) openFromRecap(li); });
+  $('recapList').addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var li = e.target.closest('li[data-k]'); if (li){ e.preventDefault(); openFromRecap(li); }
+  });
 
   function renderTabs(){
     $('tabs').innerHTML = MODES.map(function(x){
