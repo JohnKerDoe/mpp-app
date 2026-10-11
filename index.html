@@ -321,6 +321,11 @@ html[data-theme="dark"]{--live:#FF4D63;--live-tint:#3A1219;--live-ink:#FF8A99;--
 .lb{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;border-radius:999px;padding:2px 7px;margin-right:6px;vertical-align:1px;white-space:nowrap}
 .lb.live{background:var(--live);color:#fff}
 .lb.done{background:var(--line);color:var(--ink-2)}
+.lb.win{background:#1E9E62;color:#fff}
+.lb.lose{background:var(--line);color:var(--ink-2)}
+.recap em.got{font-style:normal;font-weight:800;color:#1E9E62}
+html[data-theme="dark"] .recap em.got{color:#45D98A}
+.recap em.nil{font-style:normal;color:var(--mute)}
 /* bonus x2, test de score, règles, partage */
 .x2c{font-size:12px;font-weight:800;color:var(--mute);white-space:nowrap}
 .x2c.on{color:#B07A00}
@@ -998,6 +1003,87 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   var X2 = null;   // calculé à chaque rendu
 
+  /* ---------- résultats réels (ESPN, sinon The Odds API sur accord) ---------- */
+  var ESPN = {l1:'fra.1', l2:'fra.2', ldc:'uefa.champions'};
+  function resOf(m){ return m.res && m.res.h >= 0 && m.res.a >= 0 ? m.res : null; }
+  // Points gagnés : points MPP de l'issue si le résultat est bon (x2 compris), bonus du score exact non connu
+  function gain(m){
+    var rs = resOf(m), c = calc(m);
+    if (!rs || !c.ev) return null;
+    var out = rs.h > rs.a ? 0 : rs.h === rs.a ? 1 : 2, ok = out === c.best;
+    var x2 = x2State().list.some(function(u){ return u.key === mkey(m); });
+    var pts = ok ? N(m.pts[c.best]) * (x2 ? 2 : 1) : 0;
+    return {ok:ok, exact:ok && scoreOf(c, c.best) === rs.h + '-' + rs.a, pts:pts, x2:x2, txt:rs.h + '-' + rs.a};
+  }
+  function needRes(m){
+    var ko = kickoff(m);
+    return !resOf(m) && isFinite(ko) && Date.now() > ko + 135 * 6e4 && Date.now() - ko < 3 * 864e5;
+  }
+  function ymd(t){ var d = new Date(t); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
+  function setRes(m, h, a, src){ m.res = {h:+h, a:+a, src:src, at:new Date().toISOString()}; }
+  async function resFromESPN(md, todo){
+    var kos = todo.map(kickoff), from = ymd(Math.min.apply(null, kos) - 864e5), to = ymd(Math.max.apply(null, kos) + 864e5);
+    var r = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/' + ESPN[md] + '/scoreboard?dates=' + from + '-' + to);
+    if (!r.ok) throw new Error('ESPN ' + r.status);
+    var j = await r.json(), n = 0;
+    (j.events || []).forEach(function(ev){
+      var cp = ev.competitions && ev.competitions[0];
+      var done = (ev.status && ev.status.type && ev.status.type.completed) || (cp && cp.status && cp.status.type && cp.status.type.completed);
+      if (!cp || !done) return;
+      var side = function(w){ return (cp.competitors || []).filter(function(c){ return c.homeAway === w; })[0]; };
+      var H = side('home'), A = side('away');
+      if (!H || !A) return;
+      var names = function(c){ var t = c.team || {}; return [t.displayName, t.shortDisplayName, t.name, t.location, t.abbreviation].filter(Boolean); };
+      var same = function(team, c){ return names(c).some(function(nm){ return sameTeam(team, nm); }); };
+      todo.forEach(function(m){ if (!resOf(m) && same(m.home, H) && same(m.away, A)){ setRes(m, H.score, A.score, 'ESPN'); n++; } });
+    });
+    return n;
+  }
+  async function resFromOddsAPI(md, todo){
+    var key = getKey(); if (!key) throw new Error('pas de clé The Odds API');
+    var sport = MODES.filter(function(x){ return x.id === md; })[0].sport;
+    var r = await fetch('https://api.the-odds-api.com/v4/sports/' + sport + '/scores/?apiKey=' + encodeURIComponent(key) + '&daysFrom=3&dateFormat=iso');
+    setCredits(r.headers.get('x-requests-remaining'));
+    if (!r.ok) throw new Error('The Odds API ' + r.status);
+    var j = await r.json(), n = 0;
+    (j || []).forEach(function(ev){
+      if (!ev.completed || !ev.scores) return;
+      var sc = function(nm){ var o = ev.scores.filter(function(x){ return x.name === nm; })[0]; return o ? o.score : null; };
+      var h = sc(ev.home_team), a = sc(ev.away_team);
+      if (h === null || a === null) return;
+      todo.forEach(function(m){ if (!resOf(m) && sameTeam(m.home, ev.home_team) && sameTeam(m.away, ev.away_team)){ setRes(m, h, a, 'The Odds API'); n++; } });
+    });
+    return n;
+  }
+  var resBusy = false, resAsked = {};
+  async function checkResults(){
+    if (resBusy || !navigator.onLine) return;
+    resBusy = true;
+    var got = 0, msgs = [];
+    try {
+      for (var i = 0; i < MODES.length; i++){
+        var md = MODES[i].id, todo = S.data[md].filter(needRes);
+        if (!todo.length) continue;
+        var espnOK = true;
+        try { got += await resFromESPN(md, todo); } catch (e) { espnOK = false; }
+        var left = todo.filter(function(m){ return !resOf(m); });
+        // ESPN muet, ou match terminé depuis plus de 3 h toujours sans score : on demande avant d'utiliser un crédit
+        var late = left.filter(function(m){ return Date.now() > kickoff(m) + 5 * 36e5; });
+        if ((!espnOK && left.length) || late.length){
+          var k = md + ':' + left.map(mkey).join(',');
+          if (resAsked[k] || !getKey()) { if (!espnOK) msgs.push(MODES[i].name + ' : ESPN ne répond pas, scores non mis à jour.'); continue; }
+          resAsked[k] = 1;
+          var why = !espnOK ? 'ESPN ne répond pas' : 'ESPN n\'a pas le score de ' + left.map(function(m){ return m.home + ' – ' + m.away; }).join(', ');
+          if (confirm(MODES[i].name + ' : ' + why + '.\n\nChercher les scores avec The Odds API (2 crédits) ?')){
+            try { got += await resFromOddsAPI(md, left); } catch (e) { msgs.push(MODES[i].name + ' : scores introuvables (' + e.message + ').'); }
+          }
+        }
+      }
+    } finally { resBusy = false; }
+    if (got){ save(); renderAll(); msgs.unshift(got + ' score' + (got > 1 ? 's' : '') + (got > 1 ? ' finaux' : ' final') + ' enregistré' + (got > 1 ? 's' : '') + '.'); }
+    if (msgs.length) status(msgs.join('\n'));
+  }
+
   function updateCard(card, m){
     var c = calc(m);
     // ⭐ bonus x2
@@ -1021,7 +1107,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     card.querySelectorAll('input[data-k]').forEach(function(x){ x.disabled = st !== 'pre'; });
     card.querySelector('[data-meta="st"]').innerHTML = st === 'live'
       ? '<span class="ldot" aria-hidden="true"></span>EN DIRECT'
-      : st === 'done' ? 'Terminé' : '';
+      : st === 'done' ? (function(){ var g = gain(m); return g ? 'Terminé · ' + g.txt + ' · ' + (g.ok ? '✓ ' + g.pts + ' pts' + (g.x2 ? ' (x2)' : '') + (g.exact ? ' + bonus score exact 🎯' : '') : '✗ 0 pt') : 'Terminé · score en attente'; })() : '';
     var b = baseline(m);
     var bc = b ? calcFrom(b.odds, b.pts, b.tot) : null;
     var cell = function(out, o){ return card.querySelector('.c[data-out="' + out + '"][data-o="' + o + '"]'); };
@@ -1216,7 +1302,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('recapList').innerHTML = !rows.length ? '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>'
       : rows.map(function(r){
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
-        : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
+        : r.st === 'done' ? (function(){ var g = gain(r.m); return g ? '<span class="lb ' + (g.ok ? 'win' : 'lose') + '">' + g.txt + (g.exact ? ' 🎯' : g.ok ? ' ✓' : ' ✗') + '</span>' : '<span class="lb done">FIN</span>'; })() : '';
+      var gr = r.st === 'done' ? gain(r.m) : null;
       var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
       // or plein : x2 à jouer (ou journée inconnue) / x2 validé ici ; or pointillé : meilleur match, mais mieux vaut attendre
       var pick = X2 && X2.picks.indexOf(r.m) >= 0;
@@ -1227,7 +1314,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
-        '<span class="rp">' + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+        '<span class="rp">' + lb + (gr ? '<em class="' + (gr.ok ? 'got' : 'nil') + '">' + gr.pts + ' pt' + (gr.pts > 1 ? 's' : '') + (gr.exact ? ' +🎯' : '') + '</em>' : '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em>') + '</span></li>';
     }).join('');
     // Matchs sans calcul possible (cotes ou points manquants) : ouvrables quand même
     var inc = cur().filter(function(m){ return !calc(m).ev; });
@@ -1618,7 +1705,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   function applyEvents(events){
-    var list = cur(), linked = [], used = [], res = {updated:0, notes:[]};
+    var all = cur(), list = all.filter(function(m){ return matchState(m) === 'pre'; }), linked = [], used = [], res = {updated:0, notes:[], pre:list.length};
     var frozen = 0;
     var setOdds = function(m, ev, odds){
       if (matchState(m) !== 'pre'){ frozen++; return; }   // match commencé : les cotes d'avant-match restent
@@ -1670,9 +1757,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
     });
 
-    if (frozen) res.notes.push(frozen + ' match' + (frozen > 1 ? 's' : '') + ' déjà commencé' + (frozen > 1 ? 's' : '') + ' : cotes d\'avant-match conservées.');
-    if (list.every(function(x){ return x.ts; })){
-      list.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
+    if (all.every(function(x){ return x.ts; })){
+      all.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
     }
     return res;
   }
@@ -1711,6 +1797,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       return;
     }
     var mode = MODES.filter(function(x){ return x.id === S.mode; })[0];
+    if (cur().length && !cur().some(function(m){ return matchState(m) === 'pre'; })){
+      status(mode.name + ' : tous les matchs ont commencé, il n\'y a plus de cotes à chercher. Aucun crédit utilisé.');
+      return;
+    }
     var btn = $('fetchOdds');
     btn.disabled = true; btn.textContent = 'Import en cours…';
     status('');
@@ -1751,7 +1841,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var res = applyEvents(events);
         if (res.updated){ S.lastImport = S.lastImport || {}; S.lastImport[S.mode] = new Date().toISOString(); }
         var p = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
-        var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' sur ' + cur().length + '.'];
+        var lines = [mode.name + ' : cotes mises à jour pour ' + p(res.updated, 'match') + ' sur ' + res.pre + ' à venir.'];
         res.notes.forEach(function(t){ lines.push('• ' + t); });
         if (viaOP) lines.push('Cotes Pinnacle récupérées via OddsPapi (The Odds API : ' + viaOP + ').');
         else if (left !== null) lines.push('Crédits restants : ' + left + '.');
@@ -2305,7 +2395,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var ko = kickoff(m);
       return !isFinite(ko) || ko - now <= rules().csHours * 36e5;                          // délai réglable
     });
-    if (!cur().some(function(m){ return matchState(m) === 'pre'; })){ status('Aucun match à venir dans cet onglet.'); return; }
+    if (!cur().some(function(m){ return matchState(m) === 'pre'; })){ status(mode.name + ' : tous les matchs ont commencé, il n\'y a plus de score exact à chercher. Aucune requête utilisée.'); return; }
     if (!todo.length){ status('Rien à mettre à jour, aucune requête utilisée : les scores exacts ne sont cherchés que pour les matchs des prochaines ' + rules().csHours + ' h (⚙️ Réglages).'); return; }
     var btn = $('fetchCS'); btn.disabled = true; btn.textContent = '…';
     try {
@@ -2384,6 +2474,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   })();
   applyTeamPrefs();
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ m.home = shortName(m.home); m.away = shortName(m.away); }); });
+  setTimeout(checkResults, 3500);   // après l'animation d'ouverture
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') setTimeout(checkResults, 3500); });
   S.method = 'pow';
   delete S.filter;
   MODES.forEach(function(md){ S.data[md.id].forEach(function(m){ delete m.live; }); });
