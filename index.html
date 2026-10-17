@@ -471,15 +471,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 </div>
 
 <!-- Raccourci « Importer une capture » : un appui est nécessaire pour ouvrir la galerie -->
-<div class="sheet ask" id="gdAsk" hidden role="dialog" aria-modal="true" aria-labelledby="gdT">
-  <div class="askin">
-    <h2 id="gdT">☁️ Sauvegardes sur Drive</h2>
-    <p class="note" id="gdNote">Choisis la sauvegarde à restaurer.</p>
-    <div class="askbtns" id="gdList"></div>
-    <div class="askbtns"><button type="button" class="btn ghost" id="gdNo">Annuler</button></div>
-  </div>
-</div>
-
 <div class="sheet ask" id="capAsk" hidden role="dialog" aria-modal="true" aria-labelledby="capT">
   <div class="askin">
     <h2 id="capT">📷 Importer une capture MPP</h2>
@@ -509,23 +500,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <button class="btn2" id="ghSave" type="button">Enregistrer</button>
       </div>
     </div>
-    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute), dans le dossier JKD+ de ton Google Drive. Les clés API ne sont pas incluses.</p>
-    <div class="row" id="gdRow">
-      <button class="btn" id="gdExport" type="button">☁️ Exporter vers Drive</button>
-      <button class="btn ghost" id="gdImport" type="button">☁️ Restaurer depuis Drive</button>
-    </div>
+    <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
-      <button class="btn ghost" id="bkExport" type="button">Exporter (partager)</button>
-      <button class="btn ghost" id="bkImport" type="button">Restaurer un fichier</button>
+      <button class="btn ghost" id="bkExport" type="button">Exporter</button>
+      <button class="btn ghost" id="bkImport" type="button">Importer</button>
     </div>
-    <p class="note" id="gdMsg" role="status" style="font-weight:600;color:var(--ink)"></p>
-    <details class="how" style="margin-top:6px"><summary>ID client Google (Drive)</summary>
-      <div class="keyrow">
-        <input id="gdClient" type="text" autocomplete="off" spellcheck="false" placeholder="….apps.googleusercontent.com" aria-label="ID client Google">
-        <button class="btn2" id="gdSave" type="button">Enregistrer</button>
-      </div>
-      <p class="note">Créé une fois dans la console Google Cloud. Il reste sur cet appareil.</p>
-    </details>
     <input type="file" id="bkFile" accept=".json,application/json" hidden>
     </section>
 
@@ -2124,7 +2103,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function openSettings(){
     fillRules();
     if (ghTok()){ $('ghToken').placeholder = 'Jeton enregistré'; syncSay(syncWhen()); } else syncSay('désactivée');
-    if (gdId()){ gdLoad().catch(function(){}); $('gdClient').placeholder = 'ID enregistré'; }
     renderTeams();
     $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
     var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
@@ -2593,115 +2571,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
   if (ghTok()) setTimeout(syncPull, 1200);
 
-  /* ---------- Google Drive : sauvegarde directe dans le dossier « JKD+ » ----------
-     Autorisation « drive.file » : JKD+ ne voit que les fichiers qu'il a créés. */
-  // Message visible aussi dans les réglages (la barre du bas est cachée derrière)
-  function gdSay(t){ status(t); $('gdMsg').textContent = t; }
-  var KEY_GD = 'mpp-gdrive-client', KEY_GDF = 'mpp-gdrive-folder', GD_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-  var gdToken = null, gdExp = 0, gdClientObj = null, gdLoading = null, gdPending = null;
-  function gdId(){ try { return localStorage.getItem(KEY_GD) || ''; } catch (e) { return ''; } }
-  function gdLoad(){
-    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
-    if (gdLoading) return gdLoading;
-    gdLoading = new Promise(function(res, rej){
-      var sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
-      sc.onload = res; sc.onerror = function(){ gdLoading = null; rej(new Error('Connexion à Google impossible.')); };
-      document.head.appendChild(sc);
-    });
-    return gdLoading;
-  }
-  // À appeler directement dans le geste (appui) pour que la fenêtre Google puisse s'ouvrir
-  function gdAuth(){
-    return new Promise(function(res, rej){
-      if (gdToken && Date.now() < gdExp - 60e3) return res(gdToken);
-      if (!(window.google && google.accounts && google.accounts.oauth2)){ gdLoad(); return rej(new Error('Connexion à Google en cours de préparation : réessaie dans 2 secondes.')); }
-      gdPending = {res:res, rej:rej};
-      if (!gdClientObj) gdClientObj = google.accounts.oauth2.initTokenClient({client_id:gdId(), scope:GD_SCOPE,
-        callback:function(t){
-          var p = gdPending; gdPending = null; if (!p) return;
-          if (t && t.access_token){ gdToken = t.access_token; gdExp = Date.now() + (t.expires_in || 3600) * 1000; p.res(gdToken); }
-          else p.rej(new Error('Autorisation Google refusée.'));
-        },
-        error_callback:function(e){
-          var p = gdPending; gdPending = null; if (!p) return;
-          p.rej(new Error(e && e.type === 'popup_closed' ? 'Fenêtre Google fermée.' : e && e.type === 'popup_failed_to_open' ? 'Fenêtre Google bloquée : réessaie.' : 'Autorisation Google impossible.'));
-        }});
-      gdClientObj.requestAccessToken({prompt:''});
-    });
-  }
-  async function gdFetch(url, opt){
-    opt = opt || {}; opt.headers = Object.assign({Authorization:'Bearer ' + gdToken}, opt.headers || {});
-    var r = await fetch(url, opt);
-    if (r.status === 401){ gdToken = null; throw new Error('Autorisation Google expirée : réessaie.'); }
-    if (!r.ok) throw new Error('Google Drive : erreur ' + r.status + '.');
-    return r;
-  }
-  async function gdFolder(){
-    var id = ''; try { id = localStorage.getItem(KEY_GDF) || ''; } catch (e) {}
-    if (id){
-      try { var c = await (await gdFetch('https://www.googleapis.com/drive/v3/files/' + id + '?fields=id,trashed')).json(); if (c.id && !c.trashed) return id; } catch (e) {}
-    }
-    var q = encodeURIComponent("name='JKD+' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-    var l = await (await gdFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)')).json();
-    id = l.files && l.files[0] && l.files[0].id;
-    if (!id){
-      var f = await (await gdFetch('https://www.googleapis.com/drive/v3/files?fields=id', {method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:'JKD+', mimeType:'application/vnd.google-apps.folder'})})).json();
-      id = f.id;
-    }
-    try { localStorage.setItem(KEY_GDF, id); } catch (e) {}
-    return id;
-  }
-  function gdReady(){
-    if (gdId()) return true;
-    gdSay('Ajoute d\'abord ton ID client Google dans ⚙️ Réglages → Sauvegarde.');
-    var d = $('gdClient').closest('details'); if (d) d.open = true; $('gdClient').focus();
-    return false;
-  }
-  $('gdExport').addEventListener('click', function(){
-    if (!gdReady()) return;
-    var btn = this, name = saveName(), data = saveData();
-    gdAuth().then(async function(){
-      btn.disabled = true; btn.textContent = '☁️ Envoi…';
-      var folder = await gdFolder(), bd = 'jkd' + Date.now();
-      var body = '--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify({name:name, parents:[folder], mimeType:'application/json'}) +
-        '\r\n--' + bd + '\r\nContent-Type: application/json\r\n\r\n' + data + '\r\n--' + bd + '--';
-      await gdFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {method:'POST', headers:{'Content-Type':'multipart/related; boundary=' + bd}, body:body});
-      gdSay('Sauvegarde enregistrée sur Google Drive : JKD+/' + name + '.');
-    }).catch(function(e){ gdSay(e.message || 'Sauvegarde Drive impossible.'); })
-      .finally(function(){ btn.disabled = false; btn.textContent = '☁️ Exporter vers Drive'; });
-  });
-  $('gdImport').addEventListener('click', function(){
-    if (!gdReady()) return;
-    gdAuth().then(async function(){
-      var folder = await gdFolder();
-      var q = encodeURIComponent("'" + folder + "' in parents and trashed=false and name contains 'JKD-SAVE'");
-      var l = await (await gdFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&orderBy=createdTime desc&pageSize=8&fields=files(id,name,createdTime)')).json();
-      var files = l.files || [];
-      if (!files.length){ gdSay('Aucune sauvegarde dans le dossier JKD+ de ton Drive.'); return; }
-      $('gdList').innerHTML = files.map(function(f){
-        var w = new Date(f.createdTime).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-        return '<button type="button" class="btn ghost" data-gd="' + esc(f.id) + '">' + esc(w) + '</button>';
-      }).join('');
-      $('gdAsk').hidden = false;
-    }).catch(function(e){ gdSay(e.message || 'Lecture du Drive impossible.'); });
-  });
-  $('gdList').addEventListener('click', async function(e){
-    var b = e.target.closest('[data-gd]'); if (!b) return;
-    $('gdAsk').hidden = true;
-    try { restoreText(await (await gdFetch('https://www.googleapis.com/drive/v3/files/' + b.dataset.gd + '?alt=media')).text()); $('gdMsg').textContent = $('impStatus').textContent; }
-    catch (err) { gdSay(err.message || 'Lecture de la sauvegarde impossible.'); }
-  });
-  $('gdNo').addEventListener('click', function(){ $('gdAsk').hidden = true; });
-  $('gdSave').addEventListener('click', function(){
-    var v = $('gdClient').value.trim();
-    try { if (v) localStorage.setItem(KEY_GD, v); else localStorage.removeItem(KEY_GD); } catch (e) {}
-    gdClientObj = null; gdToken = null;
-    $('gdClient').value = ''; $('gdClient').placeholder = v ? 'ID enregistré' : '….apps.googleusercontent.com';
-    gdSay(v ? 'ID client Google enregistré. Tu peux exporter vers Drive.' : 'ID client Google supprimé.');
-    if (v) gdLoad().catch(function(){});
-  });
-  if (gdId()) setTimeout(function(){ gdLoad().catch(function(){}); }, 4000);   // prépare la connexion Google (après l'ouverture)
   $('bkFile').addEventListener('change', function(e){
     var f = e.target.files && e.target.files[0];
     e.target.value = '';
