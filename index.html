@@ -2580,7 +2580,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       for (var k = i + 1; k <= i + 3 && k < lines.length && !/ma\s*c[o0]te/i.test(lines[k]); k++){ cands.push(lines[k]); blk.push(lines[k]); }
       for (var c = 0; c < cands.length; c++){
         var v = cands[c].replace(/\(?\s*x?\s*2\s*\)|\bx\s*2\b/gi, ' ').replace(/^\D*?(?=\d)/, '');
-        var mp = v.match(/^(\d{1,3})\D{1,12}?(\d)\s*[-–—.=~:,]\s*(\d)(?!\d)/);
+        var mp = v.match(/^(\d{1,3})\D{1,12}?(\d)\s*[-–—.=~:,]\s*(\d)(?!\d)/) ||
+                 v.match(/^(\d{1,3})\s+(\d)\s?(\d)(?=\s|$)/);          // tiret non lu : « 83 2 1 » ou « 83 21 »
         if (mp){ cote = +mp[1]; ph = +mp[2]; pa = +mp[3]; break; }
       }
       var b = blk.join(' '), x2 = /\(\s*x?\s*2\s*\)|\bx\s*2\b/i.test(b);
@@ -2604,7 +2605,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         return nm.replace(/(^|[ -])([a-z])/g, function(_, s1, c){ return s1 + c.toUpperCase(); });
       }
     }
-    return w.filter(function(x){ return x.length > 2 || /^[A-Z]/.test(x); }).join(' ');
+    var rest = w.filter(function(x){ return x.length > 2 || /^[A-Z]/.test(x); }).join(' '), nr = norm(rest).replace(/ /g, '');
+    if (nr.length >= 5){
+      var hit = Object.keys(ALIAS).filter(function(a){ var aa = a.replace(/ /g, ''); return aa.length >= nr.length && aa.indexOf(nr) >= 0; })[0];
+      if (hit) return niceTeam(hit);
+    }
+    return rest;
   }
   async function processResults(files){
     var worker = null, rows = [], jn = null;
