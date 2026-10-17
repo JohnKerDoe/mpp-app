@@ -2565,18 +2565,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     for (var i = 0; i < lines.length; i++){
       if (!/ma\s*c[o0]te/i.test(lines[i])) continue;
       // ligne du score : juste au-dessus (on remonte de 3 lignes au plus)
-      var sl = null;
+      var sl = null, sj = -1;
       for (var j = i - 1; j > lastUsed && j >= i - 3; j--){
         var m = lines[j].match(SC);
         if (m && !/ma\s*c[o0]te/i.test(lines[j])){
           var home = clean(lines[j].slice(0, m.index)), away = clean(lines[j].slice(m.index + m[0].length));
-          if (home.length >= 2 && away.length >= 2){ sl = {home:home, away:away, h:+m[1], a:+m[2]}; break; }
+          if (home.length >= 2 && away.length >= 2){ sl = {home:home, away:away, h:+m[1], a:+m[2]}; sj = j; break; }
         }
       }
       if (!sl) continue;
       // ligne des valeurs : la même ligne après « MPP », ou l'une des 3 suivantes
       var cote = null, ph = null, pa = null, blk = [lines[i]];
       var cands = [lines[i].replace(/^.*?MPP/i, '')];
+      // le gros « x2 » rose peut faire remonter la ligne des valeurs au-dessus de « Ma cote »
+      for (var q = sj + 1; q < i; q++){ cands.push(lines[q]); blk.push(lines[q]); }
       for (var k = i + 1; k <= i + 3 && k < lines.length && !/ma\s*c[o0]te/i.test(lines[k]); k++){ cands.push(lines[k]); blk.push(lines[k]); }
       for (var c = 0; c < cands.length; c++){
         var v = cands[c].replace(/\(?\s*x?\s*2\s*\)|\bx\s*2\b/gi, ' ').replace(/^\D*?(?=\d)/, '');
