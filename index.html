@@ -293,6 +293,8 @@ html[data-theme="dark"] .sheet{--acc:#5B6475;--bg:#12151B}
 .card.full .fullt{flex:1;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card.full .fold{display:none}
 body.cardfull{overflow:hidden}
+.syncbox{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px}
+.syncbox b{font-size:14px}
 .sheet-in{max-width:560px;margin:0 auto;padding:6px 16px calc(24px + env(safe-area-inset-bottom, 0px))}
 .sheet-in h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:22px 0 8px}
 .sheet-in section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
@@ -469,6 +471,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 </div>
 
 <!-- Raccourci « Importer une capture » : un appui est nécessaire pour ouvrir la galerie -->
+<div class="sheet ask" id="gdAsk" hidden role="dialog" aria-modal="true" aria-labelledby="gdT">
+  <div class="askin">
+    <h2 id="gdT">☁️ Sauvegardes sur Drive</h2>
+    <p class="note" id="gdNote">Choisis la sauvegarde à restaurer.</p>
+    <div class="askbtns" id="gdList"></div>
+    <div class="askbtns"><button type="button" class="btn ghost" id="gdNo">Annuler</button></div>
+  </div>
+</div>
+
 <div class="sheet ask" id="capAsk" hidden role="dialog" aria-modal="true" aria-labelledby="capT">
   <div class="askin">
     <h2 id="capT">📷 Importer une capture MPP</h2>
@@ -490,11 +501,31 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
     <h3>Sauvegarde</h3>
     <section class="grp">
-    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Sur Android, Exporter ouvre le menu Partager : choisis « Drive » pour l'enregistrer sur Google Drive. Pour restaurer, choisis le fichier dans Drive depuis le sélecteur. Les clés API ne sont pas incluses.</p>
-    <div class="row">
-      <button class="btn" id="bkExport" type="button">Exporter</button>
-      <button class="btn ghost" id="bkImport" type="button">Restaurer</button>
+    <div class="syncbox">
+      <b>🔄 Synchronisation automatique</b> <span id="syncState" class="note"></span>
+      <p class="note">Téléphone et tablette partagent les mêmes données : chaque modification est envoyée toute seule, et l'appli se met à jour à l'ouverture. Il suffit de coller le même jeton GitHub (droit « gist » uniquement) sur chaque appareil.</p>
+      <div class="keyrow">
+        <input id="ghToken" type="password" autocomplete="off" spellcheck="false" placeholder="Jeton GitHub (ghp_…)" aria-label="Jeton GitHub">
+        <button class="btn2" id="ghSave" type="button">Enregistrer</button>
+      </div>
     </div>
+    <p class="note" style="margin-top:0">Enregistre tous tes matchs (3 onglets), tes bonus x2 et tes réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute), dans le dossier JKD+ de ton Google Drive. Les clés API ne sont pas incluses.</p>
+    <div class="row" id="gdRow">
+      <button class="btn" id="gdExport" type="button">☁️ Exporter vers Drive</button>
+      <button class="btn ghost" id="gdImport" type="button">☁️ Restaurer depuis Drive</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="bkExport" type="button">Exporter (partager)</button>
+      <button class="btn ghost" id="bkImport" type="button">Restaurer un fichier</button>
+    </div>
+    <p class="note" id="gdMsg" role="status" style="font-weight:600;color:var(--ink)"></p>
+    <details class="how" style="margin-top:6px"><summary>ID client Google (Drive)</summary>
+      <div class="keyrow">
+        <input id="gdClient" type="text" autocomplete="off" spellcheck="false" placeholder="….apps.googleusercontent.com" aria-label="ID client Google">
+        <button class="btn2" id="gdSave" type="button">Enregistrer</button>
+      </div>
+      <p class="note">Créé une fois dans la console Google Cloud. Il reste sur cet appareil.</p>
+    </details>
     <input type="file" id="bkFile" accept=".json,application/json" hidden>
     </section>
 
@@ -834,8 +865,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   function save(){
     if (!storageOK) return;
+    // Date de la dernière vraie modification (changer d'onglet ne compte pas)
+    var sig = dataSig(), changed = sig !== lastSig;
+    lastSig = sig;
+    if (changed && !syncApplying) S.savedAt = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+    if (changed && !syncApplying && typeof syncPush === 'function') syncPush();
   }
+  var syncApplying = false, lastSig = '';
+  function dataSig(){ var m = S.mode, t = S.savedAt; delete S.mode; delete S.savedAt; var x = JSON.stringify(S); S.mode = m; if (t) S.savedAt = t; return x; }
   function load(){
     try {
       localStorage.setItem(KEY + '-t', '1'); localStorage.removeItem(KEY + '-t');
@@ -2085,6 +2123,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ---------- réglages ---------- */
   function openSettings(){
     fillRules();
+    if (ghTok()){ $('ghToken').placeholder = 'Jeton enregistré'; syncSay(syncWhen()); } else syncSay('désactivée');
+    if (gdId()){ gdLoad().catch(function(){}); $('gdClient').placeholder = 'ID enregistré'; }
     renderTeams();
     $('settings').hidden = false; $('settings').scrollTop = 0; document.body.classList.add('noscroll');
     var tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute('content', theme() === 'dark' ? '#5B6475' : '#3D4452');
@@ -2378,6 +2418,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
+  lastSig = dataSig();
   if (/[?&]share=1/.test(location.search)) setTimeout(handleShared, 300);
   // Raccourcis de l'icône (appui long) : ouvrir un onglet, ou lancer l'import d'une capture
   (function(){
@@ -2436,10 +2477,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   })();
 
   // Sauvegarde : export / restauration d'un fichier JSON
+  function saveData(){ return JSON.stringify({app:'esperance-mpp', v:1, at:new Date().toISOString(), state:S}, null, 1); }
+  function saveName(){ var d = new Date(), p2 = function(x){ return String(x).padStart(2, '0'); };
+    return 'JKD-SAVE-' + p2(d.getMonth() + 1) + p2(d.getDate()) + p2(d.getHours()) + p2(d.getMinutes()) + '.json'; }   // ex. JKD-SAVE-10091638
   $('bkExport').addEventListener('click', function(){
-    var data = JSON.stringify({app:'esperance-mpp', v:1, at:new Date().toISOString(), state:S}, null, 1);
-    var d = new Date(), p2 = function(x){ return String(x).padStart(2, '0'); };
-    var name = 'JKD-SAVE-' + p2(d.getMonth() + 1) + p2(d.getDate()) + p2(d.getHours()) + p2(d.getMinutes()) + '.json';   // ex. JKD-SAVE-10091638
+    var data = saveData(), name = saveName();
     var blob = new Blob([data], {type:'application/json'});
     var download = function(){
       var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -2460,14 +2502,217 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     } else download();
   });
   $('bkImport').addEventListener('click', function(){ $('bkFile').click(); });
+
+  /* ---------- Synchronisation automatique entre appareils (gist secret GitHub) ----------
+     Fichier unique « jkd-sync.json » : {at, state}. La modification la plus récente gagne.
+     L'onglet affiché et les clés API restent propres à chaque appareil. */
+  var KEY_GH = 'mpp-gh-token', KEY_GIST = 'mpp-gist-id', KEY_SYNCAT = 'mpp-sync-at', GIST_FILE = 'jkd-sync.json';
+  var syncTimer = null, syncBusy = false;
+  function ghTok(){ try { return localStorage.getItem(KEY_GH) || ''; } catch (e) { return ''; } }
+  function lsGet(k){ try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function lsSet(k, v){ try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function syncSay(t){ var el = $('syncState'); if (el) el.textContent = t; }
+  function syncWhen(){ var a = +lsGet(KEY_SYNCAT); return a ? 'synchronisé ' + new Date(a).toLocaleString('fr-FR', {weekday:'short', hour:'2-digit', minute:'2-digit'}) : ''; }
+  async function gh(path, opt){
+    opt = opt || {};
+    opt.headers = Object.assign({Authorization:'Bearer ' + ghTok(), Accept:'application/vnd.github+json'}, opt.headers || {});
+    var r = await fetch('https://api.github.com' + path, opt);
+    if (r.status === 401) throw new Error('jeton GitHub refusé');
+    if (r.status === 404) { var e = new Error('introuvable'); e.code = 404; throw e; }
+    if (!r.ok) throw new Error('GitHub ' + r.status);
+    return r.json();
+  }
+  function payload(){ var st = JSON.parse(JSON.stringify(S)); delete st.mode; return JSON.stringify({app:'jkd', at:S.savedAt || Date.now(), state:st}); }
+  async function gistId(){
+    var id = lsGet(KEY_GIST);
+    if (id) return id;
+    var list = await gh('/gists?per_page=100');                         // déjà créé depuis un autre appareil ?
+    var g = list.filter(function(x){ return x.files && x.files[GIST_FILE]; })[0];
+    if (!g) g = await gh('/gists', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({description:'JKD+ synchronisation', public:false, files:(function(o){ o[GIST_FILE] = {content:payload()}; return o; })({})})});
+    lsSet(KEY_GIST, g.id);
+    return g.id;
+  }
+  var pulledOnce = false;
+  async function syncPushNow(keep){
+    clearTimeout(syncTimer); syncTimer = null;
+    if (!ghTok() || syncBusy) return;
+    if (!pulledOnce) return syncPull();          // d'abord vérifier si l'autre appareil a plus récent
+    syncBusy = true;
+    try {
+      var id = await gistId(), f = {}; f[GIST_FILE] = {content:payload()};
+      await gh('/gists/' + id, {method:'PATCH', keepalive:!!keep, headers:{'Content-Type':'application/json'}, body:JSON.stringify({files:f})});
+      lsSet(KEY_SYNCAT, String(S.savedAt || Date.now()));
+      syncSay(syncWhen());
+    } catch (e) {
+      if (e.code === 404) lsSet(KEY_GIST, '');
+      syncSay('⚠️ synchro impossible (' + e.message + ')');
+    } finally { syncBusy = false; }
+  }
+  function syncPush(){ if (!ghTok()) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncPushNow, 4000); }
+  async function syncPull(){
+    if (!ghTok() || syncBusy || !navigator.onLine) return;
+    syncBusy = true;
+    var pushAfter = false;
+    try {
+      var id = await gistId(), g = await gh('/gists/' + id), file = g.files && g.files[GIST_FILE];
+      if (!file) throw new Error('fichier absent');
+      var txt = file.truncated ? await (await fetch(file.raw_url)).text() : file.content;
+      var o = JSON.parse(txt), at = +o.at || 0, mine = +S.savedAt || 0;
+      pulledOnce = true;
+      if (o.state && o.state.data && at > mine){
+        // Données plus récentes sur l'autre appareil : on les prend (en gardant l'onglet affiché ici)
+        var mode = S.mode;
+        syncApplying = true;
+        S = o.state; S.mode = mode; S.savedAt = at; S.method = 'pow';
+        applyTeamPrefs(); renderAll(); save(); lastSig = dataSig();
+        syncApplying = false;
+        lsSet(KEY_SYNCAT, String(at));
+        status('🔄 Données mises à jour depuis ton autre appareil.');
+      } else if (mine > at) pushAfter = true;                            // cet appareil est plus à jour
+      else lsSet(KEY_SYNCAT, String(at));
+      syncSay(syncWhen());
+    } catch (e) {
+      syncApplying = false;
+      if (e.code === 404) lsSet(KEY_GIST, '');
+      syncSay('⚠️ synchro impossible (' + e.message + ')');
+    } finally { syncBusy = false; }
+    if (pushAfter) syncPushNow();
+  }
+  $('ghSave').addEventListener('click', function(){
+    var v = $('ghToken').value.trim();
+    lsSet(KEY_GH, v); lsSet(KEY_GIST, '');
+    $('ghToken').value = ''; $('ghToken').placeholder = v ? 'Jeton enregistré' : 'Jeton GitHub (ghp_…)';
+    syncSay(v ? 'connexion…' : 'désactivée');
+    if (v) syncPull();
+  });
+  document.addEventListener('visibilitychange', function(){
+    if (!ghTok()) return;
+    if (document.visibilityState === 'hidden'){ if (syncTimer) syncPushNow(true); }   // envoie avant de quitter
+    else syncPull();
+  });
+  if (ghTok()) setTimeout(syncPull, 1200);
+
+  /* ---------- Google Drive : sauvegarde directe dans le dossier « JKD+ » ----------
+     Autorisation « drive.file » : JKD+ ne voit que les fichiers qu'il a créés. */
+  // Message visible aussi dans les réglages (la barre du bas est cachée derrière)
+  function gdSay(t){ status(t); $('gdMsg').textContent = t; }
+  var KEY_GD = 'mpp-gdrive-client', KEY_GDF = 'mpp-gdrive-folder', GD_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+  var gdToken = null, gdExp = 0, gdClientObj = null, gdLoading = null, gdPending = null;
+  function gdId(){ try { return localStorage.getItem(KEY_GD) || ''; } catch (e) { return ''; } }
+  function gdLoad(){
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+    if (gdLoading) return gdLoading;
+    gdLoading = new Promise(function(res, rej){
+      var sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+      sc.onload = res; sc.onerror = function(){ gdLoading = null; rej(new Error('Connexion à Google impossible.')); };
+      document.head.appendChild(sc);
+    });
+    return gdLoading;
+  }
+  // À appeler directement dans le geste (appui) pour que la fenêtre Google puisse s'ouvrir
+  function gdAuth(){
+    return new Promise(function(res, rej){
+      if (gdToken && Date.now() < gdExp - 60e3) return res(gdToken);
+      if (!(window.google && google.accounts && google.accounts.oauth2)){ gdLoad(); return rej(new Error('Connexion à Google en cours de préparation : réessaie dans 2 secondes.')); }
+      gdPending = {res:res, rej:rej};
+      if (!gdClientObj) gdClientObj = google.accounts.oauth2.initTokenClient({client_id:gdId(), scope:GD_SCOPE,
+        callback:function(t){
+          var p = gdPending; gdPending = null; if (!p) return;
+          if (t && t.access_token){ gdToken = t.access_token; gdExp = Date.now() + (t.expires_in || 3600) * 1000; p.res(gdToken); }
+          else p.rej(new Error('Autorisation Google refusée.'));
+        },
+        error_callback:function(e){
+          var p = gdPending; gdPending = null; if (!p) return;
+          p.rej(new Error(e && e.type === 'popup_closed' ? 'Fenêtre Google fermée.' : e && e.type === 'popup_failed_to_open' ? 'Fenêtre Google bloquée : réessaie.' : 'Autorisation Google impossible.'));
+        }});
+      gdClientObj.requestAccessToken({prompt:''});
+    });
+  }
+  async function gdFetch(url, opt){
+    opt = opt || {}; opt.headers = Object.assign({Authorization:'Bearer ' + gdToken}, opt.headers || {});
+    var r = await fetch(url, opt);
+    if (r.status === 401){ gdToken = null; throw new Error('Autorisation Google expirée : réessaie.'); }
+    if (!r.ok) throw new Error('Google Drive : erreur ' + r.status + '.');
+    return r;
+  }
+  async function gdFolder(){
+    var id = ''; try { id = localStorage.getItem(KEY_GDF) || ''; } catch (e) {}
+    if (id){
+      try { var c = await (await gdFetch('https://www.googleapis.com/drive/v3/files/' + id + '?fields=id,trashed')).json(); if (c.id && !c.trashed) return id; } catch (e) {}
+    }
+    var q = encodeURIComponent("name='JKD+' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    var l = await (await gdFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)')).json();
+    id = l.files && l.files[0] && l.files[0].id;
+    if (!id){
+      var f = await (await gdFetch('https://www.googleapis.com/drive/v3/files?fields=id', {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:'JKD+', mimeType:'application/vnd.google-apps.folder'})})).json();
+      id = f.id;
+    }
+    try { localStorage.setItem(KEY_GDF, id); } catch (e) {}
+    return id;
+  }
+  function gdReady(){
+    if (gdId()) return true;
+    gdSay('Ajoute d\'abord ton ID client Google dans ⚙️ Réglages → Sauvegarde.');
+    var d = $('gdClient').closest('details'); if (d) d.open = true; $('gdClient').focus();
+    return false;
+  }
+  $('gdExport').addEventListener('click', function(){
+    if (!gdReady()) return;
+    var btn = this, name = saveName(), data = saveData();
+    gdAuth().then(async function(){
+      btn.disabled = true; btn.textContent = '☁️ Envoi…';
+      var folder = await gdFolder(), bd = 'jkd' + Date.now();
+      var body = '--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify({name:name, parents:[folder], mimeType:'application/json'}) +
+        '\r\n--' + bd + '\r\nContent-Type: application/json\r\n\r\n' + data + '\r\n--' + bd + '--';
+      await gdFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {method:'POST', headers:{'Content-Type':'multipart/related; boundary=' + bd}, body:body});
+      gdSay('Sauvegarde enregistrée sur Google Drive : JKD+/' + name + '.');
+    }).catch(function(e){ gdSay(e.message || 'Sauvegarde Drive impossible.'); })
+      .finally(function(){ btn.disabled = false; btn.textContent = '☁️ Exporter vers Drive'; });
+  });
+  $('gdImport').addEventListener('click', function(){
+    if (!gdReady()) return;
+    gdAuth().then(async function(){
+      var folder = await gdFolder();
+      var q = encodeURIComponent("'" + folder + "' in parents and trashed=false and name contains 'JKD-SAVE'");
+      var l = await (await gdFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&orderBy=createdTime desc&pageSize=8&fields=files(id,name,createdTime)')).json();
+      var files = l.files || [];
+      if (!files.length){ gdSay('Aucune sauvegarde dans le dossier JKD+ de ton Drive.'); return; }
+      $('gdList').innerHTML = files.map(function(f){
+        var w = new Date(f.createdTime).toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+        return '<button type="button" class="btn ghost" data-gd="' + esc(f.id) + '">' + esc(w) + '</button>';
+      }).join('');
+      $('gdAsk').hidden = false;
+    }).catch(function(e){ gdSay(e.message || 'Lecture du Drive impossible.'); });
+  });
+  $('gdList').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-gd]'); if (!b) return;
+    $('gdAsk').hidden = true;
+    try { restoreText(await (await gdFetch('https://www.googleapis.com/drive/v3/files/' + b.dataset.gd + '?alt=media')).text()); $('gdMsg').textContent = $('impStatus').textContent; }
+    catch (err) { gdSay(err.message || 'Lecture de la sauvegarde impossible.'); }
+  });
+  $('gdNo').addEventListener('click', function(){ $('gdAsk').hidden = true; });
+  $('gdSave').addEventListener('click', function(){
+    var v = $('gdClient').value.trim();
+    try { if (v) localStorage.setItem(KEY_GD, v); else localStorage.removeItem(KEY_GD); } catch (e) {}
+    gdClientObj = null; gdToken = null;
+    $('gdClient').value = ''; $('gdClient').placeholder = v ? 'ID enregistré' : '….apps.googleusercontent.com';
+    gdSay(v ? 'ID client Google enregistré. Tu peux exporter vers Drive.' : 'ID client Google supprimé.');
+    if (v) gdLoad().catch(function(){});
+  });
+  if (gdId()) setTimeout(function(){ gdLoad().catch(function(){}); }, 4000);   // prépare la connexion Google (après l'ouverture)
   $('bkFile').addEventListener('change', function(e){
     var f = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!f) return;
     var rd = new FileReader();
-    rd.onload = function(){
+    rd.onload = function(){ restoreText(rd.result); };
+    rd.readAsText(f);
+  });
+  function restoreText(text){
       try {
-        var o = JSON.parse(rd.result), st = o && o.state;
+        var o = JSON.parse(text), st = o && o.state;
         if (!st || !st.data || !MODES.every(function(md){ return Array.isArray(st.data[md.id]); })) throw new Error('format');
         var n = MODES.reduce(function(a, md){ return a + st.data[md.id].length; }, 0);
         var when = o.at ? new Date(o.at).toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
@@ -2481,9 +2726,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       } catch (err) {
         status('Ce fichier n\'est pas une sauvegarde valide de l\'appli.');
       }
-    };
-    rd.readAsText(f);
-  });
+  }
 
   // Ballon du logo : positions calculées sur les vraies lettres
   (function(){
