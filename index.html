@@ -532,6 +532,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <h2 id="bRevT" style="margin:0 0 4px;font-size:17px">Bilan</h2>
       <p class="note">Vérifie le score réel, ton prono, la cote jouée, le bonus de rareté et le x2. Les points sont recalculés.</p>
       <div id="bRevList"></div>
+      <details class="how"><summary>Texte lu sur la capture</summary><textarea id="bRawTxt" readonly style="width:100%;height:160px;font:12px monospace;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:8px"></textarea></details>
       <div class="row"><button class="btn" id="bSave" type="button">Valider le bilan</button><button class="btn ghost" id="bCancel" type="button">Annuler</button></div>
     </section>
     <div id="bList"></div>
@@ -2551,35 +2552,47 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var g = r.cote + (r.ph === r.h && r.pa === r.a ? (r.bonus || 0) : 0);
     return g * (r.x2 ? 2 : 1);
   }
-  // Lecture d'une capture « Matchs » de MPP après la journée : score réel, cote jouée, prono, x2, bonus de rareté
+  // Lecture d'une capture « Matchs » de MPP : chaque match = ligne du score, ligne « Ma cote … », ligne des valeurs
   function parseResults(text){
     var lines = String(text || '').split(/\n+/).map(function(l){ return l.replace(/[|“”"«»]/g, ' ').replace(/\s+/g, ' ').trim(); }).filter(Boolean);
-    var out = [], cur = null, jn = null;
-    lines.forEach(function(l){
-      var mj = l.match(/\bJ\s*[.,]?\s*(\d{1,2})\s*\/\s*\d{1,2}/i);
-      if (mj && jn === null) jn = +mj[1];
-      var ms = l.match(/^(.*?[A-Za-zÀ-ÿ].*?)\s+(\d)\s*[:;]\s*(\d)\s+(.*[A-Za-zÀ-ÿ].*)$/);
-      if (ms && !/ma cote|prono/i.test(l)){
-        var clean = function(t){ return t.split(' ').filter(function(w){ return /[A-Za-zÀ-ÿ]{2,}/.test(w) && !/^[a-z]{1,3}$/.test(w) || /^[A-Z]{2,5}$/.test(w); }).join(' ').replace(/[^A-Za-zÀ-ÿ' .-]/g, '').trim(); };
-        cur = {home:clean(ms[1]), away:clean(ms[4]), h:+ms[2], a:+ms[3], block:[]};
-        out.push(cur); return;
+    var jn = null, out = [], lastUsed = -1;
+    var SC = /(\d)\s*[:;.,]\s*(\d)(?!\d)/, PR = /(\d)\s*[-–—.=~:,]\s*(\d)(?!\d)/;
+    var clean = function(t){
+      return t.split(' ').filter(function(w){ return /[A-Za-zÀ-ÿ]{2,}/.test(w) && !/^[a-zà-ÿ]{1,2}$/.test(w); })
+        .join(' ').replace(/[^A-Za-zÀ-ÿ' .-]/g, '').replace(/\s+/g, ' ').trim();
+    };
+    lines.forEach(function(l){ var mj = l.match(/\bJ\s*[.,]?\s*(\d{1,2})\s*\/\s*\d{1,2}/i); if (mj && jn === null) jn = +mj[1]; });
+    for (var i = 0; i < lines.length; i++){
+      if (!/ma\s*c[o0]te/i.test(lines[i])) continue;
+      // ligne du score : juste au-dessus (on remonte de 3 lignes au plus)
+      var sl = null;
+      for (var j = i - 1; j > lastUsed && j >= i - 3; j--){
+        var m = lines[j].match(SC);
+        if (m && !/ma\s*c[o0]te/i.test(lines[j])){
+          var home = clean(lines[j].slice(0, m.index)), away = clean(lines[j].slice(m.index + m[0].length));
+          if (home.length >= 2 && away.length >= 2){ sl = {home:home, away:away, h:+m[1], a:+m[2]}; break; }
+        }
       }
-      if (cur) cur.block.push(l);
-    });
-    return {jn:jn, rows:out.map(function(r){
-      var b = r.block.join('\n'), x2 = /\(?x\s*2\)?/i.test(b);
-      var rare = b.match(/\+\s*(\d{1,3})\s*pts?/i);
-      var ph = null, pa = null, cote = null;
-      for (var i = 0; i < r.block.length; i++){
-        var l = r.block[i].replace(/\(?x\s*2\)?/gi, ' ');
-        var mp = l.match(/(\d{1,3})\D*?\b(\d)\s*[-–—]\s*(\d)\b/);
-        if (mp && !/ma cote/i.test(l)){ cote = +mp[1]; ph = +mp[2]; pa = +mp[3]; break; }
+      if (!sl) continue;
+      // ligne des valeurs : la même ligne après « MPP », ou l'une des 3 suivantes
+      var cote = null, ph = null, pa = null, blk = [lines[i]];
+      var cands = [lines[i].replace(/^.*?MPP/i, '')];
+      for (var k = i + 1; k <= i + 3 && k < lines.length && !/ma\s*c[o0]te/i.test(lines[k]); k++){ cands.push(lines[k]); blk.push(lines[k]); }
+      for (var c = 0; c < cands.length; c++){
+        var v = cands[c].replace(/\(?\s*x?\s*2\s*\)|\bx\s*2\b/gi, ' ').replace(/^\D*?(?=\d)/, '');
+        var mp = v.match(/^(\d{1,3})\D{1,12}?(\d)\s*[-–—.=~:,]\s*(\d)(?!\d)/);
+        if (mp){ cote = +mp[1]; ph = +mp[2]; pa = +mp[3]; break; }
       }
-      return {home:r.home, away:r.away, h:r.h, a:r.a, cote:cote, ph:ph, pa:pa, x2:x2, bonus:rare ? +rare[1] : 0};
-    })};
+      var b = blk.join(' '), x2 = /\(\s*x?\s*2\s*\)|\bx\s*2\b/i.test(b);
+      var rr = b.match(/rare\D{0,4}?([0-9oO]{1,4})\s*p\s*t/i), bonus = 0;
+      if (rr){ bonus = +rr[1].replace(/[oO]/g, '0'); while (bonus > 100) bonus = +String(bonus).slice(1); }
+      out.push({home:sl.home, away:sl.away, h:sl.h, a:sl.a, cote:cote, ph:ph, pa:pa, x2:x2, bonus:bonus});
+      lastUsed = i;
+    }
+    return {jn:jn, rows:out};
   }
 
-  var bPending = null;   // {jn, orphan?, rows:[{m, r}]}
+  var bPending = null, bRaw = '';   // {jn, orphan?, rows:[{m, r}]} ; texte brut lu (diagnostic)
   function niceTeam(t){
     var w = String(t || '').split(' ').filter(Boolean);
     for (var n = w.length; n >= 1; n--) for (var i = 0; i + n <= w.length; i++){
@@ -2601,8 +2614,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       try { await loadTesseract(); } catch (err) { throw new Error('Impossible de charger la lecture de texte. Vérifie ta connexion internet.'); }
       worker = await Tesseract.createWorker('fra', 1, {logger:function(m){ if (m.status === 'recognizing text') bSay('Lecture de la capture… ' + Math.round(m.progress * 100) + '%'); }});
       await worker.setParameters({tessedit_pageseg_mode:'6'});
+      bRaw = '';
       for (var f = 0; f < files.length; f++){
-        var res = parseResults((await worker.recognize(await prepImage(files[f], 150))).data.text || '');
+        // 1re lecture (seuil 150), puis 2e lecture plus sombre si des pronos manquent : on complète
+        var txt = (await worker.recognize(await prepImage(files[f], 150))).data.text || '', res = parseResults(txt);
+        bRaw += txt + '\n';
+        if (res.rows.length < 3 || res.rows.some(function(x){ return x.ph === null || x.cote === null; })){
+          bSay('Deuxième lecture pour compléter…');
+          var txt2 = (await worker.recognize(await prepImage(files[f], 120))).data.text || '', res2 = parseResults(txt2);
+          bRaw += '\n--- 2e lecture ---\n' + txt2 + '\n';
+          res2.rows.forEach(function(y){
+            var x = res.rows.filter(function(z){ return z.h === y.h && z.a === y.a && (sameTeam(z.home, y.home) || sameTeam(z.away, y.away)); })[0];
+            if (!x){ res.rows.push(y); return; }
+            ['cote','ph','pa'].forEach(function(k){ if (x[k] === null) x[k] = y[k]; });
+            if (!x.x2 && y.x2) x.x2 = true;
+            if (!x.bonus && y.bonus) x.bonus = y.bonus;
+          });
+          if (!res.jn) res.jn = res2.jn;
+        }
         if (res.jn && !jn) jn = res.jn;
         rows = rows.concat(res.rows);
       }
@@ -2639,6 +2668,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var p = bPending;
     $('bReview').hidden = !p;
     if (!p) return;
+    $('bRawTxt').value = bRaw;
     $('bRevT').textContent = 'Bilan ' + MODES.filter(function(x){ return x.id === S.mode; })[0].tab + (p.jn ? ' · J' + p.jn : '');
     $('bRevList').innerHTML = p.rows.map(function(x, i){
       var r = x.r, g = mppGain(r);
