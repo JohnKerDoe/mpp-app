@@ -2788,7 +2788,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
             '<span class="ba">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗') : '<small class="note">sans conseil</small>') + '</span>' +
             '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' 🎯' : '') : '–') + '</span></div>';
         }).join('');
-        return '<details class="bj"' + (k === 0 ? ' open' : '') + '><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats</summary>' +
+        return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats</summary>' +
           '<div class="brh"><span>Score réel</span><span>Conseil</span><span>Toi · pts</span></div>' + rows +
           '<div class="bact"><button class="btn2" data-bshare="' + k + '" type="button">📤 Partager en image</button><button class="del" data-bdel="' + k + '" type="button" aria-label="Supprimer ce bilan">🗑</button></div></details>';
       }).join('');
