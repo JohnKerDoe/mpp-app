@@ -2770,7 +2770,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var s = bilanStats(arr), avgB = s.bonus.length ? Math.round(s.bonus.reduce(function(a, b){ return a + b; }, 0) / s.bonus.length) : 0;
       html += '<h3>Statistiques · ' + s.j + ' journée' + (s.j > 1 ? 's' : '') + '</h3><section class="grp bstats">' +
         '<div><b>' + s.pts + ' pts</b><span>gagnés · ' + Math.round(s.pts / Math.max(1, s.j)) + ' par journée</span></div>' +
-        '<div><b>' + s.okMe + ' / ' + s.nMe + '</b><span>tes bons résultats (' + bpct(s.okMe, s.nMe) + ')</span></div>' +
+        '<div><b>' + s.okMe + ' / ' + s.nMe + '</b><span>tes bons résultats (' + bpct(s.okMe, s.nMe) + ') · ' + (s.okMe / Math.max(1, s.j)).toFixed(1).replace('.', ',') + ' par journée en moyenne</span></div>' +
         (s.n ? '<div><b>' + s.okAdv + ' / ' + s.n + '</b><span>bons résultats du conseil JKD+, pour ' + s.expAdv.toFixed(1).replace('.', ',') + ' attendus</span></div>' : '') +
         (!s.n ? '' : '<div class="blv">' + [['g','🟢'],['o','🟠'],['r','🔴']].map(function(x){ var v = s.lv[x[0]]; return '<span>' + x[1] + ' ' + v[0] + '/' + v[1] + ' <small>' + bpct(v[0], v[1]) + '</small></span>'; }).join('') + '</div>') +
         '<div><b>🎯 ' + s.exMe + '</b><span>scores exacts trouvés' + (avgB ? ' · bonus moyen +' + avgB + ' pts' : '') + (s.n ? ' · conseil JKD+ : ' + s.exAdv : '') + '</span></div>' +
