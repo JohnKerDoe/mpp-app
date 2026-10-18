@@ -295,6 +295,14 @@ html[data-theme="dark"] .sheet{--acc:#5B6475;--bg:#12151B}
 body.cardfull{overflow:hidden}
 .syncbox{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px}
 .syncbox b{font-size:14px}
+.viewsw{display:flex;gap:4px;padding:4px;margin:0 0 12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.viewsw button{flex:1;border:0;background:transparent;color:var(--ink-2);font:inherit;font-weight:800;font-size:14px;padding:9px 6px;border-radius:9px;cursor:pointer}
+.viewsw button[aria-selected="true"]{background:var(--acc);color:#fff}
+body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !important}
+#bilanView .row{margin-top:0}
+#bilanView section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px}
+#bilanView h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+#bilanView .note{font-size:13px;color:var(--mute);margin:6px 0}
 .bilanbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:12px 14px;border-radius:12px;background:var(--acc);color:#fff;font-weight:700}
 .bilanbar span{display:block;font-weight:500;opacity:.85;font-size:13px}
 .bilanbar button{flex:none;border:0;background:#fff;color:var(--acc);font:inherit;font-weight:800;border-radius:999px;padding:9px 14px;cursor:pointer}
@@ -424,12 +432,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <div class="topr">
       <span class="credits" id="credits" hidden></span>
       <span class="credits" id="opCredits" hidden></span>
-      <button class="themebtn" id="statBtn" type="button" aria-label="Bilans et statistiques">📊</button>
       <button class="themebtn" id="setBtn" type="button" aria-label="Réglages">⚙️</button>
     </div>
   </div>
 
   <nav class="tabs" id="tabs" role="tablist" aria-label="Compétition"></nav>
+  <div class="viewsw" id="viewSw" role="tablist" aria-label="Affichage">
+    <button type="button" role="tab" data-view="pronos" aria-selected="true">🎯 Pronos</button>
+    <button type="button" role="tab" data-view="bilans" aria-selected="false">📊 Bilans</button>
+  </div>
+  <section id="bilanView" hidden>
+    <h2 class="day" id="bTitle">Bilans</h2>
+    <div class="row" style="margin-top:10px"><button class="btn" id="bImport" type="button">📷 Importer les résultats d'une journée</button></div>
+    <p class="note" id="bMsg" role="status" style="font-weight:600;color:var(--ink)"></p>
+    <section class="grp" id="bReview" hidden>
+      <h2 id="bRevT" style="margin:0 0 4px;font-size:17px">Bilan</h2>
+      <p class="note">Vérifie le score réel, ton prono, la cote jouée, le bonus de rareté et le x2. Les points sont recalculés.</p>
+      <div id="bRevList"></div>
+      <details class="how"><summary>Texte lu sur la capture</summary><textarea id="bRawTxt" readonly style="width:100%;height:160px;font:12px monospace;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:8px"></textarea></details>
+      <div class="row"><button class="btn" id="bSave" type="button">Valider le bilan</button><button class="btn ghost" id="bCancel" type="button">Annuler</button></div>
+    </section>
+    <div id="bList"></div>
+  </section>
 
 
   <section class="panel" aria-live="polite">
@@ -442,10 +466,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <div class="cd" id="cd" hidden></div>
   </section>
 
-  <div class="bilanbar" id="bilanBar" hidden>
-    <div>🏁 Journée terminée<span>Importe la capture « Matchs » de ta ligue MPP</span></div>
-    <button type="button" id="bilanGo">📊 Faire le bilan</button>
-  </div>
   <input type="file" id="bFile" accept="image/*" multiple hidden>
 
   <section class="recap">
@@ -509,25 +529,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 </div>
 
 <!-- Page Réglages -->
-<div class="sheet" id="bilans" hidden role="dialog" aria-modal="true" aria-labelledby="bTitle">
-  <div class="sethead">
-    <button class="back" id="bClose" type="button" aria-label="Retour">←</button>
-    <h2 id="bTitle">📊 Bilans</h2>
-  </div>
-  <div class="sheet-in">
-    <div class="row" style="margin-top:10px"><button class="btn" id="bImport" type="button">📷 Importer les résultats d'une journée</button></div>
-    <p class="note" id="bMsg" role="status" style="font-weight:600;color:var(--ink)"></p>
-    <section class="grp" id="bReview" hidden>
-      <h2 id="bRevT" style="margin:0 0 4px;font-size:17px">Bilan</h2>
-      <p class="note">Vérifie le score réel, ton prono, la cote jouée, le bonus de rareté et le x2. Les points sont recalculés.</p>
-      <div id="bRevList"></div>
-      <details class="how"><summary>Texte lu sur la capture</summary><textarea id="bRawTxt" readonly style="width:100%;height:160px;font:12px monospace;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:8px"></textarea></details>
-      <div class="row"><button class="btn" id="bSave" type="button">Valider le bilan</button><button class="btn ghost" id="bCancel" type="button">Annuler</button></div>
-    </section>
-    <div id="bList"></div>
-  </div>
-</div>
-
 <div class="sheet" id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
   <div class="sethead">
     <button class="back" id="setClose" type="button" aria-label="Retour">←</button>
@@ -1389,6 +1390,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     updateSummary();
     fullApply();
     if (typeof updateBilanBar === 'function') updateBilanBar();
+    if (typeof VIEW !== 'undefined' && VIEW === 'bilans') renderBilans();
   }
 
   /* ---------- événements ---------- */
@@ -2151,7 +2153,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function closeSettings(){ document.querySelectorAll('#teamsBox details[open]').forEach(function(d){ d.open = false; }); $('settings').hidden = true; document.body.classList.remove('noscroll'); renderAll(); }
   $('setBtn').addEventListener('click', openSettings);
   $('setClose').addEventListener('click', closeSettings);
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); if (e.key === 'Escape' && !$('bilans').hidden) closeBilans(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); if (e.key === 'Escape' && VIEW === 'bilans') closeBilans(); });
 
 
 
@@ -2475,7 +2477,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (e.touches.length !== 1){ active = false; return; }
       var t = e.touches[0], el = e.target;
       // pas depuis un champ de saisie, ni depuis le bord de l'écran (geste « retour » d'Android)
-      active = $('settings').hidden && $('bilans').hidden && !(el.closest && el.closest('input, textarea, select, .bbar')) && t.clientX > 24 && t.clientX < window.innerWidth - 24;
+      active = $('settings').hidden && !(el.closest && el.closest('input, textarea, select, .bbar')) && t.clientX > 24 && t.clientX < window.innerWidth - 24;
       sx = t.clientX; sy = t.clientY; st = Date.now();
     }, {passive:true});
     document.addEventListener('touchend', function(e){
@@ -2649,7 +2651,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       bSay(found + ' résultat' + (found > 1 ? 's' : '') + ' lu' + (found > 1 ? 's' : '') + ' sur ' + list.length + '. Vérifie, puis valide le bilan.');
       return;
     }
-    // Journée déjà remplacée dans l'appli : bilan à partir de la capture seule (sans le conseil JKD+)
+    // Journée déjà remplacée dans l'appli mais archivée automatiquement : bilan avec le conseil JKD+
+    var arc = jn && S.archive && S.archive[S.mode] && S.archive[S.mode][jn];
+    if (arc){
+      var usedA = [];
+      var pairsA = arc.matches.map(function(m){
+        var r = rows.filter(function(x){ return usedA.indexOf(x) < 0 && sameTeam(m.home, x.home) && sameTeam(m.away, x.away); })[0] || null;
+        if (r) usedA.push(r);
+        return {m:m, r:r ? pick(r) : {h:null, a:null, cote:null, ph:null, pa:null, x2:false, bonus:0}};
+      });
+      if (usedA.length >= Math.min(3, rows.length)){
+        bPending = {jn:jn, fromArchive:true, rows:pairsA};
+        renderBReview();
+        bSay('J' + jn + ' retrouvée dans les journées archivées : ' + usedA.length + ' résultat' + (usedA.length > 1 ? 's' : '') + ' sur ' + arc.matches.length + ', avec le conseil JKD+. Vérifie, puis valide.');
+        return;
+      }
+    }
+    // Journée inconnue : bilan à partir de la capture seule (sans le conseil JKD+)
     bPending = {jn:jn, orphan:true, rows:rows.map(function(x){ return {m:{home:niceTeam(x.home), away:niceTeam(x.away)}, r:pick(x)}; })};
     renderBReview();
     bSay('La J' + (jn || '?') + ' n\'est plus dans l\'appli' + (tj ? ' (l\'onglet affiche la J' + tj + ')' : '') + ' : bilan à partir de la capture seule, sans le conseil JKD+. Vérifie les noms et les chiffres, puis valide.');
@@ -2694,29 +2712,43 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var st = x2State();
     var matches = p.rows.map(function(x){
       var m = x.m, r = x.r, played = r.h !== null && r.a !== null;
-      var c = p.orphan ? {p:null, ev:null, best:-1, level:null, gap:null, sc:null} : calc(m);
+      var c = p.orphan ? {p:null, ev:null, best:-1, level:null, gap:null, sc:null} : p.fromArchive ? m : calc(m);
       if (played && r.x2 && !st.list.some(function(u){ return u.key === mkey(m); })) st.list.push({key:mkey(m), jn:jn || null, name:m.home + ' – ' + m.away});   // x2 joué sur MPP
       return {home:m.home, away:m.away, ts:m.ts || null,
-        pts:p.orphan ? null : m.pts.map(N), odds:p.orphan ? null : m.odds.map(N), p:c.p, ev:c.ev, best:c.best, level:c.level, gap:c.gap,
-        sc:c.sc ? scoreOf(c, c.best) : null, scSrc:p.orphan ? null : (m.cs && m.cs.bk ? m.cs.bk : 'modèle'),
+        pts:p.orphan ? null : p.fromArchive ? m.pts : m.pts.map(N), odds:p.orphan ? null : p.fromArchive ? m.odds : m.odds.map(N),
+        p:c.p, ev:c.ev, best:c.best, level:c.level, gap:c.gap,
+        sc:p.fromArchive ? m.sc : (c.sc ? scoreOf(c, c.best) : null), scSrc:p.orphan ? null : p.fromArchive ? m.scSrc : (m.cs && m.cs.bk ? m.cs.bk : 'modèle'),
         real:played ? {h:r.h, a:r.a} : null,
         mine:played && r.ph !== null ? {ph:r.ph, pa:r.pa, cote:r.cote, x2:!!r.x2, bonus:r.bonus || 0, gain:mppGain(r)} : null};
     });
     var entry = {jn:jn, at:new Date().toISOString(), matches:matches};
     if (at >= 0) arr[at] = entry; else arr.push(entry);
+    if (S.archive && S.archive[S.mode]) delete S.archive[S.mode][jn];      // l'archive a servi
     arr.sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
     bPending = null;
-    save(); renderAll(); renderBReview(); renderBilans(); $('bilans').scrollTop = 0;
+    save(); renderAll(); renderBReview(); renderBilans(); window.scrollTo(0, 0);
     bSay('Bilan de la J' + jn + ' enregistré.');
   }
   function bSay(t){ $('bMsg').textContent = t; }
 
   /* ---------- page Bilans ---------- */
+  var VIEW = 'pronos';
+  function setView(v){
+    VIEW = v;
+    document.body.classList.toggle('vb', v === 'bilans');
+    $('bilanView').hidden = v !== 'bilans';
+    $('viewSw').querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.view === v)); });
+    window.scrollTo(0, 0);
+  }
+  $('viewSw').addEventListener('click', function(e){
+    var b = e.target.closest('[data-view]'); if (!b) return;
+    if (b.dataset.view === 'bilans') openBilans(); else closeBilans();
+  });
   function openBilans(){
-    $('bilans').hidden = false; $('bilans').scrollTop = 0; document.body.classList.add('noscroll');
+    setView('bilans');
     bSay(''); renderBReview(); renderBilans();
   }
-  function closeBilans(){ $('bilans').hidden = true; document.body.classList.remove('noscroll'); }
+  function closeBilans(){ setView('pronos'); }
   function bpct(a, b){ return b ? Math.round(a / b * 100) + ' %' : '–'; }
   function bilanStats(arr){
     var s = {j:arr.length, n:0, okAdv:0, expAdv:0, okMe:0, nMe:0, pts:0, exAdv:0, exMe:0, bonus:[], lv:{g:[0,0], o:[0,0], r:[0,0]}, diff:0, diffMe:0, diffAdv:0, x2n:0, x2plus:0, bests:[]};
@@ -2745,8 +2777,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return s;
   }
   function renderBilans(){
+    if (renderBilans.mode && renderBilans.mode !== S.mode) bSay('');   // message de l'autre compétition effacé
+    renderBilans.mode = S.mode;
     var md = MODES.filter(function(x){ return x.id === S.mode; })[0], arr = bilansOf(S.mode);
-    $('bTitle').textContent = '📊 Bilans · ' + md.tab;
+    $('bTitle').textContent = 'Bilans · ' + md.name;
     var html = '';
     if (!arr.length) html = '<p class="note">Aucun bilan pour l\'instant. Quand tous les matchs d\'une journée sont finis, importe la capture « Matchs » de ta ligue MPP (scores, cotes et points) avec le bouton ci-dessus.</p>';
     else {
@@ -2824,16 +2858,37 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   /* ---------- branchements ---------- */
-  $('statBtn').addEventListener('click', openBilans);
-  $('bClose').addEventListener('click', closeBilans);
   $('bImport').addEventListener('click', function(){ $('bFile').click(); });
-  $('bilanGo').addEventListener('click', function(){ $('bFile').click(); });
   $('bFile').addEventListener('change', function(e){ var f = Array.prototype.slice.call(e.target.files || []); e.target.value = ''; if (f.length) processResults(f); });
   $('bRevList').addEventListener('input', bReviewInput);
   $('bRevList').addEventListener('change', bReviewInput);
   $('bSave').addEventListener('click', saveBilan);
   $('bCancel').addEventListener('click', function(){ bPending = null; renderBReview(); bSay(''); });
-  function updateBilanBar(){ var jn = tabJ(); $('bilanBar').hidden = !(journeeDone() && !hasBilan(S.mode, jn)); }
+  /* Archivage automatique : quand tous les matchs d'une journée sont finis, le conseil JKD+ est figé
+     (cotes, probabilités, pastille, score conseillé) pour le bilan, même après l'import de la journée suivante. */
+  function jnOf(list){ var n = {}, best = null; list.forEach(function(m){ if (m.jn) n[m.jn] = (n[m.jn] || 0) + 1; });
+    Object.keys(n).forEach(function(k){ if (best === null || n[k] > n[best]) best = k; }); return best === null ? null : +best; }
+  function snapMatch(m){
+    var c = calc(m);
+    return {home:m.home, away:m.away, ts:m.ts || null, pts:m.pts.map(N), odds:m.odds.map(N), p:c.p, ev:c.ev, best:c.best, level:c.level, gap:c.gap,
+      sc:c.sc ? scoreOf(c, c.best) : null, scSrc:m.cs && m.cs.bk ? m.cs.bk : 'modèle'};
+  }
+  function autoArchive(){
+    var changed = false;
+    S.archive = S.archive || {};
+    MODES.forEach(function(md){
+      var list = S.data[md.id], jn = jnOf(list);
+      if (!jn || !list.length || !list.every(function(m){ return matchState(m) === 'done'; })) return;
+      var a = S.archive[md.id] = S.archive[md.id] || {};
+      if (a[jn] || bilansOf(md.id).some(function(b){ return b.jn === jn; })) return;
+      var keep = S.mode; S.mode = md.id;              // calc() s'appuie sur l'onglet courant
+      a[jn] = {jn:jn, at:new Date().toISOString(), matches:list.map(snapMatch)};
+      S.mode = keep; changed = true;
+      Object.keys(a).map(Number).sort(function(x, y){ return y - x; }).slice(6).forEach(function(k){ delete a[k]; });   // 6 journées gardées
+    });
+    if (changed) save();
+  }
+  function updateBilanBar(){ autoArchive(); }
 
   /* ---------- Synchronisation automatique entre appareils (gist secret GitHub) ----------
      Fichier unique « jkd-sync.json » : {at, state}. La modification la plus récente gagne.
