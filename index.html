@@ -338,7 +338,8 @@ details.bj summary{cursor:pointer;font-size:15px;color:var(--ink)}
 .brh,.brl{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
 .brh{color:var(--mute);font-size:11px;border-top:0;margin-top:6px}
 .brl .bm{min-width:0;color:var(--ink)}
-.brl .ba{white-space:nowrap;color:var(--ink-2)}
+.brl .ba{white-space:nowrap;color:var(--ink-2);cursor:pointer}
+.brl .ba .dot.nolv{background:transparent;border:1.5px dashed var(--mute)}
 .brl .ba .dot{display:inline-block;width:9px;height:9px;margin-right:4px}
 .brl .bme{white-space:nowrap;text-align:right;color:var(--ink-2)}
 .brl .gw{color:var(--best)}
@@ -2802,6 +2803,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           if (okA && m.sc === m.real.h + '-' + m.real.a) s.exAdv++;
         }
         var me = m.mine;
+        if (!adv && m.level && s.lv[m.level] && me){ s.lv[m.level][1]++; if (outOf(me.ph, me.pa) === ro) s.lv[m.level][0]++; }
         if (me){
           s.nMe++; s.pts += me.gain || 0;
           var oMe = outOf(me.ph, me.pa);
@@ -2827,7 +2829,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<div><b>' + s.pts + ' pts</b><span>gagnés · ' + Math.round(s.pts / Math.max(1, s.j)) + ' par journée</span></div>' +
         '<div><b>' + s.okMe + ' / ' + s.nMe + '</b><span>tes bons résultats (' + bpct(s.okMe, s.nMe) + ') · ' + (s.okMe / Math.max(1, s.j)).toFixed(1).replace('.', ',') + ' par journée en moyenne</span></div>' +
         (s.n ? '<div><b>' + s.okAdv + ' / ' + s.n + '</b><span>bons résultats du conseil JKD+, pour ' + s.expAdv.toFixed(1).replace('.', ',') + ' attendus</span></div>' : '') +
-        (!s.n ? '' : '<div class="blv">' + [['g','🟢'],['o','🟠'],['r','🔴']].map(function(x){ var v = s.lv[x[0]]; return '<span>' + x[1] + ' ' + v[0] + '/' + v[1] + ' <small>' + bpct(v[0], v[1]) + '</small></span>'; }).join('') + '</div>') +
+        (!(s.lv.g[1] + s.lv.o[1] + s.lv.r[1]) ? '' : '<div class="blv">' + [['g','🟢'],['o','🟠'],['r','🔴']].map(function(x){ var v = s.lv[x[0]]; return '<span>' + x[1] + ' ' + v[0] + '/' + v[1] + ' <small>' + bpct(v[0], v[1]) + '</small></span>'; }).join('') + '</div>') +
         '<div><b>🎯 ' + s.exMe + '</b><span>scores exacts trouvés' + (avgB ? ' · bonus moyen +' + avgB + ' pts' : '') + (s.n ? ' · conseil JKD+ : ' + s.exAdv : '') + '</span></div>' +
         (s.diff ? '<div><b>' + s.diff + ' écart' + (s.diff > 1 ? 's' : '') + '</b><span>au conseil : tu as gagné ' + s.diffMe + ' pts, le conseil aurait donné ' + s.diffAdv + ' pts (hors bonus)</span></div>' : '') +
         (s.x2n ? '<div><b>x2 · ' + s.x2n + '</b><span>bonus joués, +' + Math.round(s.x2plus) + ' pts rapportés</span></div>' : '') +
@@ -2835,14 +2837,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<p class="note">' + (s.j < 10 ? 'Peu de journées : la chance pèse encore beaucoup, les tendances seront fiables après une dizaine de journées.' : 'Assez de journées pour commencer à lire des tendances.') + '</p></section>';
       html += arr.map(function(b, k){
         var tot = 0, ok = 0, n = 0, meth = methOf(S.mode, b.jn);
-        var rows = b.matches.map(function(m){
+        var rows = b.matches.map(function(m, mi){
           if (!m.real) return '<div class="brl"><span class="bm">' + esc(m.home) + ' – ' + esc(m.away) + '</span><span class="note">non joué</span></div>';
           var me = m.mine, ro = outOf(m.real.h, m.real.a), okA = m.best >= 0 && ro === m.best;
           if (me){ tot += me.gain || 0; n++; if (outOf(me.ph, me.pa) === ro) ok++; }
           var adv = m.best >= 0 ? (m.sc || ['1','N','2'][m.best]) : '–';
           return '<div class="brl"><span class="bm">' + esc(m.home) + ' <b>' + m.real.h + '-' + m.real.a + '</b> ' + esc(m.away) + '</span>' +
-            '<span class="ba">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗')
-              : me ? (function(){ var o2 = outOf(me.ph, me.pa), a2 = meth === 'old' ? ['1-0','1-1','0-1'][o2] : me.ph + '-' + me.pa; return esc(a2) + ' ' + (o2 === ro ? '✓' : '✗'); })()
+            '<span class="ba" data-blv="' + k + ':' + mi + '">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗')
+              : me ? (function(){ var o2 = outOf(me.ph, me.pa), a2 = meth === 'old' ? ['1-0','1-1','0-1'][o2] : me.ph + '-' + me.pa; return (m.level ? '<i class="dot ' + m.level + '"></i>' : '<i class="dot nolv"></i>') + esc(a2) + ' ' + (o2 === ro ? '✓' : '✗'); })()
               : '<small class="note">sans conseil</small>') + '</span>' +
             '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' 🎯' : '') : '–') + '</span></div>';
         }).join('');
@@ -2869,6 +2871,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var arr = bilansOf(S.mode);
     if (d){ var b = arr[+d.dataset.bdel]; if (b && confirm('Supprimer le bilan de la J' + b.jn + ' ?')){ arr.splice(+d.dataset.bdel, 1); S.bDel = S.bDel || {}; (S.bDel[S.mode] = S.bDel[S.mode] || []).push({jn:b.jn, at:Date.now()}); save(); renderBilans(); } }
     if (sh) shareBilan(arr[+sh.dataset.bshare]);
+    // Toucher la pastille d'un match change sa couleur : 🟢 → 🟠 → 🔴 → aucune
+    var lv = e.target.closest('[data-blv]');
+    if (lv){
+      var ij = lv.dataset.blv.split(':'), bl = arr[+ij[0]], mm = bl && bl.matches[+ij[1]];
+      if (!mm || !mm.real) return;
+      var cyc = ['g', 'o', 'r', null], nx = cyc[(cyc.indexOf(mm.level || null) + 1) % cyc.length];
+      if (mm.best >= 0 && !nx) nx = 'g';                 // un conseil enregistré garde toujours une pastille
+      mm.level = nx; bl.at = new Date().toISOString();
+      var op = [].map.call($('bList').querySelectorAll('details.bj'), function(d){ return d.open; });
+      save(); renderBilans();
+      [].forEach.call($('bList').querySelectorAll('details.bj'), function(d, i){ d.open = !!op[i]; });
+    }
   });
 
   /* ---------- bilan en image (à partager) ---------- */
