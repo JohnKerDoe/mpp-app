@@ -316,6 +316,15 @@ body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !import
 .bfl input{font:inherit;font-size:16px;text-align:center;padding:5px 2px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
 .bfl .bx2 input{width:auto}
 .bstats{display:grid;gap:10px}
+.bstats .bmeth{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.bstats .bmeth .bmt2{grid-column:span 2;font-size:15px;font-weight:700;color:var(--ink)}
+.bstats .bmeth .bmt2 small{font-weight:400;color:var(--mute)}
+.bstats .bmeth > small{grid-column:span 2}
+.bstats .bmc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;gap:2px}
+.bstats .bmc b{font-size:15px}
+.bstats .bmc strong{color:var(--ink);font-size:15px}
+.bmk{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:1px}
+.bmk.old{background:#5d4a1d;color:#f3d98a}.bmk.jkd{background:#1d4d2a;color:#a5e3b4}
 .bstats div{display:flex;flex-direction:column}
 .bstats b{font-size:18px;color:var(--ink)}
 .bstats span{font-size:13px;color:var(--mute)}
@@ -2750,6 +2759,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   function closeBilans(){ setView('pronos'); }
   function bpct(a, b){ return b ? Math.round(a / b * 100) + ' %' : '–'; }
+  /* Méthode suivie selon la journée : avant ces journées, l'ancienne méthode
+     (espérance sans retirer la marge des cotes, score 1-0 / 1-1 / 0-1) ; ensuite le conseil JKD+ */
+  var METH_FROM = {l1:6, l2:8, ldc:2};
+  function methOf(md, jn){ return jn && jn < (METH_FROM[md] || 0) ? 'old' : 'jkd'; }
+  var METH_NAME = {old:'Ancienne méthode', jkd:'JKD+'};
+  function methStats(md, arr){
+    var o = {old:{j:0, pts:0, ok:0, ex:0, n:0}, jkd:{j:0, pts:0, ok:0, ex:0, n:0}};
+    arr.forEach(function(b){
+      var t = o[methOf(md, b.jn)]; t.j++;
+      b.matches.forEach(function(m){
+        var me = m.mine; if (!m.real || !me) return;
+        t.n++; t.pts += me.x2 ? (me.gain || 0) / 2 : (me.gain || 0);
+        if (outOf(me.ph, me.pa) === outOf(m.real.h, m.real.a)){ t.ok++; if (me.ph === m.real.h && me.pa === m.real.a) t.ex++; }
+      });
+    });
+    return o;
+  }
   function bilanStats(arr){
     var s = {j:arr.length, n:0, okAdv:0, expAdv:0, okMe:0, nMe:0, pts:0, exAdv:0, exMe:0, bonus:[], lv:{g:[0,0], o:[0,0], r:[0,0]}, diff:0, diffMe:0, diffAdv:0, x2n:0, x2plus:0, bests:[]};
     arr.forEach(function(b){
@@ -2793,24 +2819,38 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<div><b>🎯 ' + s.exMe + '</b><span>scores exacts trouvés' + (avgB ? ' · bonus moyen +' + avgB + ' pts' : '') + (s.n ? ' · conseil JKD+ : ' + s.exAdv : '') + '</span></div>' +
         (s.diff ? '<div><b>' + s.diff + ' écart' + (s.diff > 1 ? 's' : '') + '</b><span>au conseil : tu as gagné ' + s.diffMe + ' pts, le conseil aurait donné ' + s.diffAdv + ' pts (hors bonus)</span></div>' : '') +
         (s.x2n ? '<div><b>x2 · ' + s.x2n + '</b><span>bonus joués, +' + Math.round(s.x2plus) + ' pts rapportés</span></div>' : '') +
+        methHTML(S.mode, arr) +
         '<p class="note">' + (s.j < 10 ? 'Peu de journées : la chance pèse encore beaucoup, les tendances seront fiables après une dizaine de journées.' : 'Assez de journées pour commencer à lire des tendances.') + '</p></section>';
       html += arr.map(function(b, k){
-        var tot = 0, ok = 0, n = 0;
+        var tot = 0, ok = 0, n = 0, meth = methOf(S.mode, b.jn);
         var rows = b.matches.map(function(m){
           if (!m.real) return '<div class="brl"><span class="bm">' + esc(m.home) + ' – ' + esc(m.away) + '</span><span class="note">non joué</span></div>';
           var me = m.mine, ro = outOf(m.real.h, m.real.a), okA = m.best >= 0 && ro === m.best;
           if (me){ tot += me.gain || 0; n++; if (outOf(me.ph, me.pa) === ro) ok++; }
           var adv = m.best >= 0 ? (m.sc || ['1','N','2'][m.best]) : '–';
           return '<div class="brl"><span class="bm">' + esc(m.home) + ' <b>' + m.real.h + '-' + m.real.a + '</b> ' + esc(m.away) + '</span>' +
-            '<span class="ba">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗') : '<small class="note">sans conseil</small>') + '</span>' +
+            '<span class="ba">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗')
+              : me ? (function(){ var o2 = outOf(me.ph, me.pa), a2 = meth === 'old' ? ['1-0','1-1','0-1'][o2] : me.ph + '-' + me.pa; return esc(a2) + ' ' + (o2 === ro ? '✓' : '✗'); })()
+              : '<small class="note">sans conseil</small>') + '</span>' +
             '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' 🎯' : '') : '–') + '</span></div>';
         }).join('');
-        return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats</summary>' +
+        return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats <span class="bmk ' + meth + '">' + (meth === 'old' ? 'ancienne méthode' : 'JKD+') + '</span></summary>' +
           '<div class="brh"><span>Score réel</span><span>Conseil</span><span>Toi · pts</span></div>' + rows +
           '<div class="bact"><button class="btn2" data-bshare="' + k + '" type="button">📤 Partager en image</button><button class="del" data-bdel="' + k + '" type="button" aria-label="Supprimer ce bilan">🗑</button></div></details>';
       }).join('');
     }
     $('bList').innerHTML = html;
+  }
+  function methHTML(md, arr){
+    var o = methStats(md, arr), f1 = function(v){ return v.toFixed(1).replace('.', ','); };
+    var col = function(k){ var t = o[k];
+      if (!t.j) return '<div class="bmc"><b>' + METH_NAME[k] + '</b><span class="note">pas encore de bilan</span></div>';
+      return '<div class="bmc"><b>' + METH_NAME[k] + '</b><span>' + t.j + ' journée' + (t.j > 1 ? 's' : '') + '</span>' +
+        '<span><strong>' + Math.round(t.pts / t.j) + '</strong> pts / journée</span>' +
+        '<span><strong>' + f1(t.ok / t.j) + '</strong> bons résultats / journée</span>' +
+        '<span><strong>' + f1(t.ex / t.j) + '</strong> score' + (t.ex / t.j >= 2 ? 's' : '') + ' exact' + (t.ex / t.j >= 2 ? 's' : '') + ' / journée</span></div>'; };
+    return '<div class="bmeth"><span class="bmt2">Ancienne méthode ou JKD+ ? <small>(points hors bonus x2)</small></span>' + col('old') + col('jkd') +
+      '<small class="note">Ancienne méthode jusqu\'à la J' + (METH_FROM[md] - 1) + ', conseil JKD+ à partir de la J' + METH_FROM[md] + '.</small></div>';
   }
   $('bList').addEventListener('click', function(e){
     var d = e.target.closest('[data-bdel]'), sh = e.target.closest('[data-bshare]');
