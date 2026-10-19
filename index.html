@@ -193,6 +193,9 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .impbox .del{flex:none;padding:0 8px}
 .imp .add{margin-top:8px}
 .keyrow{display:flex;gap:8px;margin:6px 0}
+#ghHistList{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#ghHistList .note{width:100%;margin:0}
+#ghHistList .hv{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
 .keyrow input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
 .btn2{border:0;background:var(--acc);color:#fff;border-radius:8px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.6;cursor:default}
@@ -554,6 +557,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         <input id="ghToken" type="password" autocomplete="off" spellcheck="false" placeholder="Jeton GitHub (ghp_…)" aria-label="Jeton GitHub">
         <button class="btn2" id="ghSave" type="button">Enregistrer</button>
       </div>
+      <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
+      <div id="ghHistList"></div>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -894,13 +899,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function save(){
     if (!storageOK) return;
     // Date de la dernière vraie modification (changer d'onglet ne compte pas)
+    // Date de modification des matchs de chaque compétition (sert à fusionner deux appareils)
+    MODES.forEach(function(md){
+      var x = JSON.stringify(S.data[md.id]);
+      if (modeSig[md.id] !== undefined && x !== modeSig[md.id] && !syncApplying){ S.dataAt = S.dataAt || {}; S.dataAt[md.id] = Date.now(); }
+      modeSig[md.id] = x;
+    });
     var sig = dataSig(), changed = sig !== lastSig;
     lastSig = sig;
     if (changed && !syncApplying) S.savedAt = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
     if (changed && !syncApplying && typeof syncPush === 'function') syncPush();
   }
-  var syncApplying = false, lastSig = '';
+  var syncApplying = false, lastSig = '', modeSig = {};
+  function resetModeSigs(){ MODES.forEach(function(md){ modeSig[md.id] = JSON.stringify(S.data[md.id]); }); }
   function dataSig(){ var m = S.mode, t = S.savedAt; delete S.mode; delete S.savedAt; var x = JSON.stringify(S); S.mode = m; if (t) S.savedAt = t; return x; }
   function load(){
     try {
@@ -2448,7 +2460,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   /* ---------- démarrage ---------- */
   if (!load()) seed();
-  lastSig = dataSig();
+  lastSig = dataSig(); resetModeSigs();
   if (/[?&]share=1/.test(location.search)) setTimeout(handleShared, 300);
   // Raccourcis de l'icône (appui long) : ouvrir un onglet, ou lancer l'import d'une capture
   (function(){
@@ -2855,7 +2867,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   $('bList').addEventListener('click', function(e){
     var d = e.target.closest('[data-bdel]'), sh = e.target.closest('[data-bshare]');
     var arr = bilansOf(S.mode);
-    if (d){ var b = arr[+d.dataset.bdel]; if (b && confirm('Supprimer le bilan de la J' + b.jn + ' ?')){ arr.splice(+d.dataset.bdel, 1); save(); renderBilans(); } }
+    if (d){ var b = arr[+d.dataset.bdel]; if (b && confirm('Supprimer le bilan de la J' + b.jn + ' ?')){ arr.splice(+d.dataset.bdel, 1); S.bDel = S.bDel || {}; (S.bDel[S.mode] = S.bDel[S.mode] || []).push({jn:b.jn, at:Date.now()}); save(); renderBilans(); } }
     if (sh) shareBilan(arr[+sh.dataset.bshare]);
   });
 
@@ -2926,7 +2938,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       S.mode = keep; changed = true;
       Object.keys(a).map(Number).sort(function(x, y){ return y - x; }).slice(6).forEach(function(k){ delete a[k]; });   // 6 journées gardées
     });
-    if (changed) save();
+    if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
   }
   function updateBilanBar(){ autoArchive(); }
 
@@ -2949,7 +2961,49 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!r.ok) throw new Error('GitHub ' + r.status);
     return r.json();
   }
-  function payload(){ var st = JSON.parse(JSON.stringify(S)); delete st.mode; return JSON.stringify({app:'jkd', at:S.savedAt || Date.now(), state:st}); }
+  function devName(){ return Math.min(screen.width, screen.height) >= 600 ? 'tablette' : 'téléphone'; }
+  function payload(){ var st = JSON.parse(JSON.stringify(S)); delete st.mode; return JSON.stringify({app:'jkd', at:S.savedAt || Date.now(), dev:devName(), state:st}); }
+  /* Fusion de deux états quand les deux appareils ont été modifiés depuis la dernière synchro :
+     - matchs : pour chaque compétition, la version modifiée le plus récemment ;
+     - bilans, journées archivées, bonus x2 : on garde tout ce qui existe d'un côté ou de l'autre ;
+     - le reste (réglages…) : l'état le plus récent. */
+  function mergeStates(rem, loc){
+    var cl = function(x){ return x === undefined ? undefined : JSON.parse(JSON.stringify(x)); };
+    var newer = (+rem.savedAt || 0) >= (+loc.savedAt || 0) ? rem : loc;
+    var out = cl(newer);
+    out.dataAt = out.dataAt || {}; out.bilans = out.bilans || {}; out.archive = out.archive || {}; out.x2 = out.x2 || {}; out.bDel = out.bDel || {};
+    MODES.forEach(function(md){
+      var id = md.id, ra = (rem.dataAt || {})[id] || 0, la = (loc.dataAt || {})[id] || 0;
+      out.data[id] = cl(la > ra ? loc.data[id] : rem.data[id]) || [];
+      out.dataAt[id] = Math.max(ra, la);
+      var del = {}, dl = [];
+      [rem, loc].forEach(function(st){ ((st.bDel || {})[id] || []).forEach(function(t){ if (!del[t.jn] || del[t.jn] < t.at) del[t.jn] = t.at; }); });
+      Object.keys(del).forEach(function(k){ dl.push({jn:+k, at:del[k]}); });
+      out.bDel[id] = dl.sort(function(a, b){ return b.at - a.at; }).slice(0, 40);
+      var by = {}, tOf = function(b){ return Date.parse(b.at) || 0; };
+      [rem, loc].forEach(function(st){ ((st.bilans || {})[id] || []).forEach(function(b){ if (!by[b.jn] || tOf(by[b.jn]) < tOf(b)) by[b.jn] = b; }); });
+      out.bilans[id] = Object.keys(by).map(function(k){ return cl(by[k]); })
+        .filter(function(b){ return !del[b.jn] || del[b.jn] < tOf(b); })
+        .sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
+      var ar = Object.assign({}, cl((rem.archive || {})[id]) || {}, cl((loc.archive || {})[id]) || {});
+      out.bilans[id].forEach(function(b){ delete ar[b.jn]; });
+      out.archive[id] = ar;
+      var xr = (rem.x2 || {})[id] || {}, xl = (loc.x2 || {})[id] || {}, xo = out.x2[id] = cl(newer === rem ? xr : xl) || {};
+      xo.bests = Object.assign({}, cl(newer === rem ? xl.bests : xr.bests) || {}, xo.bests || {});
+      var seen = {}; xo.list = [];
+      (xr.list || []).concat(xl.list || []).forEach(function(u){ if (u && u.key && !seen[u.key]){ seen[u.key] = 1; xo.list.push(cl(u)); } });
+    });
+    return out;
+  }
+  function applyState(st, msg){
+    var mode = S.mode;
+    syncApplying = true;
+    S = st; S.mode = mode; S.method = 'pow';
+    Object.keys(S.bilans || {}).forEach(function(k){ S.bilans[k].sort(function(x, y){ return (y.jn || 0) - (x.jn || 0); }); });
+    applyTeamPrefs(); renderAll(); save(); lastSig = dataSig(); resetModeSigs();
+    syncApplying = false;
+    if (msg) status(msg);
+  }
   async function gistId(){
     var id = lsGet(KEY_GIST);
     if (id) return id;
@@ -2963,12 +3017,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   var pulledOnce = false;
   async function syncPushNow(keep){
     clearTimeout(syncTimer); syncTimer = null;
-    if (!ghTok() || syncBusy) return;
+    if (!ghTok()) return;
+    if (syncBusy){ syncTimer = setTimeout(syncPushNow, 1500); return; }   // lecture en cours : on réessaie juste après
     if (!pulledOnce) return syncPull();          // d'abord vérifier si l'autre appareil a plus récent
     syncBusy = true;
     try {
       var id = await gistId(), f = {}; f[GIST_FILE] = {content:payload()};
-      await gh('/gists/' + id, {method:'PATCH', keepalive:!!keep, headers:{'Content-Type':'application/json'}, body:JSON.stringify({files:f})});
+      var body = JSON.stringify({files:f});
+      // keepalive (envoi qui survit à la fermeture) est limité à 64 ko par le navigateur
+      await gh('/gists/' + id, {method:'PATCH', keepalive:!!keep && body.length < 60000, headers:{'Content-Type':'application/json'}, body:body});
       lsSet(KEY_SYNCAT, String(S.savedAt || Date.now()));
       syncSay(syncWhen());
     } catch (e) {
@@ -2976,7 +3033,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       syncSay('⚠️ synchro impossible (' + e.message + ')');
     } finally { syncBusy = false; }
   }
-  function syncPush(){ if (!ghTok()) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncPushNow, 4000); }
+  function syncPush(){ if (!ghTok()) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncPushNow, 2000); }
   async function syncPull(){
     if (!ghTok() || syncBusy || !navigator.onLine) return;
     syncBusy = true;
@@ -2985,19 +3042,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var id = await gistId(), g = await gh('/gists/' + id), file = g.files && g.files[GIST_FILE];
       if (!file) throw new Error('fichier absent');
       var txt = file.truncated ? await (await fetch(file.raw_url)).text() : file.content;
-      var o = JSON.parse(txt), at = +o.at || 0, mine = +S.savedAt || 0;
+      var o = JSON.parse(txt), at = +o.at || 0, mine = +S.savedAt || 0, base = +lsGet(KEY_SYNCAT) || 0;
+      if (!o.state || !o.state.data) throw new Error('fichier illisible');
       pulledOnce = true;
-      if (o.state && o.state.data && at > mine){
-        // Données plus récentes sur l'autre appareil : on les prend (en gardant l'onglet affiché ici)
-        var mode = S.mode;
-        syncApplying = true;
-        S = o.state; S.mode = mode; S.savedAt = at; S.method = 'pow';
-        applyTeamPrefs(); renderAll(); save(); lastSig = dataSig();
-        syncApplying = false;
+      o.state.savedAt = at;
+      var remCh = at > base, locCh = mine > base;
+      if (at === mine) lsSet(KEY_SYNCAT, String(at));
+      else if (remCh && !locCh){
+        // Seul l'autre appareil a changé : on prend ses données (en gardant l'onglet affiché ici)
+        applyState(o.state, '🔄 Données mises à jour depuis ton autre appareil.');
         lsSet(KEY_SYNCAT, String(at));
-        status('🔄 Données mises à jour depuis ton autre appareil.');
-      } else if (mine > at) pushAfter = true;                            // cet appareil est plus à jour
-      else lsSet(KEY_SYNCAT, String(at));
+      } else if (locCh && !remCh) pushAfter = true;                      // seul cet appareil a changé
+      else {
+        // Les deux appareils ont changé depuis la dernière synchro : on fusionne au lieu d'écraser
+        var m2 = mergeStates(o.state, S);
+        m2.savedAt = Math.max(Date.now(), at, mine) + 1;
+        applyState(m2, '🔄 Données fusionnées avec ton autre appareil.');
+        pushAfter = true;
+      }
       syncSay(syncWhen());
     } catch (e) {
       syncApplying = false;
@@ -3017,6 +3079,51 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!ghTok()) return;
     if (document.visibilityState === 'hidden'){ if (syncTimer) syncPushNow(true); }   // envoie avant de quitter
     else syncPull();
+  });
+  window.addEventListener('pagehide', function(){ if (ghTok() && syncTimer) syncPushNow(true); });
+
+  /* Versions précédentes (GitHub garde l'historique du gist) : pour récupérer des données écrasées */
+  function bilanSummary(st){
+    return MODES.map(function(md){
+      var j = ((st.bilans || {})[md.id] || []).map(function(b){ return b.jn; }).filter(Boolean).sort(function(a, b){ return a - b; });
+      return j.length ? md.badge + ' : J' + j.join(', J') : '';
+    }).filter(Boolean).join(' · ') || 'aucun bilan';
+  }
+  var histCache = {};
+  $('ghHist').addEventListener('click', async function(){
+    var el = $('ghHistList');
+    if (!ghTok()){ el.textContent = 'Enregistre d\'abord ton jeton GitHub.'; return; }
+    el.textContent = 'Chargement…';
+    try {
+      var id = await gistId(), cs = await gh('/gists/' + id + '/commits?per_page=20');
+      el.innerHTML = '<p class="note">Touche une version pour voir ce qu\'elle contient, puis la récupérer.</p>' + cs.map(function(c){
+        var d = new Date(c.committed_at);
+        return '<button class="hv" type="button" data-v="' + c.version + '">' + d.toLocaleString('fr-FR', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) + '</button>';
+      }).join('');
+    } catch (e) { el.textContent = '⚠️ ' + e.message; }
+  });
+  $('ghHistList').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-v]'); if (!b) return;
+    var v = b.dataset.v, lbl = b.textContent;
+    try {
+      var o = histCache[v];
+      if (!o){
+        var id = await gistId(), g = await gh('/gists/' + id + '/' + v), file = g.files && g.files[GIST_FILE];
+        if (!file) throw new Error('fichier absent');
+        var txt = file.truncated ? await (await fetch(file.raw_url)).text() : file.content;
+        o = histCache[v] = JSON.parse(txt);
+      }
+      if (!o.state || !o.state.data) throw new Error('version illisible');
+      var pr = MODES.map(function(md){ var j = jnOf(o.state.data[md.id] || []); return j ? md.badge + ' J' + j : ''; }).filter(Boolean).join(' · ');
+      if (!confirm('Version du ' + lbl + (o.dev ? ' (' + o.dev + ')' : '') + '\n\nBilans : ' + bilanSummary(o.state) + '\nMatchs affichés : ' + (pr || 'aucun') +
+        '\n\nActuellement ici — bilans : ' + bilanSummary(S) + '\n\nRécupérer cette version ? Ses matchs et réglages remplacent ceux d\'ici ; les bilans des deux sont tous gardés.')) return;
+      var now = Date.now(), vs = JSON.parse(JSON.stringify(o.state));
+      vs.savedAt = now + 1; vs.dataAt = {}; MODES.forEach(function(md){ vs.dataAt[md.id] = now + 1; });
+      var m2 = mergeStates(vs, S); m2.savedAt = now + 2;
+      applyState(m2, '🕘 Version du ' + lbl + ' récupérée.');
+      $('ghHistList').textContent = '✓ Version du ' + lbl + ' récupérée.';
+      syncPushNow();
+    } catch (err) { $('ghHistList').textContent = '⚠️ ' + err.message; }
   });
   if (ghTok()) setTimeout(syncPull, 1200);
 
