@@ -219,6 +219,12 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .rteams .del{flex:none}
 .qmeta{font-size:12px;color:var(--mute);margin:2px 0 6px}
+.editm{font:inherit;font-size:13px;font-weight:600;padding:4px 10px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink-2);cursor:pointer}
+.mv{flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-size:15px;line-height:1;padding:0}
+.mv:disabled{opacity:.3}
+.qwhen{display:flex;align-items:center;gap:8px;margin:4px 0 6px;font-size:12px;color:var(--mute)}
+.qwhen input{font:inherit;font-size:14px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
+#rAdd{display:block;width:100%;margin:10px 0}
 .shot{width:100%;margin:10px 0 2px;padding:12px;border:1.5px dashed var(--ink-2);background:var(--soft);color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
 .shot:disabled{opacity:.6;cursor:default}
 
@@ -482,7 +488,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <input type="file" id="bFile" accept="image/*" multiple hidden>
 
   <section class="recap">
-    <h2 class="day"><span id="recapTitle">Pronos conseillés</span></h2>
+    <h2 class="day"><span id="recapTitle">Pronos conseillés</span><button class="editm" id="editList" type="button">✏️ Matchs</button></h2>
     <ul id="recapList"></ul>
   </section>
 
@@ -493,8 +499,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       <h2 id="rTitle">Points lus · <span id="rMode"></span></h2>
       <button class="del" id="rClose" type="button" aria-label="Annuler l'import">×</button>
     </div>
-    <p class="qhint">Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l'onglet.</p>
+    <p class="qhint" id="rHint">Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l'onglet.</p>
     <div id="rList"></div>
+    <button class="btn2" id="rAdd" type="button" hidden>➕ Ajouter un match</button>
     <button class="btn" id="rSave" type="button">Valider ces matchs</button>
   </section>
 
@@ -1752,7 +1759,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
     });
 
-    if (all.every(function(x){ return x.ts; })){
+    if (all.every(function(x){ return x.ts; }) && !(S.order && S.order[S.mode])){   // sauf si tu as rangé les matchs toi-même
       all.sort(function(a, b){ return Date.parse(a.ts) - Date.parse(b.ts); });
     }
     return res;
@@ -1952,16 +1959,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       pending.map(function(x, i){
         var g = '<span class="ql">Pts</span>';
         for (var o = 0; o < 3; o++) g += inp('pts', o, x.pts[o], 'Points ' + OUT_NAMES[o]);
+        var mv = editMode ? '<button class="mv" type="button" data-up="' + i + '"' + (i ? '' : ' disabled') + ' aria-label="Monter">↑</button>' +
+          '<button class="mv" type="button" data-dn="' + i + '"' + (i < pending.length - 1 ? '' : ' disabled') + ' aria-label="Descendre">↓</button>' : '';
+        var when = editMode ? '<label class="qwhen">Coup d\'envoi <input type="datetime-local" data-n="when" value="' + esc(x.when || '') + '"></label>'
+          : '<div class="qmeta">' + esc([x.day, x.time].filter(Boolean).join(' · ') || 'Date lue avec les cotes') + '</div>';
         return '<div class="qrow" data-r="' + i + '">' +
-          '<div class="rteams">' +
+          '<div class="rteams">' + mv +
             '<input data-n="home" value="' + esc(x.home) + '" placeholder="Domicile" aria-label="Équipe à domicile">' +
             '<span class="dash">–</span>' +
             '<input data-n="away" value="' + esc(x.away) + '" placeholder="Extérieur" aria-label="Équipe à l\'extérieur">' +
             '<button class="del" type="button" data-rm="' + i + '" aria-label="Retirer ce match">×</button>' +
-          '</div>' +
-          '<div class="qmeta">' + esc([x.day, x.time].filter(Boolean).join(' · ') || 'Date lue avec les cotes') + '</div>' +
+          '</div>' + when +
           '<div class="qgrid">' + g + '</div></div>';
-      }).join('') : '<p class="qempty">Plus aucun match à importer.</p>';
+      }).join('') : '<p class="qempty">' + (editMode ? 'Aucun match. Touche « Ajouter un match ».' : 'Plus aucun match à importer.') + '</p>';
+    $('rTitle').firstChild.textContent = editMode ? 'Matchs · ' : 'Points lus · ';
+    $('rHint').textContent = editMode ? 'Ajoute, retire ou range les matchs avec ↑ ↓. Les cotes se récupèrent ensuite avec le bouton Cotes.' : 'Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l\'onglet.';
+    $('rAdd').hidden = !editMode;
   }
   function readReview(){
     $('rList').querySelectorAll('.qrow').forEach(function(row){
@@ -1970,11 +1983,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       x.away = row.querySelector('[data-n="away"]').value.trim();
       x.pts = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="pts"][data-o="' + o + '"]').value.trim(); });
       x.crowd = null;
+      var w = row.querySelector('[data-n="when"]'); if (w) x.when = w.value;
     });
   }
-  function closeReview(){ pending = []; $('review').hidden = true; }
+  function closeReview(){ pending = []; editMode = false; $('review').hidden = true; }
+  // Modifier la liste des matchs de l'onglet : ajout manuel, suppression, ordre
+  var editMode = false, editMoved = false;
+  function toLocalInput(ts){ var d = new Date(ts); if (!ts || isNaN(d)) return ''; d = new Date(d.getTime() - d.getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); }
+  $('editList').addEventListener('click', function(){
+    editMode = true; editMoved = false;
+    pending = cur().map(function(m){ return {home:m.home, away:m.away, pts:m.pts.map(function(v){ return v === null || v === undefined ? '' : String(v); }), when:toLocalInput(m.ts), ref:m}; });
+    renderReview();
+    $('review').hidden = false;
+    $('review').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+  $('rAdd').addEventListener('click', function(){
+    readReview();
+    pending.push({home:'', away:'', pts:['', '', ''], when:'', ref:null});
+    renderReview();
+    var rows = $('rList').querySelectorAll('.qrow'), last = rows[rows.length - 1];
+    if (last){ last.scrollIntoView({block:'center'}); last.querySelector('[data-n="home"]').focus(); }
+  });
 
   $('rList').addEventListener('click', function(e){
+    var up = e.target.closest('[data-up]'), dn = e.target.closest('[data-dn]');
+    if (up || dn){
+      readReview();
+      var i = +(up ? up.dataset.up : dn.dataset.dn), j = up ? i - 1 : i + 1;
+      if (j < 0 || j >= pending.length) return;
+      var t = pending[i]; pending[i] = pending[j]; pending[j] = t; editMoved = true;
+      renderReview();
+      var btn = $('rList').querySelector('[data-' + (up ? 'up' : 'dn') + '="' + j + '"]'); if (btn && !btn.disabled) btn.focus();
+      return;
+    }
     var b = e.target.closest('[data-rm]');
     if (!b) return;
     readReview();
@@ -1999,6 +2040,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       $('rList').querySelector('.qrow') && status('Complète les noms d\'équipes et les 3 points de chaque match avant de valider.');
       return;
     }
+    if (editMode){
+      var jn0 = tabJ(), list2 = pending.map(function(x){
+        var m = x.ref || newMatch('Journée', '', shortName(x.home), shortName(x.away), ['','',''], ['','',''], ['','','']);
+        m.home = shortName(x.home); m.away = shortName(x.away);
+        m.pts = x.pts.slice();
+        if (!x.ref){ m.manual = true; if (jn0) m.jn = jn0; }
+        var d = x.when ? new Date(x.when) : null;
+        if (d && !isNaN(d)){ var iso = d.toISOString(); if (iso !== m.ts){ m.ts = iso; m.day = dayLabel(d); m.time = timeLabel(d); } }
+        commit(m);
+        return m;
+      });
+      var added = pending.filter(function(x){ return !x.ref; }).length, removed = cur().length - (pending.length - added);
+      S.data[S.mode] = list2;
+      if (editMoved){ S.order = S.order || {}; S.order[S.mode] = true; }
+      closeReview();
+      renderAll(); save();
+      status('Liste mise à jour' + (added ? ' : ' + added + ' match' + (added > 1 ? 's' : '') + ' ajouté' + (added > 1 ? 's' : '') : '') +
+        (removed > 0 ? (added ? ', ' : ' : ') + removed + ' retiré' + (removed > 1 ? 's' : '') : '') + '.' +
+        (editMoved ? '\nTon ordre est gardé, même après l\'import des cotes.' : '') +
+        (list2.some(function(m){ return !nums(m.odds).every(function(o){ return o > 1; }); }) ? '\nImporte maintenant les cotes Pinnacle.' : ''));
+      return;
+    }
     var old = cur().slice(), next = [], kept = 0;
     pending.forEach(function(x){
       var m = old.filter(function(o){ return sameTeam(o.home, x.home) && sameTeam(o.away, x.away); })[0];
@@ -2012,6 +2075,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       next.push(m);
     });
     S.data[S.mode] = next;
+    if (!kept && S.order) delete S.order[S.mode];      // nouvelle journée : ordre automatique (par date)
     var n = next.length, noOdds = next.filter(function(m){ return !nums(m.odds).every(function(o){ return o > 1; }); }).length;
     closeReview();
     renderAll(); save();
