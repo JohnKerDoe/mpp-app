@@ -219,6 +219,7 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .rteams .del{flex:none}
 .qmeta{font-size:12px;color:var(--mute);margin:2px 0 6px}
+.rbtns{display:flex;gap:6px}
 .editm{font:inherit;font-size:13px;font-weight:600;padding:4px 10px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink-2);cursor:pointer}
 .mv{flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-size:15px;line-height:1;padding:0}
 .mv:disabled{opacity:.3}
@@ -488,7 +489,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <input type="file" id="bFile" accept="image/*" multiple hidden>
 
   <section class="recap">
-    <h2 class="day"><span id="recapTitle">Pronos conseillés</span><button class="editm" id="editList" type="button">✏️ Matchs</button></h2>
+    <h2 class="day"><span id="recapTitle">Pronos conseillés</span><span class="rbtns"><button class="editm" id="clearDone" type="button" hidden>🗑 Journée</button><button class="editm" id="editList" type="button">✏️ Matchs</button></span></h2>
     <ul id="recapList"></ul>
   </section>
 
@@ -3018,7 +3019,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
   }
-  function updateBilanBar(){ autoArchive(); }
+  function updateBilanBar(){ autoArchive(); $('clearDone').hidden = !journeeDone(); }
+  // Supprimer la journée terminée de l'onglet (le conseil reste archivé pour le bilan)
+  $('clearDone').addEventListener('click', function(){
+    if (!journeeDone()) return;
+    var jn = tabJ(), n = cur().length;
+    if (!confirm('Supprimer les ' + n + ' matchs' + (jn ? ' de la J' + jn : '') + ' ?\n\nLe conseil JKD+ reste gardé pour faire le bilan plus tard.')) return;
+    autoArchive();
+    S.data[S.mode] = [];
+    if (S.order) delete S.order[S.mode];
+    renderAll(); save();
+    status('Journée' + (jn ? ' ' + jn : '') + ' supprimée de l\'onglet.' + (jn && !hasBilan(S.mode, jn) ? '\nPense à importer ses résultats dans Bilans.' : ''));
+  });
 
   /* ---------- Synchronisation automatique entre appareils (gist secret GitHub) ----------
      Fichier unique « jkd-sync.json » : {at, state}. La modification la plus récente gagne.
