@@ -504,6 +504,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     </div>
     <p class="qhint" id="rHint">Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l'onglet.</p>
     <div id="rList"></div>
+    <details class="how" id="rRaw" hidden><summary>Texte lu sur la capture</summary><textarea id="rRawTxt" readonly style="width:100%;height:160px;font:12px monospace;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:8px"></textarea></details>
     <button class="btn2" id="rAdd" type="button" hidden>➕ Ajouter un match</button>
     <button class="btn" id="rSave" type="button">Valider ces matchs</button>
   </section>
@@ -570,6 +571,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 19h10</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1952,7 +1954,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (cm) dayOf(curDay).exp = +cm[2];
         continue;
       }
-      var tok = line.trim().split(/\s+/).filter(Boolean), k = -1;
+      var tok = line.trim().split(/\s+/).filter(Boolean).map(function(t){
+        // « 8l », « 1O7 », « B1 » : lettres lues à la place de chiffres dans une case de points
+        return /\d/.test(t) && /^[\dOoIlL|SB]{2,6}$/.test(t) && (t.match(/\d/g) || []).length >= t.length - 1
+          ? t.replace(/[Oo]/g, '0').replace(/[IlL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8') : t;
+      }), k = -1;
       for (var j = 0; j + 2 < tok.length; j++){
         if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
       }
@@ -2014,6 +2020,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('rTitle').firstChild.textContent = editMode ? 'Matchs · ' : 'Points lus · ';
     $('rHint').textContent = editMode ? 'Ajoute, retire ou range les matchs avec ↑ ↓. Les cotes se récupèrent ensuite avec le bouton Cotes.' : 'Vérifie les équipes et les chiffres. Seuls ces matchs seront gardés dans l\'onglet.';
     $('rAdd').hidden = !editMode;
+    if (editMode) $('rRaw').hidden = true;
   }
   function readReview(){
     $('rList').querySelectorAll('.qrow').forEach(function(row){
@@ -2133,7 +2140,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   async function processShots(files){
-    var btn = $('qShot'), worker = null, found = [], days = {}, missing = 0, annonce = 0;
+    var btn = $('qShot'), worker = null, found = [], days = {}, missing = 0, annonce = 0, raw = [];
     btn.disabled = true;
     try {
       status('Chargement de la lecture de texte…');
@@ -2150,6 +2157,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var canvas = await prepImage(files[f]);
         var r = await worker.recognize(canvas);
         var po = parseOcr(r.data.text || '');
+        raw.push(r.data.text || '');
         var short = function(l){ return Object.keys(l.days).some(function(d){ return l.filter(function(x){ return x.day === d; }).length < l.days[d].times; }); };
         if (short(po)){
           // Il manque un match : deuxième lecture avec un autre réglage de contraste pour le retrouver
@@ -2193,6 +2201,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       } else {
         pending = found;
         renderReview();
+        $('rRawTxt').value = raw.join('\n------\n'); $('rRaw').hidden = false;
         $('review').hidden = false;
         $('review').scrollIntoView({block:'start'});
         var noName = found.filter(function(x){ return !x.missing && (!x.home || !x.away); }).length;
