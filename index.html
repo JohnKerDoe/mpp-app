@@ -219,6 +219,8 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .rteams input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px 0;border-radius:0;text-align:center}
 .rteams .del{flex:none}
 .qmeta{font-size:12px;color:var(--mute);margin:2px 0 6px}
+.qrow.miss{background:rgba(251,140,0,.12);border-radius:10px;padding:10px 8px}
+.qmeta.qmiss{color:#e67e00;font-weight:700}
 .rbtns{display:flex;gap:6px}
 .editm{font:inherit;font-size:13px;font-weight:600;padding:4px 10px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink-2);cursor:pointer}
 .mv{flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-size:15px;line-height:1;padding:0}
@@ -1911,6 +1913,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   var DAYS = /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+([a-zéèûô]+)/i;
   function parseOcr(text){
     var out = [], lines = text.split(/\n/), curDay = '', curTime = '', curJ = null;
+    // Pour vérifier le compte : matchs annoncés par jour (« 0 / 6 ») et lignes d'horaire vues (une par match)
+    out.days = {};
+    var dayOf = function(d){ return out.days[d] = out.days[d] || {exp:null, times:0}; };
     var pctIn = function(str){ return (str.match(/\d{1,3}\s?[%°]/g) || []).map(function(x){ return x.replace(/\D/g, ''); }); };
     var clean = function(arr){
       return arr.filter(function(t){ return !/^\d+[eè]?$/i.test(t); }).join(' ')
@@ -1920,7 +1925,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     for (var i = 0; i < lines.length; i++){
       var line = lines[i];
       var dm = line.match(DAYS);
-      if (dm){ curDay = dm[1].charAt(0).toUpperCase() + dm[1].slice(1).toLowerCase() + ' ' + dm[2] + ' ' + dm[3].toLowerCase(); continue; }
+      if (dm){
+        curDay = dm[1].charAt(0).toUpperCase() + dm[1].slice(1).toLowerCase() + ' ' + dm[2] + ' ' + dm[3].toLowerCase();
+        var cm = line.slice(dm.index + dm[0].length).match(/(\d{1,2})\s*[\/|l]\s*(\d{1,2})\s*$/);
+        if (cm) dayOf(curDay).exp = +cm[2];
+        continue;
+      }
       var tok = line.trim().split(/\s+/).filter(Boolean), k = -1;
       for (var j = 0; j + 2 < tok.length; j++){
         if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
@@ -1930,6 +1940,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (jm) curJ = +jm[1];
         var tm = line.match(/(\d{1,2})\s?[hH]\s?(\d{2})/);
         if (tm) curTime = tm[1] + 'h' + tm[2];
+        if (curDay && /\d{1,2}\s?[hHM]\s?\d{1,2}\b/.test(line) && /[-–—]/.test(line)) dayOf(curDay).times++;   // « J8 - 20h45 » : un match
         continue;
       }
       var pts = tok.slice(k, k + 3);
@@ -1964,7 +1975,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           '<button class="mv" type="button" data-dn="' + i + '"' + (i < pending.length - 1 ? '' : ' disabled') + ' aria-label="Descendre">↓</button>' : '';
         var when = editMode ? '<label class="qwhen">Coup d\'envoi <input type="datetime-local" data-n="when" value="' + esc(x.when || '') + '"></label>'
           : '<div class="qmeta">' + esc([x.day, x.time].filter(Boolean).join(' · ') || 'Date lue avec les cotes') + '</div>';
-        return '<div class="qrow" data-r="' + i + '">' +
+        if (x.missing && !editMode) when = '<div class="qmeta qmiss">⚠️ Match non lu' + (x.day ? ' · ' + esc(x.day) : '') + ' — complète-le</div>';
+        return '<div class="qrow' + (x.missing ? ' miss' : '') + '" data-r="' + i + '">' +
           '<div class="rteams">' + mv +
             '<input data-n="home" value="' + esc(x.home) + '" placeholder="Domicile" aria-label="Équipe à domicile">' +
             '<span class="dash">–</span>' +
@@ -2095,7 +2107,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
 
   async function processShots(files){
-    var btn = $('qShot'), worker = null, found = [];
+    var btn = $('qShot'), worker = null, found = [], days = {}, missing = 0, annonce = 0;
     btn.disabled = true;
     try {
       status('Chargement de la lecture de texte…');
@@ -2111,8 +2123,45 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         btn.textContent = 'Lecture ' + (f + 1) + ' / ' + files.length + '…';
         var canvas = await prepImage(files[f]);
         var r = await worker.recognize(canvas);
-        found = found.concat(parseOcr(r.data.text || ''));
+        var po = parseOcr(r.data.text || '');
+        var short = function(l){ return Object.keys(l.days).some(function(d){ return l.filter(function(x){ return x.day === d; }).length < l.days[d].times; }); };
+        if (short(po)){
+          // Il manque un match : deuxième lecture avec un autre réglage de contraste pour le retrouver
+          status('Un match semble manquer, deuxième lecture…');
+          var r2 = await worker.recognize(await prepImage(files[f], 150)), po2 = parseOcr(r2.data.text || ''), order0 = Object.keys(po.days);
+          po2.forEach(function(x){
+            if (!x.home || !x.away || po.some(function(y){ return y.day === x.day && y.pts.join() === x.pts.join(); })) return;
+            if (po.filter(function(y){ return y.day === x.day; }).length >= ((po.days[x.day] || {}).times || 0)) return;
+            var at = po.map(function(y){ return y.day; }).lastIndexOf(x.day);
+            if (at < 0){ var nx = po.findIndex(function(y){ return order0.indexOf(y.day) > order0.indexOf(x.day); }); at = (nx < 0 ? po.length : nx) - 1; }
+            po.splice(at + 1, 0, x);
+          });
+        }
+        Object.keys(po.days).forEach(function(d){
+          var a = days[d] = days[d] || {exp:null, times:0}, b = po.days[d];
+          if (b.exp) a.exp = Math.max(a.exp || 0, b.exp);
+          a.times = Math.max(a.times, b.times);
+        });
+        // Deux captures qui se chevauchent : un même match n'est gardé qu'une fois
+        po.forEach(function(x){
+          if (!found.some(function(y){ return y.day === x.day && y.pts.join() === x.pts.join(); })) found.push(x);
+        });
       }
+      // Vérification du nombre : pour chaque jour, autant de matchs lus que de matchs visibles sur la capture
+      Object.keys(days).forEach(function(d){
+        var n = found.filter(function(x){ return x.day === d; }).length, want = days[d].times;
+        if (days[d].exp && days[d].times) annonce += days[d].exp;
+        for (var q = n; q < want; q++){
+          var at = found.map(function(x){ return x.day; }).lastIndexOf(d);
+          var ph = {home:'', away:'', pts:['', '', ''], crowd:null, day:d, time:'', jn:null, missing:true};
+          if (at < 0){
+            // aucun match lu ce jour-là : on place la ligne avant le premier match du jour suivant
+            var order = Object.keys(days), nxt = found.findIndex(function(x){ return order.indexOf(x.day) > order.indexOf(d); });
+            found.splice(nxt < 0 ? found.length : nxt, 0, ph);
+          } else found.splice(at + 1, 0, ph);
+          missing++;
+        }
+      });
       if (!found.length){
         status('Aucun point trouvé sur la capture. Essaie une capture plus nette.');
       } else {
@@ -2120,8 +2169,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         renderReview();
         $('review').hidden = false;
         $('review').scrollIntoView({block:'start'});
-        var noName = found.filter(function(x){ return !x.home || !x.away; }).length;
-        status(found.length + ' match' + (found.length > 1 ? 's' : '') + ' lu' + (found.length > 1 ? 's' : '') + '. Vérifie-les ci-dessous, puis valide.' +
+        var noName = found.filter(function(x){ return !x.missing && (!x.home || !x.away); }).length;
+        var lus = found.length - missing;
+        status(lus + ' match' + (lus > 1 ? 's' : '') + ' lu' + (lus > 1 ? 's' : '') + (annonce ? ' sur ' + annonce + ' annoncés par MPP' : '') + '. Vérifie-les ci-dessous, puis valide.' +
+          (missing ? '\n⚠️ ' + missing + ' match' + (missing > 1 ? 's' : '') + ' non lu' + (missing > 1 ? 's' : '') + ' : complète la ligne en orange (équipes et points), ou retire-la.' : '') +
           (noName ? '\n' + noName + ' sans nom d\'équipe lisible : complète-les.' : ''));
       }
     } catch (err) {
