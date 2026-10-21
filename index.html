@@ -1911,6 +1911,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 
   // Sur MPP : titre du jour, puis « J.6 - 20h45 », puis une ligne « équipe 85 117 104 équipe », puis les %
   var DAYS = /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+([a-zéèûô]+)/i;
+  function splitMerged(tok){
+    for (var j = 0; j < tok.length; j++){
+      if (!/^\d+$/.test(tok[j])) continue;
+      var e = j; while (e < tok.length && e - j < 3 && /^\d+$/.test(tok[e])) e++;
+      var run = tok.slice(j, e), digits = run.join('');
+      if (run.length >= 3 || digits.length < 6 || digits.length > 9 || !run.some(function(t){ return t.length > 3; })) continue;
+      var cuts = [], acc = 0; run.forEach(function(t){ acc += t.length; cuts.push(acc); });   // les espaces lus restent des séparations
+      var best = null, bestSc = -1;
+      for (var a = 2; a <= 3; a++) for (var b = 2; b <= 3; b++){
+        var c = digits.length - a - b;
+        if (c < 2 || c > 3) continue;
+        if (!cuts.slice(0, -1).every(function(x){ return x === a || x === a + b; })) continue;
+        var p = [digits.slice(0, a), digits.slice(a, a + b), digits.slice(a + b)];
+        if (p.some(function(v){ return +v < 10 || +v > 400 || v.charAt(0) === '0'; })) continue;
+        var sc = (+p[1] >= 95 && +p[1] <= 260 ? 2 : 0) + (+p[0] + +p[2] > +p[1] ? 1 : 0);
+        if (sc > bestSc){ bestSc = sc; best = p; }
+      }
+      if (best) return {k:j, end:e, pts:best};
+    }
+    return null;
+  }
   function parseOcr(text){
     var out = [], lines = text.split(/\n/), curDay = '', curTime = '', curJ = null;
     // Pour vérifier le compte : matchs annoncés par jour (« 0 / 6 ») et lignes d'horaire vues (une par match)
@@ -1935,6 +1956,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       for (var j = 0; j + 2 < tok.length; j++){
         if (/^\d{1,3}$/.test(tok[j]) && /^\d{1,3}$/.test(tok[j + 1]) && /^\d{1,3}$/.test(tok[j + 2])){ k = j; break; }
       }
+      var kEnd = k + 3, pts = k >= 0 ? tok.slice(k, k + 3) : null;
+      if (k < 0){
+        // Deux cases de points collées par la lecture (« 81117 112 » pour 81 117 112) : on les redécoupe
+        var mg = splitMerged(tok);
+        if (mg){ k = mg.k; kEnd = mg.end; pts = mg.pts; }
+      }
       if (k < 0){
         var jm = line.match(/\bJ\s?\.?\s?(\d{1,2})\b/);
         if (jm) curJ = +jm[1];
@@ -1943,9 +1970,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (curDay && /\d{1,2}\s?[hHM]\s?\d{1,2}\b/.test(line) && /[-–—]/.test(line)) dayOf(curDay).times++;   // « J8 - 20h45 » : un match
         continue;
       }
-      var pts = tok.slice(k, k + 3);
       if (pts.some(function(v){ return +v < 1; })) continue;
-      var home = clean(tok.slice(0, k)), away = clean(tok.slice(k + 3));
+      var home = clean(tok.slice(0, k)), away = clean(tok.slice(kEnd));
       var crowd = null;
       for (var n = 1; n <= 2 && !crowd; n++){
         var ps = pctIn(lines[i + n] || '');
@@ -3070,17 +3096,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
   }
-  function updateBilanBar(){ autoArchive(); $('clearDone').hidden = !journeeDone(); }
+  function updateBilanBar(){ autoArchive(); $('clearDone').hidden = !cur().length; }
   // Supprimer la journée terminée de l'onglet (le conseil reste archivé pour le bilan)
   $('clearDone').addEventListener('click', function(){
-    if (!journeeDone()) return;
-    var jn = tabJ(), n = cur().length;
-    if (!confirm('Supprimer les ' + n + ' matchs' + (jn ? ' de la J' + jn : '') + ' ?\n\nLe conseil JKD+ reste gardé pour faire le bilan plus tard.')) return;
+    var jn = tabJ(), n = cur().length, done = journeeDone();
+    if (!n) return;
+    if (!confirm('Supprimer ' + (n > 1 ? 'les ' + n + ' matchs' : 'le match') + (jn ? ' de la J' + jn : '') + ' ?\n\n' +
+      (done ? 'Le conseil JKD+ reste gardé pour faire le bilan plus tard.' : 'La journée n\'est pas terminée : son conseil ne sera pas gardé pour le bilan.'))) return;
     autoArchive();
     S.data[S.mode] = [];
     if (S.order) delete S.order[S.mode];
     renderAll(); save();
-    status('Journée' + (jn ? ' ' + jn : '') + ' supprimée de l\'onglet.' + (jn && !hasBilan(S.mode, jn) ? '\nPense à importer ses résultats dans Bilans.' : ''));
+    status('Journée' + (jn ? ' ' + jn : '') + ' supprimée de l\'onglet.' + (done && jn && !hasBilan(S.mode, jn) ? '\nPense à importer ses résultats dans Bilans.' : ''));
   });
 
   /* ---------- Synchronisation automatique entre appareils (gist secret GitHub) ----------
