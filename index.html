@@ -571,7 +571,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 19h10</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 19h15</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1954,7 +1954,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (cm) dayOf(curDay).exp = +cm[2];
         continue;
       }
-      var tok = line.trim().split(/\s+/).filter(Boolean).map(function(t){
+      // « 81.117 112 » : un point ou une virgule lu entre deux cases de points → simple séparation
+      var tok = line.replace(/(\d)\s?[.,;:'’·`]\s?(?=\d)/g, '$1 ').trim().split(/\s+/).filter(Boolean).map(function(t){
         // « 8l », « 1O7 », « B1 » : lettres lues à la place de chiffres dans une case de points
         return /\d/.test(t) && /^[\dOoIlL|SB]{2,6}$/.test(t) && (t.match(/\d/g) || []).length >= t.length - 1
           ? t.replace(/[Oo]/g, '0').replace(/[IlL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8') : t;
