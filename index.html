@@ -173,13 +173,11 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap .rp em{font-style:normal;color:var(--mute);font-size:13px}
 .recap .rp .raw{color:var(--mute);font-size:13px;margin-right:6px}
 .recap .rp .raw.diff{color:var(--warn);font-weight:800}
-.recap li.chg .rp .raw{color:var(--pink-ink)}
 .recap .sc{font-weight:800;margin:0 4px}
 .recap .empty{color:var(--mute);justify-content:flex-start}
-.recap li.chg{background:var(--pink-bg)}
-.recap li.chg .rm,.recap li.chg .rp b,.recap li.chg .sc,.recap li.chg .rp em{color:var(--pink-ink)}
-.recap li.chg .tagchg{background:var(--pink-ink);color:var(--pink-bg)}
-.recap li.chg .tagchg.soft{background:transparent;color:var(--pink-ink);border:1px solid var(--pink-ink);padding:1px 5px}
+.recap li.chg{box-shadow:inset 4px 0 0 var(--chg)}
+.recap .why{font-size:12px;font-weight:600;color:var(--chg);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.recap .why .dot{width:10px;height:10px}
 .store{margin:14px 2px 0;font-size:12px;color:var(--mute)}
 
 .imp{margin:12px 0 4px}
@@ -272,8 +270,6 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .recap .mt{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 .recap .mt .win{font-weight:800;color:var(--ink)}
 .recap .mt .sc{font-weight:800;color:var(--ink);background:var(--soft);border-radius:6px;padding:1px 6px;margin:0}
-.recap li.chg .mt .sc{color:var(--pink-ink)}
-.recap li.chg .mt .sc{background:transparent;border:1px solid var(--pink-ink)}
 /* glissement entre onglets */
 @keyframes inL{from{opacity:.2;transform:translateX(40px)}to{opacity:1;transform:none}}
 @keyframes inR{from{opacity:.2;transform:translateX(-40px)}to{opacity:1;transform:none}}
@@ -392,6 +388,8 @@ html[data-theme="dark"] .x2c.on{color:#FFC94D}
 html[data-theme="dark"] .recap li.x2wait{outline-color:#FFC94D}
 .recap li.x2gold{box-shadow:inset 0 0 0 3px #E0A800;border-radius:10px;position:relative;z-index:1}
 html[data-theme="dark"] .recap li.x2gold{box-shadow:inset 0 0 0 3px #FFC94D}
+.recap li.chg.x2gold{box-shadow:inset 4px 0 0 var(--chg),inset 0 0 0 3px #E0A800}
+html[data-theme="dark"] .recap li.chg.x2gold{box-shadow:inset 4px 0 0 var(--chg),inset 0 0 0 3px #FFC94D}
 .x2t{display:inline-block;font-size:11px;font-weight:800;padding:2px 6px;border-radius:999px;background:#FFC94D;color:#3A2A00;margin-left:6px;vertical-align:1px}
 .x2b{padding:0 10px}
 .x2btn.on{border-style:solid;border-color:#E0A800;color:#8A6200;background:rgba(224,168,0,.12)}
@@ -571,7 +569,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 19h15</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 21h50</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1285,7 +1283,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (!c.ev) return;
       n++; ev += c.ev[c.best]; ok += c.p[c.best];
       var b0 = baseline(m);
-      rows.push({m:m, c:c, ch:change(c, b0 ? calcFrom(b0.odds, b0.pts, b0.tot) : null, m), st:matchState(m)});
+      var bc = b0 ? calcFrom(b0.odds, b0.pts, b0.tot) : null;
+      rows.push({m:m, c:c, bc:bc, ch:change(c, bc, m), st:matchState(m)});
     });
     var plural = function(k){ return k + ' match' + (k > 1 ? 's' : ''); };
     $('sOK').innerHTML = n ? '<b>' + nf1.format(ok) + ' / ' + n + '</b><br>bons pronos attendus' : 'Aucun match<br>à calculer';
@@ -1309,13 +1308,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       : rows.map(function(r){
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
-      var tag = (r.ch === 'pick' ? '<span class="tagchg">Modifié</span>' : r.ch === 'level' ? '<span class="tagchg soft">Force</span>' : '');
+      // Changement au dernier import : liseré + raison à la suite du match, seulement avant le coup d'envoi
+      var showCh = r.ch && r.st === 'pre', tag = '';
+      if (showCh && r.ch === 'pick'){
+        var ob = r.bc.best, osc = '';
+        try { osc = r.bc.sc ? scoreOf(r.bc, ob) : ''; } catch (e) {}
+        tag = '<span class="why">' + (osc || ['1','N','2'][ob]) + ' → ' + scoreOf(r.c, r.c.best) + '</span>';
+      } else if (showCh && r.ch === 'level') tag = '<span class="why"><i class="dot ' + r.bc.level + '"></i> → <i class="dot ' + r.c.level + '"></i></span>';
       // or plein : x2 à jouer (ou journée inconnue) / x2 validé ici ; or pointillé : meilleur match, mais mieux vaut attendre
       var pick = X2 && X2.picks.indexOf(r.m) >= 0;
       var gold = X2 && ((pick && X2.status !== 'wait') || x2Used(r.m, X2.jn));
       var goldWait = pick && X2.status === 'wait';
-      var cls = [r.ch ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
-      return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + '><span class="rm"><span class="dot ' + r.c.level + '" role="img" aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"></span><span class="mt">' +
+      var cls = [showCh ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
+      return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
