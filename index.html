@@ -573,7 +573,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 9h50</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 11h20</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -802,6 +802,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return (o.line > 0 && o.over > 1 && o.under > 1) ? o : null;
   }
   function scoreOf(c, o){ return c && c.sc ? c.sc[o].score : SCORES[o]; }
+  // Score exact conseillé : on retient s'il change à un import (cotes ou scores exacts) pour l'afficher dans le récap
+  function advScore(m){ try { var c = calc(m); return c.ev ? scoreOf(c, c.best) : null; } catch (e) { return null; } }
+  function noteSc(m, before, src){
+    var after = advScore(m);
+    if (before && after && before !== after) m.scChg = {from:before, to:after, src:src, at:Date.now()};
+    else if (m.scChg && m.scChg.src === src) delete m.scChg;
+  }
 
   // Cotes « score exact » (ex. William Hill) : le score le plus probable dans chaque issue
   // Scores d'une issue selon les cotes « score exact », du plus au moins probable
@@ -1323,9 +1330,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var pick = X2 && X2.picks.indexOf(r.m) >= 0;
       var gold = X2 && ((pick && X2.status !== 'wait') || x2Used(r.m, X2.jn));
       var goldWait = pick && X2.status === 'wait';
+      // Score conseillé changé (même issue) : « 1-0 → 2-1 », avec 🎯 si c'est la mise à jour des scores exacts
+      var scg = r.m.scChg, showSc = r.st === 'pre' && scg && r.ch !== 'pick' && scg.to === scoreOf(r.c, r.c.best);
+      if (showSc) tag += '<span class="why">' + scg.from + ' → ' + scg.to + (scg.src === 'cs' ? ' 🎯' : '') + '</span>';
       var jt0 = tabJ();
       if (r.m.rep || (r.m.jn && jt0 && r.m.jn !== jt0)) tag += '<span class="reptag">' + (r.m.rep ? 'reporté · ' : '') + 'J' + r.m.jn + '</span>';
-      var cls = [showCh ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
+      var cls = [showCh || showSc ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
       return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
@@ -1516,7 +1526,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var a = e.target.closest('[data-ack]');
     if (a){
       var mm = cur()[+a.closest('.card').dataset.i];
-      mm.ack = ackKey(mm);
+      mm.ack = ackKey(mm); delete mm.scChg;
       renderAll(); save();
       return;
     }
@@ -1727,7 +1737,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var frozen = 0;
     var setOdds = function(m, ev, odds){
       if (matchState(m) !== 'pre'){ frozen++; return; }   // match commencé : les cotes d'avant-match restent
-      var d = new Date(ev.commence_time);
+      var d = new Date(ev.commence_time), scB4 = advScore(m);
       if (!m.hist){
         m.hist = [];
         [m.prev, m.snap].forEach(function(sn){ if (sn && sn.odds && sn.odds.every(function(o){ return o > 1; })) m.hist.push({at:sn.at, o:sn.odds.slice()}); });
@@ -1748,6 +1758,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       m.day = dayLabel(d);
       m.time = timeLabel(d);
       commit(m);
+      noteSc(m, scB4, 'odds');
       res.updated++;
     };
 
@@ -2426,7 +2437,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var o = {};
         bks[0].mk.outcomes.forEach(function(oc){ var k = parseCS(oc, ev); if (k && oc.price > 1) o[k] = oc.price; });
         if (!Object.keys(o).length){ none.push(m.home + ' – ' + m.away); continue; }
+        var b4 = advScore(m);
         m.cs = {bk:bks[0].b.title, at:new Date().toISOString(), o:o};
+        noteSc(m, b4, 'cs');
         ok++;
       }
       renderAll(); save();
@@ -2611,7 +2624,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
             });
           });
           if (Object.keys(o).length >= 6){
+            var b4 = advScore(m);
             m.cs = {bk:OP_BOOKS[i][1], at:new Date().toISOString(), o:o};
+            noteSc(m, b4, 'cs');
             done[f.fixtureId] = true; used[OP_BOOKS[i][1]] = (used[OP_BOOKS[i][1]] || 0) + 1;
           }
         });
