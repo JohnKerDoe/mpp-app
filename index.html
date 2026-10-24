@@ -226,6 +226,10 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .qwhen{display:flex;align-items:center;gap:8px;margin:4px 0 6px;font-size:12px;color:var(--mute)}
 .qwhen input{font:inherit;font-size:14px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
 #rAdd{display:block;width:100%;margin:10px 0}
+.qrep{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink-2)}
+.qrep input{width:18px;height:18px}
+.qwhen label{display:inline-flex;align-items:center;gap:5px}
+.recap .reptag{font-size:11px;font-weight:700;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:0 5px;white-space:nowrap}
 .shot{width:100%;margin:10px 0 2px;padding:12px;border:1.5px dashed var(--ink-2);background:var(--soft);color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
 .shot:disabled{opacity:.6;cursor:default}
 
@@ -569,7 +573,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>21/10 · 21h50</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 9h50</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1319,6 +1323,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var pick = X2 && X2.picks.indexOf(r.m) >= 0;
       var gold = X2 && ((pick && X2.status !== 'wait') || x2Used(r.m, X2.jn));
       var goldWait = pick && X2.status === 'wait';
+      var jt0 = tabJ();
+      if (r.m.rep || (r.m.jn && jt0 && r.m.jn !== jt0)) tag += '<span class="reptag">' + (r.m.rep ? 'reporté · ' : '') + 'J' + r.m.jn + '</span>';
       var cls = [showCh ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
       return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
@@ -1732,6 +1738,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (m.hist.length > 40) m.hist = m.hist.slice(-40);
       m.odds = odds.map(function(o){ return o.toFixed(3); });
       m.tot = pinTot(ev) || m.tot || null;
+      // Date repoussée de plus d'un jour et demi par Pinnacle : le match a été reporté, il garde sa journée
+      var before = kickoff(m), gap = d.getTime() - before;
+      if (isFinite(before) && gap > 36 * 36e5 && gap < 120 * 864e5 && !m.rep){
+        m.rep = true;
+        res.notes.push('📅 ' + m.home + ' – ' + m.away + ' reporté au ' + dayLabel(d).toLowerCase() + ' à ' + timeLabel(d) + ' : marqué « reporté »' + (m.jn ? ', il reste dans la J' + m.jn : '') + '.');
+      }
       m.ts = ev.commence_time;
       m.day = dayLabel(d);
       m.time = timeLabel(d);
@@ -2011,7 +2023,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         for (var o = 0; o < 3; o++) g += inp('pts', o, x.pts[o], 'Points ' + OUT_NAMES[o]);
         var mv = editMode ? '<button class="mv" type="button" data-up="' + i + '"' + (i ? '' : ' disabled') + ' aria-label="Monter">↑</button>' +
           '<button class="mv" type="button" data-dn="' + i + '"' + (i < pending.length - 1 ? '' : ' disabled') + ' aria-label="Descendre">↓</button>' : '';
-        var when = editMode ? '<label class="qwhen">Coup d\'envoi <input type="datetime-local" data-n="when" value="' + esc(x.when || '') + '"></label>'
+        var when = editMode ? '<label class="qwhen">Coup d\'envoi <input type="datetime-local" data-n="when" value="' + esc(x.when || '') + '"></label>' +
+            '<div class="qwhen"><label class="qrep"><input type="checkbox" data-n="rep"' + (x.rep ? ' checked' : '') + '> Reporté</label>' +
+            '<label>Journée J<input data-n="jn" inputmode="numeric" value="' + esc(x.jn ? String(x.jn) : '') + '" style="width:46px"></label></div>'
           : '<div class="qmeta">' + esc([x.day, x.time].filter(Boolean).join(' · ') || 'Date lue avec les cotes') + '</div>';
         if (x.missing && !editMode) when = '<div class="qmeta qmiss">⚠️ Match non lu' + (x.day ? ' · ' + esc(x.day) : '') + ' — complète-le</div>';
         return '<div class="qrow' + (x.missing ? ' miss' : '') + '" data-r="' + i + '">' +
@@ -2036,6 +2050,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       x.pts = [0, 1, 2].map(function(o){ return row.querySelector('[data-q="pts"][data-o="' + o + '"]').value.trim(); });
       x.crowd = null;
       var w = row.querySelector('[data-n="when"]'); if (w) x.when = w.value;
+      var rp = row.querySelector('[data-n="rep"]'); if (rp) x.rep = rp.checked;
+      var jj = row.querySelector('[data-n="jn"]'); if (jj){ var v = parseInt(jj.value, 10); x.jn = v > 0 ? v : null; }
     });
   }
   function closeReview(){ pending = []; editMode = false; $('review').hidden = true; }
@@ -2044,14 +2060,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function toLocalInput(ts){ var d = new Date(ts); if (!ts || isNaN(d)) return ''; d = new Date(d.getTime() - d.getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); }
   $('editList').addEventListener('click', function(){
     editMode = true; editMoved = false;
-    pending = cur().map(function(m){ return {home:m.home, away:m.away, pts:m.pts.map(function(v){ return v === null || v === undefined ? '' : String(v); }), when:toLocalInput(m.ts), ref:m}; });
+    pending = cur().map(function(m){ return {home:m.home, away:m.away, pts:m.pts.map(function(v){ return v === null || v === undefined ? '' : String(v); }), when:toLocalInput(m.ts), when0:toLocalInput(m.ts), rep:!!m.rep, jn:m.jn || null, ref:m}; });
     renderReview();
     $('review').hidden = false;
     $('review').scrollIntoView({behavior:'smooth', block:'start'});
   });
   $('rAdd').addEventListener('click', function(){
     readReview();
-    pending.push({home:'', away:'', pts:['', '', ''], when:'', ref:null});
+    pending.push({home:'', away:'', pts:['', '', ''], when:'', rep:false, jn:tabJ(), ref:null});
     renderReview();
     var rows = $('rList').querySelectorAll('.qrow'), last = rows[rows.length - 1];
     if (last){ last.scrollIntoView({block:'center'}); last.querySelector('[data-n="home"]').focus(); }
@@ -2097,9 +2113,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var m = x.ref || newMatch('Journée', '', shortName(x.home), shortName(x.away), ['','',''], ['','',''], ['','','']);
         m.home = shortName(x.home); m.away = shortName(x.away);
         m.pts = x.pts.slice();
-        if (!x.ref){ m.manual = true; if (jn0) m.jn = jn0; }
+        if (!x.ref) m.manual = true;
+        m.jn = x.jn || m.jn || jn0 || null;
+        if (x.rep) m.rep = true; else delete m.rep;
         var d = x.when ? new Date(x.when) : null;
         if (d && !isNaN(d)){ var iso = d.toISOString(); if (iso !== m.ts){ m.ts = iso; m.day = dayLabel(d); m.time = timeLabel(d); } }
+        // Reporté sans nouvelle date : date inconnue (les cotes la donneront quand Pinnacle reprogramme le match)
+        if (m.rep && x.when === x.when0 && m.ts && Date.parse(m.ts) < Date.now()){ m.ts = null; m.day = 'Date à définir'; m.time = ''; }
         commit(m);
         return m;
       });
@@ -2126,6 +2146,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       commit(m);
       next.push(m);
     });
+    // Matchs reportés d'une journée précédente, pas encore joués : ils restent, avec leur journée d'origine
+    var repKept = old.filter(function(m){ return m.rep && matchState(m) !== 'done'; });
+    repKept.forEach(function(m){ old.splice(old.indexOf(m), 1); });
+    next = next.concat(repKept);
     S.data[S.mode] = next;
     if (!kept && S.order) delete S.order[S.mode];      // nouvelle journée : ordre automatique (par date)
     var n = next.length, noOdds = next.filter(function(m){ return !nums(m.odds).every(function(o){ return o > 1; }); }).length;
@@ -2708,7 +2732,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function outOf(h, a){ return h > a ? 0 : h === a ? 1 : 2; }
   function bilansOf(md){ S.bilans = S.bilans || {}; S.bilans[md] = S.bilans[md] || []; return S.bilans[md]; }
   function hasBilan(md, jn){ return bilansOf(md).some(function(b){ return jn && b.jn === jn; }); }
-  function journeeDone(){ var l = cur(); return l.length > 0 && l.every(function(m){ return matchState(m) === 'done'; }); }
+  function journeeDone(){ var j = tabJ(), l = cur().filter(function(m){ return !m.rep && (!j || !m.jn || m.jn === j); }); return l.length > 0 && l.every(function(m){ return matchState(m) === 'done'; }); }
   // Points MPP d'un prono : cote si bon résultat, + bonus de rareté si score exact, le tout x2 si bonus
   function mppGain(r){
     if (!r || r.h === null || r.ph === null || r.h === undefined || r.ph === undefined || !(r.cote >= 0)) return null;
@@ -2902,7 +2926,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     var entry = {jn:jn, at:new Date().toISOString(), matches:matches};
     if (at >= 0) arr[at] = entry; else arr.push(entry);
-    if (S.archive && S.archive[S.mode]) delete S.archive[S.mode][jn];      // l'archive a servi
+    // L'archive a servi… sauf s'il reste un match reporté sans résultat : on la garde pour compléter le bilan plus tard
+    var arcJ = S.archive && S.archive[S.mode] && S.archive[S.mode][jn];
+    if (arcJ && !arcJ.matches.some(function(x){ return x.rep && !matches.some(function(y){ return y.real && sameTeam(y.home, x.home) && sameTeam(y.away, x.away); }); })) delete S.archive[S.mode][jn];
     arr.sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
     bPending = null;
     save(); renderAll(); renderBReview(); renderBilans(); window.scrollTo(0, 0);
@@ -3094,19 +3120,36 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function snapMatch(m){
     var c = calc(m);
     return {home:m.home, away:m.away, ts:m.ts || null, pts:m.pts.map(N), odds:m.odds.map(N), p:c.p, ev:c.ev, best:c.best, level:c.level, gap:c.gap,
-      sc:c.sc ? scoreOf(c, c.best) : null, scSrc:m.cs && m.cs.bk ? m.cs.bk : 'modèle'};
+      sc:c.sc ? scoreOf(c, c.best) : null, scSrc:m.cs && m.cs.bk ? m.cs.bk : 'modèle', rep:!!m.rep};
   }
   function autoArchive(){
     var changed = false;
     S.archive = S.archive || {};
     MODES.forEach(function(md){
-      var list = S.data[md.id], jn = jnOf(list);
-      if (!jn || !list.length || !list.every(function(m){ return matchState(m) === 'done'; })) return;
-      var a = S.archive[md.id] = S.archive[md.id] || {};
-      if (a[jn] || bilansOf(md.id).some(function(b){ return b.jn === jn; })) return;
-      var keep = S.mode; S.mode = md.id;              // calc() s'appuie sur l'onglet courant
-      a[jn] = {jn:jn, at:new Date().toISOString(), matches:list.map(snapMatch)};
-      S.mode = keep; changed = true;
+      var all = S.data[md.id], a = S.archive[md.id] = S.archive[md.id] || {}, keep = S.mode;
+      var jns = []; all.forEach(function(m){ if (m.jn && jns.indexOf(m.jn) < 0) jns.push(m.jn); });
+      if (!jns.length && all.length){ var j0 = jnOf(all); if (j0) jns.push(j0); }
+      jns.forEach(function(jn){
+        var list = all.filter(function(m){ return m.jn === jn || !m.jn; });
+        var norm = list.filter(function(m){ return !m.rep; }), rep = list.filter(function(m){ return m.rep; });
+        S.mode = md.id;                                // calc() s'appuie sur l'onglet courant
+        if (a[jn]){
+          // Match reporté joué entre-temps : son conseil final remplace celui gardé à l'archivage
+          rep.forEach(function(m){
+            var k = a[jn].matches.findIndex(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); });
+            if (matchState(m) !== 'done'){ if (k >= 0 && !a[jn].matches[k].rep){ a[jn].matches[k].rep = true; changed = true; } return; }
+            var sn = snapMatch(m); sn.final = true;
+            if (k < 0){ a[jn].matches.push(sn); changed = true; }
+            else if (!a[jn].matches[k].final){ a[jn].matches[k] = sn; changed = true; }
+          });
+          S.mode = keep; return;
+        }
+        // La journée est finie quand tous ses matchs non reportés sont terminés
+        var ready = norm.length && norm.every(function(m){ return matchState(m) === 'done'; }) && rep.every(function(m){ return matchState(m) !== 'live'; });
+        if (!ready || bilansOf(md.id).some(function(b){ return b.jn === jn; })){ S.mode = keep; return; }
+        a[jn] = {jn:jn, at:new Date().toISOString(), matches:list.map(function(m){ var sn = snapMatch(m); if (m.rep && matchState(m) === 'done') sn.final = true; return sn; })};
+        S.mode = keep; changed = true;
+      });
       Object.keys(a).map(Number).sort(function(x, y){ return y - x; }).slice(6).forEach(function(k){ delete a[k]; });   // 6 journées gardées
     });
     if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
@@ -3119,10 +3162,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!confirm('Supprimer ' + (n > 1 ? 'les ' + n + ' matchs' : 'le match') + (jn ? ' de la J' + jn : '') + ' ?\n\n' +
       (done ? 'Le conseil JKD+ reste gardé pour faire le bilan plus tard.' : 'La journée n\'est pas terminée : son conseil ne sera pas gardé pour le bilan.'))) return;
     autoArchive();
-    S.data[S.mode] = [];
+    var keepRep = cur().filter(function(m){ return m.rep && matchState(m) !== 'done'; });
+    S.data[S.mode] = keepRep;
     if (S.order) delete S.order[S.mode];
     renderAll(); save();
-    status('Journée' + (jn ? ' ' + jn : '') + ' supprimée de l\'onglet.' + (done && jn && !hasBilan(S.mode, jn) ? '\nPense à importer ses résultats dans Bilans.' : ''));
+    status('Journée' + (jn ? ' ' + jn : '') + ' supprimée de l\'onglet.' + (keepRep.length ? '\n' + keepRep.length + ' match' + (keepRep.length > 1 ? 's' : '') + ' reporté' + (keepRep.length > 1 ? 's' : '') + ' gardé' + (keepRep.length > 1 ? 's' : '') + ' pour plus tard.' : '') + (done && jn && !hasBilan(S.mode, jn) ? '\nPense à importer ses résultats dans Bilans.' : ''));
   });
 
   /* ---------- Synchronisation automatique entre appareils (gist secret GitHub) ----------
@@ -3169,7 +3213,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         .filter(function(b){ return !del[b.jn] || del[b.jn] < tOf(b); })
         .sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
       var ar = Object.assign({}, cl((rem.archive || {})[id]) || {}, cl((loc.archive || {})[id]) || {});
-      out.bilans[id].forEach(function(b){ delete ar[b.jn]; });
+      out.bilans[id].forEach(function(b){ if (ar[b.jn] && !ar[b.jn].matches.some(function(x){ return x.rep; })) delete ar[b.jn]; });
       out.archive[id] = ar;
       var xr = (rem.x2 || {})[id] || {}, xl = (loc.x2 || {})[id] || {}, xo = out.x2[id] = cl(newer === rem ? xr : xl) || {};
       xo.bests = Object.assign({}, cl(newer === rem ? xl.bests : xr.bests) || {}, xo.bests || {});
