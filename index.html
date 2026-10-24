@@ -72,7 +72,7 @@ html[data-theme="dark"] .logo{--ex:#000}
 .credits.out b{color:var(--warn)}
 .sub{margin:0 0 12px;color:var(--mute);font-size:14px}
 
-.tabs{display:flex;gap:6px;margin:0 0 12px}
+.tabs{display:flex;gap:0;margin:0 0 12px;border-bottom:1px solid var(--line)}
 /* Couleur de chaque compétition : --lgc (vive, badge) et --acc (foncée, lisible avec du texte blanc) */
 body{--acc:var(--ink)}
 body[data-mode="l1"]{--acc:#1450E6;--bg:#E4ECFF}
@@ -86,10 +86,10 @@ html,body{transition:background-color .2s}
 .lg-l1{--lgc:#1A5BFF;--lgt:#fff}
 .lg-l2{--lgc:#1DBF97;--lgt:#0B2A22}
 .lg-ldc{--lgc:#4B1FA8;--lgt:#fff}
-.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 4px 8px;border:1px solid var(--line);background:var(--card);border-radius:12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;line-height:1.2}
-.tabs .lg{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:var(--lgc);color:var(--lgt);font-size:13px;font-weight:900;letter-spacing:-.02em}
+.tabs button{flex:1;display:flex;justify-content:center;align-items:center;padding:10px 4px;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;background:transparent;border-radius:0;font:inherit;font-size:15px;font-weight:700;color:var(--ink-2);cursor:pointer;line-height:1.2}
+.tabs .lg-off{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:var(--lgc);color:var(--lgt);font-size:13px;font-weight:900;letter-spacing:-.02em}
 .lg-ldc{background:linear-gradient(135deg,#6A2BD9,#1B1464) !important}
-.tabs button[aria-selected="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tabs button[aria-selected="true"]{background:transparent;color:var(--ink);border-bottom-color:var(--acc)}
 .tabs button[aria-selected="true"] .lg{box-shadow:0 0 0 2px #fff}
 
 .panel{display:grid;grid-template-columns:1fr;background:var(--acc);color:#fff;border-radius:14px;padding:12px 6px}
@@ -167,6 +167,10 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .recap li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
 .recap li:first-child{border-top:0}
+.recap li.rsep{padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:1.2px;color:var(--mute);background:rgba(127,127,127,.06);justify-content:flex-start}
+.recap .rtm{font-size:12px;font-weight:600;color:var(--mute);margin-right:8px}
+.recap li.tbar{position:relative}
+.recap li.tbar:after{content:"";position:absolute;left:12px;right:12px;bottom:4px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--barc) 0 var(--fill),rgba(127,127,127,.18) var(--fill))}
 
 .recap .rm{color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0}
 .recap .rp{text-align:right;white-space:nowrap}
@@ -573,7 +577,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 11h20</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 17h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -680,9 +684,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   var nums = function(a){ return a.map(N); };
 
   var MODES = [
-    {id:'l1',  name:'Ligue 1',             tab:'Ligue 1',   badge:'L1',  sport:'soccer_france_ligue_one'},
-    {id:'l2',  name:'Ligue 2',             tab:'Ligue 2',   badge:'L2',  sport:'soccer_france_ligue_two'},
-    {id:'ldc', name:'Ligue des champions', tab:'Champions', badge:'LDC', sport:'soccer_uefa_champs_league'}
+    {id:'l1',  name:'Ligue 1',             tab:'Ligue 1', short:'L1',   badge:'L1',  sport:'soccer_france_ligue_one'},
+    {id:'l2',  name:'Ligue 2',             tab:'Ligue 2', short:'L2',   badge:'L2',  sport:'soccer_france_ligue_two'},
+    {id:'ldc', name:'Ligue des champions', tab:'Champions', short:'LdC', badge:'LDC', sport:'soccer_uefa_champs_league'}
   ];
   var SCORES = ['1-0', '1-1', '0-1'];
   var LV = {g:'forte', o:'moyenne', r:'faible'};
@@ -1261,7 +1265,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     el.innerHTML = '📊 Cotes mises à jour <b' + (mn >= 1440 ? ' class="warn"' : '') + '>' + txt + '</b>';
   }
 
+  function paintBars(){
+    var now = Date.now();
+    $('recapList').querySelectorAll('li[data-ko]').forEach(function(li){
+      var left = +li.dataset.ko - now, on = left > 0 && left <= 3 * 36e5;
+      li.classList.toggle('tbar', on);
+      if (!on) return;
+      li.style.setProperty('--fill', Math.round((1 - left / (3 * 36e5)) * 100) + '%');
+      li.style.setProperty('--barc', left <= 10 * 6e4 ? '#FF5A5F' : left <= 36e5 ? '#FFC94D' : '#7DD3FC');
+    });
+  }
   function updateCountdown(){
+    paintBars();
     updateImpAge();
     var now = Date.now(), ks = cur().map(function(m){ return {m:m, t:kickoff(m)}; }).filter(function(x){ return isFinite(x.t); });
     var el = $('cd');
@@ -1315,8 +1330,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('pChg').hidden = !n;
     updateImpAge();
 
+    // Prochain créneau (un ou plusieurs matchs à la même heure) : barre de temps sur les 3 dernières heures
+    var nowT = Date.now(), nextKo = Infinity;
+    rows.forEach(function(r){ var t = kickoff(r.m); if (r.st === 'pre' && isFinite(t) && t > nowT && t < nextKo) nextKo = t; });
+    var prevDay = null;
     $('recapList').innerHTML = !rows.length ? '<li class="empty">Renseigne les cotes et les points pour voir les pronos conseillés.</li>'
       : rows.map(function(r){
+      var dayLbl = String(r.m.day || 'Date à définir').toUpperCase(), sep = '';
+      if (dayLbl !== prevDay){ sep = '<li class="rsep" aria-hidden="true">' + esc(dayLbl) + '</li>'; prevDay = dayLbl; }
+      var ko = kickoff(r.m), isNext = r.st === 'pre' && isFinite(ko) && Math.abs(ko - nextKo) < 6e4;
+      var hr = r.st === 'pre' && r.m.time ? '<span class="rtm">' + esc(r.m.time) + '</span>' : '';
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
       // Changement au dernier import : liseré + raison à la suite du match, seulement avant le coup d'envoi
@@ -1335,13 +1358,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (showSc) tag += '<span class="why">' + scg.from + ' → ' + scg.to + (scg.src === 'cs' ? ' 🎯' : '') + '</span>';
       var jt0 = tabJ();
       if (r.m.rep || (r.m.jn && jt0 && r.m.jn !== jt0)) tag += '<span class="reptag">' + (r.m.rep ? 'reporté · ' : '') + 'J' + r.m.jn + '</span>';
-      var cls = [showCh || showSc ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : ''].join(' ').trim();
-      return '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
+      var cls = [showCh || showSc ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : '', isNext ? 'nxt' : ''].join(' ').trim();
+      return sep + '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (isNext ? ' data-ko="' + ko + '"' : '') + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
           '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
-        '<span class="rp">' + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
+        '<span class="rp">' + hr + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('');
+    paintBars();
     // Matchs sans calcul possible (cotes ou points manquants) : ouvrables quand même
     var inc = cur().filter(function(m){ return !calc(m).ev; });
     if (inc.length){
@@ -1398,7 +1422,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function renderTabs(){
     $('tabs').innerHTML = MODES.map(function(x){
       return '<button type="button" role="tab" data-mode="' + x.id + '" aria-selected="' + (x.id === S.mode) + '" aria-label="' + x.name + '">' +
-        '<span class="lg lg-' + x.id + '" aria-hidden="true">' + x.badge + '</span><span class="tl">' + x.tab + '</span></button>';
+        '<span class="tl">' + x.short + '</span></button>';
     }).join('');
   }
 
