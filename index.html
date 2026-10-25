@@ -167,6 +167,24 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .recap ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .recap li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
 .recap li:first-child{border-top:0}
+.recap .qrm{font:inherit;font-size:11.5px;font-weight:800;border-radius:999px;padding:3px 9px;margin-right:8px;border:1.5px solid transparent;cursor:pointer;white-space:nowrap}
+.recap .qrm.todo{background:var(--line);color:var(--ink-2);border-color:var(--mute);border-style:dashed}
+.recap .qrm.ok{background:rgba(46,204,113,.18);color:var(--lg);border-color:var(--lg)}
+.recap .qrm.ex{background:#FFC94D;color:#0C1633}
+.recap .qrm.ko{background:rgba(229,72,77,.14);color:var(--lr);border-color:var(--lr)}
+.qrsheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.qrsheet[hidden]{display:none}
+.qrbox{width:100%;max-width:560px;max-height:86vh;overflow:auto;background:var(--card);color:var(--ink);border-radius:20px 20px 0 0;padding:12px 16px 22px;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+.qrgrab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+.qrhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.qrhead b{font-size:17px}.qrhead small{display:block;font-size:12px;color:var(--mute);margin-top:2px}
+.qrcols,.qrrow{display:grid;grid-template-columns:1fr 38px 38px 38px 58px;gap:4px;align-items:center}
+.qrcols{margin-top:12px;font-size:11px;font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.5px;text-align:center}.qrcols span:first-child{text-align:left}
+.qrrow{padding:9px 0;border-top:1px solid var(--line);font-size:14.5px;font-weight:600}.qrrow.focus{background:rgba(125,211,252,.10);border-radius:8px}
+.qrn small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
+.qrb{width:30px;height:30px;margin:auto;border-radius:8px;border:2px solid var(--mute);background:transparent;color:#fff;font:900 15px Inter,sans-serif;cursor:pointer}.qrb.on{background:var(--acc);border-color:var(--acc)}.qrb.x2.on{background:#E91E63;border-color:#E91E63}
+.qrbon{margin:auto;border:1.5px solid var(--line);border-radius:999px;background:transparent;color:var(--mute);font:800 13px Inter,sans-serif;padding:5px 9px;cursor:pointer}.qrbon.on{background:#FFC94D;color:#0C1633;border-color:#FFC94D}
+.qrshot{display:block;width:100%;margin-top:10px;background:transparent;border:0;color:var(--ink-2);font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer}
+body.noscroll{overflow:hidden}
 .recap li.rsep{padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:1.2px;color:var(--mute);background:rgba(127,127,127,.06);justify-content:flex-start}
 .recap .rtm{font-size:12px;font-weight:600;color:var(--mute);margin-right:8px}
 .recap li.tbar{position:relative}
@@ -509,12 +527,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <input type="file" id="bFile" accept="image/*" multiple hidden>
 
   <section class="recap">
-    <h2 class="day"><span id="recapTitle">Pronos conseillés</span><span class="rbtns"><button class="editm" id="clearDone" type="button" hidden>🗑 Journée</button><button class="editm" id="editList" type="button">✏️ Matchs</button></span></h2>
+    <h2 class="day"><span id="recapTitle">Pronos conseillés</span><span class="rbtns"><button class="editm" id="qrOpen" type="button" hidden>🏁 Résultats</button><button class="editm" id="clearDone" type="button" hidden>🗑 Journée</button><button class="editm" id="editList" type="button">✏️ Matchs</button></span></h2>
     <ul id="recapList"></ul>
   </section>
 
 
 
+  <div class="qrsheet" id="qrSheet" hidden>
+    <div class="qrbox" role="dialog" aria-labelledby="qrT">
+      <div class="qrgrab"></div>
+      <div class="qrhead"><div><b id="qrT">Matchs terminés</b><small>Coche ce qui est passé · touche le bonus pour le changer</small></div><button class="del" id="qrClose" type="button" aria-label="Fermer">×</button></div>
+      <div class="qrcols"><span>Match</span><span>✓</span><span>🎯</span><span>x2</span><span>Bonus</span></div>
+      <div id="qrList"></div>
+      <button class="btn" id="qrSave" type="button">Enregistrer</button>
+      <button class="qrshot" id="qrShot" type="button">📷 ou faire le bilan avec la capture MPP</button>
+    </div>
+  </div>
   <section class="quick" id="review" hidden aria-labelledby="rTitle">
     <div class="qhead">
       <h2 id="rTitle">Points lus · <span id="rMode"></span></h2>
@@ -589,7 +617,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 9h05</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h05</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1359,6 +1387,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var hr = r.st === 'pre' && r.m.time ? '<span class="rtm">' + esc(r.m.time) + '</span>' : '';
       var lb = r.st === 'live' ? '<span class="lb live"><span class="ldot" style="background:#fff"></span>LIVE</span>'
         : r.st === 'done' ? '<span class="lb done">FIN</span>' : '';
+      if (r.st === 'done'){
+        var q = r.m.qr;
+        lb = '<button type="button" class="qrm ' + (!q ? 'todo' : q.ex ? 'ex' : q.ok ? 'ok' : 'ko') + '" data-qr="' + esc(mkey(r.m)) + '" aria-label="Noter le résultat">' +
+          (!q ? 'FIN · ?' : (q.ex ? '🎯 +' + q.bonus : q.ok ? '✓' : '✗') + (q.x2 ? ' x2' : '')) + '</button>';
+      }
       // Changement au dernier import : liseré + raison à la suite du match, seulement avant le coup d'envoi
       var showCh = r.ch && r.st === 'pre', tag = '';
       if (showCh && r.ch === 'pick'){
@@ -1430,7 +1463,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var k = li.getAttribute('data-k'), list = cur();
     for (var i = 0; i < list.length; i++) if (mkey(list[i]) === k){ openFull(document.querySelector('#list .card[data-i="' + i + '"]')); return; }
   }
-  $('recapList').addEventListener('click', function(e){ var li = e.target.closest('li[data-k]'); if (li) openFromRecap(li); });
+  $('recapList').addEventListener('click', function(e){
+    var q = e.target.closest('[data-qr]');
+    if (q){ e.stopPropagation(); openQR(q.dataset.qr); return; }
+    var li = e.target.closest('li[data-k]'); if (li) openFromRecap(li);
+  });
   $('recapList').addEventListener('keydown', function(e){
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var li = e.target.closest('li[data-k]'); if (li){ e.preventDefault(); openFromRecap(li); }
@@ -2786,6 +2823,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   /* ==================== BILANS : résultats réels lus sur une capture MPP ====================
      S.bilans[mode] = [{jn, at, matches:[fiche figée du match + résultat réel + ton prono]}] */
   function outOf(h, a){ return h > a ? 0 : h === a ? 1 : 2; }
+  // Résultat réel : score lu sur la capture, ou saisie rapide (✓ bon résultat sans score : o = issue ; ✗ raté : o = -1)
+  function rOut(rl){ return rl.h === null || rl.h === undefined ? (rl.o === undefined ? -1 : rl.o) : outOf(rl.h, rl.a); }
+  function rTxt(rl){ return rl.h === null || rl.h === undefined ? (rl.o >= 0 ? '✓' : '✗') : rl.h + '-' + rl.a; }
   function bilansOf(md){ S.bilans = S.bilans || {}; S.bilans[md] = S.bilans[md] || []; return S.bilans[md]; }
   function hasBilan(md, jn){ return bilansOf(md).some(function(b){ return jn && b.jn === jn; }); }
   function journeeDone(){ var j = tabJ(), l = cur().filter(function(m){ return !m.rep && (!j || !m.jn || m.jn === j); }); return l.length > 0 && l.every(function(m){ return matchState(m) === 'done'; }); }
@@ -3032,7 +3072,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       b.matches.forEach(function(m){
         var me = m.mine; if (!m.real || !me) return;
         t.n++; t.pts += me.x2 ? (me.gain || 0) / 2 : (me.gain || 0);
-        if (outOf(me.ph, me.pa) === outOf(m.real.h, m.real.a)){ t.ok++; if (me.ph === m.real.h && me.pa === m.real.a) t.ex++; }
+        if (outOf(me.ph, me.pa) === rOut(m.real)){ t.ok++; if (me.ph === m.real.h && me.pa === m.real.a) t.ex++; }
       });
     });
     return o;
@@ -3044,7 +3084,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       b.matches.forEach(function(m){
         if (m.ev) best = Math.max(best, m.ev[m.best]);
         if (!m.real) return;
-        var ro = outOf(m.real.h, m.real.a), adv = m.p && m.best >= 0, okA = adv && ro === m.best;
+        var ro = rOut(m.real), adv = m.p && m.best >= 0, okA = adv && ro === m.best;
         if (adv){
           s.n++; s.expAdv += m.p[m.best]; if (okA) s.okAdv++;
           if (s.lv[m.level]){ s.lv[m.level][1]++; if (okA) s.lv[m.level][0]++; }
@@ -3087,10 +3127,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var tot = 0, ok = 0, n = 0, meth = methOf(S.mode, b.jn);
         var rows = b.matches.map(function(m, mi){
           if (!m.real) return '<div class="brl"><span class="bm">' + esc(m.home) + ' – ' + esc(m.away) + '</span><span class="note">non joué</span></div>';
-          var me = m.mine, ro = outOf(m.real.h, m.real.a), okA = m.best >= 0 && ro === m.best;
+          var me = m.mine, ro = rOut(m.real), okA = m.best >= 0 && ro === m.best;
           if (me){ tot += me.gain || 0; n++; if (outOf(me.ph, me.pa) === ro) ok++; }
           var adv = m.best >= 0 ? (m.sc || ['1','N','2'][m.best]) : '–';
-          return '<div class="brl"><span class="bm">' + esc(m.home) + ' <b>' + m.real.h + '-' + m.real.a + '</b> ' + esc(m.away) + '</span>' +
+          return '<div class="brl"><span class="bm">' + esc(m.home) + ' <b>' + rTxt(m.real) + '</b> ' + esc(m.away) + '</span>' +
             '<span class="ba" data-blv="' + k + ':' + mi + '">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗')
               : me ? (function(){ var o2 = outOf(me.ph, me.pa), a2 = meth === 'old' ? ['1-0','1-1','0-1'][o2] : me.ph + '-' + me.pa; return (m.level ? '<i class="dot ' + m.level + '"></i>' : '<i class="dot nolv"></i>') + esc(a2) + ' ' + (o2 === ro ? '✓' : '✗'); })()
               : '<small class="note">sans conseil</small>') + '</span>' +
@@ -3163,11 +3203,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     x.fillText(md.name, W - 60, 90); x.font = '500 34px system-ui, sans-serif'; x.fillText('Bilan de la ' + (b.jn || '?') + (b.jn === 1 ? 're' : 'e') + ' journée', W - 60, 140);
     x.textAlign = 'left';
     rows.forEach(function(m, i){
-      var y = 250 + i * rh, me = m.mine, g = me ? me.gain || 0 : 0, good = me && outOf(me.ph, me.pa) === outOf(m.real.h, m.real.a), exact = me && me.ph === m.real.h && me.pa === m.real.a;
+      var y = 250 + i * rh, me = m.mine, g = me ? me.gain || 0 : 0, good = me && outOf(me.ph, me.pa) === rOut(m.real), exact = me && me.ph === m.real.h && me.pa === m.real.a;
       tot += g; if (good) ok++; if (exact) ex++;
       if (i % 2 === 0){ x.fillStyle = 'rgba(255,255,255,.04)'; x.fillRect(40, y - 46, W - 80, rh); }
       x.fillStyle = '#E6EAF2'; x.font = '600 36px system-ui, sans-serif';
-      x.fillText(m.home + '  ' + m.real.h + '-' + m.real.a + '  ' + m.away, 60, y);
+      x.fillText(m.home + '  ' + rTxt(m.real) + '  ' + m.away, 60, y);
       x.font = '500 28px system-ui, sans-serif'; x.fillStyle = '#8C96AA';
       x.fillText(me ? 'Prono ' + me.ph + '-' + me.pa + (me.x2 ? ' · x2' : '') + (exact ? ' · 🎯 score exact' : '') : '', 60, y + 30);
       x.textAlign = 'right'; x.font = '800 40px system-ui, sans-serif'; x.fillStyle = g ? '#45D98A' : '#5B6475';
@@ -3234,7 +3274,89 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
   }
-  function updateBilanBar(){ autoArchive(); $('clearDone').hidden = !cur().length; }
+  function updateBilanBar(){
+    autoArchive(); $('clearDone').hidden = !cur().length;
+    var nd = cur().filter(function(m){ return matchState(m) === 'done'; }), todo = nd.filter(function(m){ return !m.qr; }).length;
+    $('qrOpen').hidden = !nd.length;
+    $('qrOpen').textContent = '🏁 Résultats' + (todo ? ' (' + todo + ')' : '');
+  }
+  /* ---------- Saisie rapide des résultats (sans capture) ---------- */
+  var qrDraft = null, BONUS_CYCLE = [20, 30, 50, 70, 100];
+  function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
+  function openQR(focusKey){
+    var list = qrMatches();
+    if (!list.length) return;
+    qrDraft = list.map(function(m){ var q = m.qr || {}; return {m:m, ok:!!q.ok, ex:!!q.ex, bonus:q.bonus || 20, x2:q.x2 !== undefined ? !!q.x2 : x2Used(m, m.jn || tabJ())}; });
+    renderQR();
+    $('qrSheet').hidden = false; document.body.classList.add('noscroll');
+    if (focusKey){ var row = $('qrList').querySelector('[data-qk="' + focusKey + '"]'); if (row){ row.classList.add('focus'); row.scrollIntoView({block:'center'}); } }
+  }
+  function closeQR(){ $('qrSheet').hidden = true; document.body.classList.remove('noscroll'); qrDraft = null; }
+  function renderQR(){
+    $('qrList').innerHTML = qrDraft.map(function(d, i){
+      var c = calc(d.m), sc = scoreOf(c, c.best);
+      return '<div class="qrrow" data-qk="' + esc(mkey(d.m)) + '"><span class="qrn">' + esc(d.m.home) + ' – ' + esc(d.m.away) + '<small>prono ' + sc + ' · cote ' + N(d.m.pts[c.best]) + '</small></span>' +
+        '<button type="button" class="qrb' + (d.ok ? ' on' : '') + '" data-qi="' + i + '" data-qf="ok" aria-label="Bon résultat">' + (d.ok ? '✓' : '') + '</button>' +
+        '<button type="button" class="qrb' + (d.ex ? ' on' : '') + '" data-qi="' + i + '" data-qf="ex" aria-label="Score exact">' + (d.ex ? '✓' : '') + '</button>' +
+        '<button type="button" class="qrb x2' + (d.x2 ? ' on' : '') + '" data-qi="' + i + '" data-qf="x2" aria-label="Bonus x2 joué">' + (d.x2 ? '✓' : '') + '</button>' +
+        '<button type="button" class="qrbon' + (d.ex ? ' on' : '') + '" data-qi="' + i + '" data-qf="bonus"' + (d.ex ? '' : ' disabled') + '>' + (d.ex ? '+' + d.bonus : '—') + '</button></div>';
+    }).join('');
+  }
+  $('qrList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-qf]'); if (!b || b.disabled) return;
+    var d = qrDraft[+b.dataset.qi], f = b.dataset.qf;
+    if (f === 'ok'){ d.ok = !d.ok; if (!d.ok) d.ex = false; }
+    if (f === 'ex'){ d.ex = !d.ex; if (d.ex) d.ok = true; }
+    if (f === 'x2') d.x2 = !d.x2;
+    if (f === 'bonus') d.bonus = BONUS_CYCLE[(BONUS_CYCLE.indexOf(d.bonus) + 1) % BONUS_CYCLE.length];
+    renderQR();
+  });
+  $('qrClose').addEventListener('click', closeQR);
+  $('qrSheet').addEventListener('click', function(e){ if (e.target === $('qrSheet')) closeQR(); });
+  $('qrShot').addEventListener('click', function(){ closeQR(); $('bFile').click(); });
+  $('qrOpen').addEventListener('click', function(){ openQR(); });
+  $('qrSave').addEventListener('click', function(){
+    var at = new Date().toISOString();
+    var st = x2State();
+    qrDraft.forEach(function(d){
+      d.m.qr = {ok:d.ok, ex:d.ex, bonus:d.ex ? d.bonus : 0, x2:d.x2, at:at};
+      // Le stock de bonus x2 suit ce que tu as coché
+      var k = mkey(d.m), jn = d.m.jn || tabJ(), i0 = st.list.findIndex(function(u){ return u.key === k && (!u.jn || !jn || u.jn === jn); });
+      if (d.x2 && i0 < 0) st.list.push({key:k, jn:jn || null, name:d.m.home + ' – ' + d.m.away});
+      if (!d.x2 && i0 >= 0) st.list.splice(i0, 1);
+    });
+    closeQR();
+    var made = quickBilans();
+    renderAll(); save();
+    status('Résultats enregistrés.' + (made.length ? '\nBilan de la J' + made.join(', J') + ' mis à jour.' : '\nLe bilan se fera quand tous les matchs de la journée seront notés.'));
+  });
+  // Bilan d'une journée à partir de la saisie rapide (quand tous ses matchs sont finis et notés)
+  function quickBilans(){
+    var all = cur(), jns = [], made = [];
+    all.forEach(function(m){ if (m.jn && jns.indexOf(m.jn) < 0) jns.push(m.jn); });
+    jns.forEach(function(jn){
+      var list = all.filter(function(m){ return m.jn === jn && !(m.rep && matchState(m) !== 'done'); });
+      if (!list.length || !list.every(function(m){ return matchState(m) === 'done' && m.qr; })) return;
+      var arr = bilansOf(S.mode), at = arr.map(function(b){ return b.jn; }).indexOf(jn);
+      if (at >= 0 && arr[at].src !== 'quick') return;                  // un bilan fait avec la capture reste prioritaire
+      var arc = S.archive && S.archive[S.mode] && S.archive[S.mode][jn];
+      var matches = list.map(function(m){
+        var sn = (arc && arc.matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]) || snapMatch(m);
+        var q = m.qr, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
+        if (sn.best < 0 || isNaN(ph)){ ph = [1, 1, 0][sn.best] || 0; pa = [0, 1, 1][sn.best] || 0; }
+        var x2 = q.x2 !== undefined ? !!q.x2 : x2Used(m, jn), cote = sn.pts ? N(sn.pts[sn.best]) : null;
+        var gain = q.ok ? ((cote || 0) + (q.ex ? q.bonus : 0)) * (x2 ? 2 : 1) : 0;
+        return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc,
+          real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? sn.best : -1},
+          mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
+      });
+      var entry = {jn:jn, at:new Date().toISOString(), src:'quick', matches:matches};
+      if (at >= 0) arr[at] = entry; else arr.push(entry);
+      arr.sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
+      made.push(jn);
+    });
+    return made;
+  }
   // Supprimer la journée terminée de l'onglet (le conseil reste archivé pour le bilan)
   $('clearDone').addEventListener('click', function(){
     var jn = tabJ(), n = cur().length, done = journeeDone();
