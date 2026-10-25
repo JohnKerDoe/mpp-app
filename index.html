@@ -618,7 +618,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h15</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h20</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3017,7 +3017,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (!jn){ var v = parseInt(prompt('Numéro de la journée ?', ''), 10); if (!(v > 0)) return; jn = v; }
     var arr = bilansOf(S.mode);
     var at = arr.map(function(b){ return b.jn; }).indexOf(jn);
-    if (at >= 0 && !confirm('Un bilan existe déjà pour la J' + jn + '. Le remplacer ?')) return;
+    if (at >= 0 && arr[at].src !== 'quick' && !confirm('Un bilan existe déjà pour la J' + jn + '. Le remplacer ?')) return;
     var st = x2State();
     var matches = p.rows.map(function(x){
       var m = x.m, r = x.r, played = r.h !== null && r.a !== null;
@@ -3278,6 +3278,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   function updateBilanBar(){
     autoArchive(); $('clearDone').hidden = !cur().length;
+    if (quickBilans().length){ var q0 = syncApplying; syncApplying = true; save(); syncApplying = q0; if (VIEW === 'bilans') renderBilans(); }
     var nd = cur().filter(function(m){ return matchState(m) === 'done'; }), todo = nd.filter(function(m){ return !m.qr; }).length;
     $('qrOpen').hidden = !nd.length;
     $('qrOpen').textContent = '🏁 Résultats' + (todo ? ' (' + todo + ')' : '');
@@ -3339,7 +3340,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     jns.forEach(function(jn){
       var list = all.filter(function(m){ return m.jn === jn && !(m.rep && matchState(m) !== 'done'); });
       var noted = function(m){ return matchState(m) === 'done' && m.qr; };
-      if (!list.some(noted)) return;
+      if (!list.some(function(m){ return matchState(m) === 'done'; })) return;
+      // Bilan supprimé à la main : on ne le recrée que si tu notes un résultat après la suppression
+      var tomb = ((S.bDel || {})[S.mode] || []).filter(function(t){ return t.jn === jn; }).map(function(t){ return t.at; }).sort().pop();
+      if (tomb && !list.some(function(m){ return m.qr && Date.parse(m.qr.at) > tomb; })) return;
       var partial = !list.every(noted);
       var arr = bilansOf(S.mode), at = arr.map(function(b){ return b.jn; }).indexOf(jn);
       if (at >= 0 && arr[at].src !== 'quick') return;                  // un bilan fait avec la capture reste prioritaire
@@ -3355,6 +3359,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? sn.best : -1},
           mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
       });
+      if (at >= 0 && !!arr[at].partial === partial && JSON.stringify(arr[at].matches) === JSON.stringify(matches)) return;   // rien de nouveau
       var entry = {jn:jn, at:new Date().toISOString(), src:'quick', matches:matches};
       if (partial) entry.partial = true;
       if (at >= 0) arr[at] = entry; else arr.push(entry);
