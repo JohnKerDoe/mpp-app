@@ -360,6 +360,9 @@ details.bj summary{cursor:pointer;font-size:15px;color:var(--ink)}
 .brh,.brl{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
 .brh{color:var(--mute);font-size:11px;border-top:0;margin-top:6px}
 .brl .bm{min-width:0;color:var(--ink)}
+.brl .bbon{cursor:pointer;white-space:nowrap}
+.brl .bbon.miss{color:#e67e00;font-weight:700}
+.bfl label.bguess{color:#e67e00;font-weight:700}
 .brl .ba{white-space:nowrap;color:var(--ink-2);cursor:pointer}
 .brl .ba .dot.nolv{background:transparent;border:1.5px dashed var(--mute)}
 .brl .ba .dot{display:inline-block;width:9px;height:9px;margin-right:4px}
@@ -586,7 +589,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>24/10 · 18h00</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 9h05</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -2794,6 +2797,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return g * (r.x2 ? 2 : 1);
   }
   // Lecture d'une capture « Matchs » de MPP : chaque match = ligne du score, ligne « Ma cote … », ligne des valeurs
+  var BONUS_TIERS = [20, 30, 50, 70, 100];   // règles MPP : >30 %, 20-30 %, 5-20 %, 0,5-5 %, <0,5 % des joueurs ayant le bon résultat
   function parseResults(text){
     var lines = String(text || '').split(/\n+/).map(function(l){ return l.replace(/[|“”"«»]/g, ' ').replace(/\s+/g, ' ').trim(); }).filter(Boolean);
     var jn = null, out = [], lastUsed = -1;
@@ -2828,9 +2832,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (mp){ cote = +mp[1]; ph = +mp[2]; pa = +mp[3]; break; }
       }
       var b = blk.join(' '), x2 = /\(\s*x?\s*2\s*\)|\bx\s*2\b/i.test(b);
-      var rr = b.match(/rare\D{0,4}?([0-9oO]{1,4})\s*p\s*t/i), bonus = 0;
+      // Bonus du score exact : « Exact +20pts », « Rare +30pts », « Très rare +50pts », « Méga rare +70pts », « Ultra rare +100pts »
+      var rr = b.match(/(?:rare|exact)\D{0,6}?([0-9oO]{1,4})\s*p\s*t/i), bonus = 0, bguess = false;
       if (rr){ bonus = +rr[1].replace(/[oO]/g, '0'); while (bonus > 100) bonus = +String(bonus).slice(1); }
-      out.push({home:sl.home, away:sl.away, h:sl.h, a:sl.a, cote:cote, ph:ph, pa:pa, x2:x2, bonus:bonus});
+      if (BONUS_TIERS.indexOf(bonus) < 0) bonus = 0;
+      if (!bonus && ph !== null && ph === sl.h && pa === sl.a && cote){
+        // Score exact sans bonus lu : on le déduit des points affichés (106 pts avec une cote de 86 → +20)
+        var nums = (b.match(/\b\d{2,3}\b/g) || []).map(Number);
+        nums.some(function(n){ var t = (x2 ? n / 2 : n) - cote; if (BONUS_TIERS.indexOf(t) >= 0){ bonus = t; return true; } return false; });
+        if (!bonus){ bonus = 20; bguess = true; }          // au moins +20 d'après les règles : à vérifier
+      }
+      out.push({home:sl.home, away:sl.away, h:sl.h, a:sl.a, cote:cote, ph:ph, pa:pa, x2:x2, bonus:bonus, bguess:bguess});
       lastUsed = i;
     }
     return {jn:jn, rows:out};
@@ -2892,7 +2904,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     // Deux captures qui se chevauchent : un même match n'est gardé qu'une fois
     rows = rows.filter(function(x, i){ return !rows.slice(0, i).some(function(y){ return y.h === x.h && y.a === x.a && sameTeam(y.home, x.home) && sameTeam(y.away, x.away); }); });
     if (!rows.length){ bSay('Aucun match lu sur la capture. Utilise l\'écran « Matchs » de ta ligue MPP, avec les scores et tes pronos.'); return; }
-    var pick = function(x){ return {h:x.h, a:x.a, cote:x.cote, ph:x.ph, pa:x.pa, x2:x.x2, bonus:x.bonus}; };
+    var pick = function(x){ return {h:x.h, a:x.a, cote:x.cote, ph:x.ph, pa:x.pa, x2:x.x2, bonus:x.bonus, bguess:!!x.bguess}; };
     var list = cur(), used = [];
     // Les deux équipes doivent correspondre (une seule ne suffit pas : on pourrait mélanger deux journées)
     var pairs = list.map(function(m){
@@ -2944,7 +2956,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<div class="bfl"><label>Score ' + inp('h', r.h) + '–' + inp('a', r.a) + '</label>' +
         '<label>Ton prono ' + inp('ph', r.ph) + '–' + inp('pa', r.pa) + '</label>' +
         '<label>Cote ' + inp('cote', r.cote, 50) + '</label>' +
-        '<label>Bonus ' + inp('bonus', r.bonus, 42) + '</label>' +
+        '<label' + (r.bguess ? ' class="bguess" title="Bonus non lu sur la capture : vérifie-le"' : '') + '>Bonus' + (r.bguess ? ' ⚠️' : '') + ' ' + inp('bonus', r.bonus, 42) + '</label>' +
         '<label class="bx2"><input type="checkbox" data-bi="' + i + '" data-bf="x2"' + (r.x2 ? ' checked' : '') + '> x2</label></div></div>';
     }).join('');
   }
@@ -3082,7 +3094,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
             '<span class="ba" data-blv="' + k + ':' + mi + '">' + (m.best >= 0 ? '<i class="dot ' + (m.level || '') + '"></i>' + esc(adv) + ' ' + (okA ? '✓' : '✗')
               : me ? (function(){ var o2 = outOf(me.ph, me.pa), a2 = meth === 'old' ? ['1-0','1-1','0-1'][o2] : me.ph + '-' + me.pa; return (m.level ? '<i class="dot ' + m.level + '"></i>' : '<i class="dot nolv"></i>') + esc(a2) + ' ' + (o2 === ro ? '✓' : '✗'); })()
               : '<small class="note">sans conseil</small>') + '</span>' +
-            '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' 🎯' : '') : '–') + '</span></div>';
+            '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' <span class="bbon' + (me.bonus ? '' : ' miss') + '" data-bbon="' + k + ':' + mi + '">🎯' + (me.bonus ? ' +' + me.bonus : ' bonus ?') + '</span>' : '') : '–') + '</span></div>';
         }).join('');
         return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats <span class="bmk ' + meth + '">' + (meth === 'old' ? 'ancienne méthode' : 'JKD+') + '</span></summary>' +
           '<div class="brh"><span>Score réel</span><span>Conseil</span><span>Toi · pts</span></div>' + rows +
@@ -3107,6 +3119,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var arr = bilansOf(S.mode);
     if (d){ var b = arr[+d.dataset.bdel]; if (b && confirm('Supprimer le bilan de la J' + b.jn + ' ?')){ arr.splice(+d.dataset.bdel, 1); S.bDel = S.bDel || {}; (S.bDel[S.mode] = S.bDel[S.mode] || []).push({jn:b.jn, at:Date.now()}); save(); renderBilans(); } }
     if (sh) shareBilan(arr[+sh.dataset.bshare]);
+    // Toucher le 🎯 d'un score exact pour corriger son bonus de rareté
+    var bb = e.target.closest('[data-bbon]');
+    if (bb){
+      var ij2 = bb.dataset.bbon.split(':'), bl2 = arr[+ij2[0]], m2 = bl2 && bl2.matches[+ij2[1]], me2 = m2 && m2.mine;
+      if (!me2 || !m2.real) return;
+      var v2 = parseInt(prompt('Bonus de rareté de ce score exact ?\n20 (Exact), 30 (Rare), 50 (Très rare), 70 (Méga rare) ou 100 (Ultra rare)', me2.bonus || ''), 10);
+      if (BONUS_TIERS.indexOf(v2) < 0) return;
+      me2.bonus = v2;
+      me2.gain = mppGain({h:m2.real.h, a:m2.real.a, ph:me2.ph, pa:me2.pa, cote:me2.cote, x2:me2.x2, bonus:v2});
+      bl2.at = new Date().toISOString();
+      var op2 = [].map.call($('bList').querySelectorAll('details.bj'), function(d){ return d.open; });
+      save(); renderBilans();
+      [].forEach.call($('bList').querySelectorAll('details.bj'), function(d, i){ d.open = !!op2[i]; });
+      return;
+    }
     // Toucher la pastille d'un match change sa couleur : 🟢 → 🟠 → 🔴 → aucune
     var lv = e.target.closest('[data-blv]');
     if (lv){
