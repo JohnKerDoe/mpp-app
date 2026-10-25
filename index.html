@@ -367,6 +367,7 @@ body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !import
 .bstats .bmc b{font-size:15px}
 .bstats .bmc strong{color:var(--ink);font-size:15px}
 .bmk{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:1px}
+.bmk.run{background:#1F3550;color:#7DD3FC}
 .bmk.old{background:#5d4a1d;color:#f3d98a}.bmk.jkd{background:#1d4d2a;color:#a5e3b4}
 .bstats div{display:flex;flex-direction:column}
 .bstats b{font-size:18px;color:var(--ink)}
@@ -617,7 +618,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h05</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h15</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3112,8 +3113,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var html = '';
     if (!arr.length) html = '<p class="note">Aucun bilan pour l\'instant. Quand tous les matchs d\'une journée sont finis, importe la capture « Matchs » de ta ligue MPP (scores, cotes et points) avec le bouton ci-dessus.</p>';
     else {
-      var s = bilanStats(arr), avgB = s.bonus.length ? Math.round(s.bonus.reduce(function(a, b){ return a + b; }, 0) / s.bonus.length) : 0;
-      html += '<h3>Statistiques · ' + s.j + ' journée' + (s.j > 1 ? 's' : '') + '</h3><section class="grp bstats">' +
+      var done = arr.filter(function(b){ return !b.partial; }), s = bilanStats(done), avgB = s.bonus.length ? Math.round(s.bonus.reduce(function(a, b){ return a + b; }, 0) / s.bonus.length) : 0;
+      if (done.length) html += '<h3>Statistiques · ' + s.j + ' journée' + (s.j > 1 ? 's' : '') + '</h3><section class="grp bstats">' +
         '<div><b>' + s.pts + ' pts</b><span>gagnés · ' + Math.round(s.pts / Math.max(1, s.j)) + ' par journée</span></div>' +
         '<div><b>' + s.okMe + ' / ' + s.nMe + '</b><span>tes bons résultats (' + bpct(s.okMe, s.nMe) + ') · ' + (s.okMe / Math.max(1, s.j)).toFixed(1).replace('.', ',') + ' par journée en moyenne</span></div>' +
         (s.n ? '<div><b>' + s.okAdv + ' / ' + s.n + '</b><span>bons résultats du conseil JKD+, pour ' + s.expAdv.toFixed(1).replace('.', ',') + ' attendus</span></div>' : '') +
@@ -3121,12 +3122,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<div><b>🎯 ' + s.exMe + '</b><span>scores exacts trouvés' + (avgB ? ' · bonus moyen +' + avgB + ' pts' : '') + (s.n ? ' · conseil JKD+ : ' + s.exAdv : '') + '</span></div>' +
         (s.diff ? '<div><b>' + s.diff + ' écart' + (s.diff > 1 ? 's' : '') + '</b><span>au conseil : tu as gagné ' + s.diffMe + ' pts, le conseil aurait donné ' + s.diffAdv + ' pts (hors bonus)</span></div>' : '') +
         (s.x2n ? '<div><b>x2 · ' + s.x2n + '</b><span>bonus joués, +' + Math.round(s.x2plus) + ' pts rapportés</span></div>' : '') +
-        methHTML(S.mode, arr) +
+        methHTML(S.mode, done) +
         '<p class="note">' + (s.j < 10 ? 'Peu de journées : la chance pèse encore beaucoup, les tendances seront fiables après une dizaine de journées.' : 'Assez de journées pour commencer à lire des tendances.') + '</p></section>';
+      else html += '<p class="note">Les statistiques arriveront avec la première journée terminée.</p>';
       html += arr.map(function(b, k){
         var tot = 0, ok = 0, n = 0, meth = methOf(S.mode, b.jn);
         var rows = b.matches.map(function(m, mi){
-          if (!m.real) return '<div class="brl"><span class="bm">' + esc(m.home) + ' – ' + esc(m.away) + '</span><span class="note">non joué</span></div>';
+          if (!m.real) return '<div class="brl"><span class="bm">' + esc(m.home) + ' – ' + esc(m.away) + '</span><span class="note">' + (b.partial ? 'à noter' : 'non joué') + '</span></div>';
           var me = m.mine, ro = rOut(m.real), okA = m.best >= 0 && ro === m.best;
           if (me){ tot += me.gain || 0; n++; if (outOf(me.ph, me.pa) === ro) ok++; }
           var adv = m.best >= 0 ? (m.sc || ['1','N','2'][m.best]) : '–';
@@ -3136,7 +3138,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
               : '<small class="note">sans conseil</small>') + '</span>' +
             '<span class="bme">' + (me ? me.ph + '-' + me.pa + (me.x2 ? ' x2' : '') + ' · <b class="' + (me.gain ? 'gw' : 'gl') + '">' + (me.gain || 0) + '</b>' + (me.ph === m.real.h && me.pa === m.real.a ? ' <span class="bbon' + (me.bonus ? '' : ' miss') + '" data-bbon="' + k + ':' + mi + '">🎯' + (me.bonus ? ' +' + me.bonus : ' bonus ?') + '</span>' : '') : '–') + '</span></div>';
         }).join('');
-        return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats <span class="bmk ' + meth + '">' + (meth === 'old' ? 'ancienne méthode' : 'JKD+') + '</span></summary>' +
+        return '<details class="bj"><summary><b>J' + (b.jn || '?') + '</b> · ' + tot + ' pts · ' + ok + '/' + n + ' bons résultats <span class="bmk ' + meth + '">' + (meth === 'old' ? 'ancienne méthode' : 'JKD+') + '</span>' + (b.partial ? ' <span class="bmk run">en cours</span>' : '') + '</summary>' +
           '<div class="brh"><span>Score réel</span><span>Conseil</span><span>Toi · pts</span></div>' + rows +
           '<div class="bact"><button class="btn2" data-bshare="' + k + '" type="button">📤 Partager en image</button><button class="del" data-bdel="' + k + '" type="button" aria-label="Supprimer ce bilan">🗑</button></div></details>';
       }).join('');
@@ -3266,7 +3268,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         }
         // La journée est finie quand tous ses matchs non reportés sont terminés
         var ready = norm.length && norm.every(function(m){ return matchState(m) === 'done'; }) && rep.every(function(m){ return matchState(m) !== 'live'; });
-        if (!ready || bilansOf(md.id).some(function(b){ return b.jn === jn; })){ S.mode = keep; return; }
+        if (!ready || bilansOf(md.id).some(function(b){ return b.jn === jn && !b.partial; })){ S.mode = keep; return; }
         a[jn] = {jn:jn, at:new Date().toISOString(), matches:list.map(function(m){ var sn = snapMatch(m); if (m.rep && matchState(m) === 'done') sn.final = true; return sn; })};
         S.mode = keep; changed = true;
       });
@@ -3328,7 +3330,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     closeQR();
     var made = quickBilans();
     renderAll(); save();
-    status('Résultats enregistrés.' + (made.length ? '\nBilan de la J' + made.join(', J') + ' mis à jour.' : '\nLe bilan se fera quand tous les matchs de la journée seront notés.'));
+    status('Résultats enregistrés.' + (made.length ? '\nBilan de la J' + made.join(', J') + ' mis à jour.' : ''));
   });
   // Bilan d'une journée à partir de la saisie rapide (quand tous ses matchs sont finis et notés)
   function quickBilans(){
@@ -3336,21 +3338,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     all.forEach(function(m){ if (m.jn && jns.indexOf(m.jn) < 0) jns.push(m.jn); });
     jns.forEach(function(jn){
       var list = all.filter(function(m){ return m.jn === jn && !(m.rep && matchState(m) !== 'done'); });
-      if (!list.length || !list.every(function(m){ return matchState(m) === 'done' && m.qr; })) return;
+      var noted = function(m){ return matchState(m) === 'done' && m.qr; };
+      if (!list.some(noted)) return;
+      var partial = !list.every(noted);
       var arr = bilansOf(S.mode), at = arr.map(function(b){ return b.jn; }).indexOf(jn);
       if (at >= 0 && arr[at].src !== 'quick') return;                  // un bilan fait avec la capture reste prioritaire
       var arc = S.archive && S.archive[S.mode] && S.archive[S.mode][jn];
       var matches = list.map(function(m){
         var sn = (arc && arc.matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]) || snapMatch(m);
-        var q = m.qr, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
+        var q = noted(m) ? m.qr : null, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
         if (sn.best < 0 || isNaN(ph)){ ph = [1, 1, 0][sn.best] || 0; pa = [0, 1, 1][sn.best] || 0; }
-        var x2 = q.x2 !== undefined ? !!q.x2 : x2Used(m, jn), cote = sn.pts ? N(sn.pts[sn.best]) : null;
+        var x2 = q && q.x2 !== undefined ? !!q.x2 : x2Used(m, jn), cote = sn.pts ? N(sn.pts[sn.best]) : null;
+        if (!q) return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc, real:null, mine:null};
         var gain = q.ok ? ((cote || 0) + (q.ex ? q.bonus : 0)) * (x2 ? 2 : 1) : 0;
         return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc,
           real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? sn.best : -1},
           mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
       });
       var entry = {jn:jn, at:new Date().toISOString(), src:'quick', matches:matches};
+      if (partial) entry.partial = true;
       if (at >= 0) arr[at] = entry; else arr.push(entry);
       arr.sort(function(a, b){ return (b.jn || 0) - (a.jn || 0); });
       made.push(jn);
