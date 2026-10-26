@@ -618,7 +618,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>25/10 · 10h20</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>26/10 · 18h50</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1995,7 +1995,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
 
   // Fond sombre → fond blanc, texte clair → noir, image agrandie : lecture plus fiable
-  function prepImage(file, thr){
+  function prepImage(file, thr, light){
     return new Promise(function(res, rej){
       var url = URL.createObjectURL(file), img = new Image();
       img.onload = function(){
@@ -2007,7 +2007,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var d = x.getImageData(0, 0, c.width, c.height), p = d.data;
         for (var i = 0; i < p.length; i += 4){
           var g = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
-          p[i] = p[i + 1] = p[i + 2] = g > (thr || 110) ? 0 : 255;
+          p[i] = p[i + 1] = p[i + 2] = (light ? g < (thr || 140) : g > (thr || 110)) ? 0 : 255;
         }
         x.putImageData(d, 0, 0);
         URL.revokeObjectURL(url);
@@ -2040,6 +2040,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (best) return {k:j, end:e, pts:best};
     }
     return null;
+  }
+  // Capture Pinnacle « Score exact » : « Montpellier 1, Red Star 0   9.870 »
+  function parsePinCS(text){
+    var o = {}, names = {}, n = 0;
+    String(text || '').split(/\n/).forEach(function(l){
+      l = l.replace(/(\s)[oO]{1,2}(?=\s*[,;.]?\s)/g, '$10').replace(/[oO](?=\d)|(\d)[oO]/g, function(x, d){ return d ? d + '0' : '0'; }).replace(/\s+/g, ' ').trim();
+      var m = l.match(/^(.*?[A-Za-zÀ-ÿ].*?)\s+(\d{1,2})\s*[,;.]?\s+(.*?[A-Za-zÀ-ÿ].*?)\s+(\d{1,2})\s+(\d{1,3}[.,]\d{2,3})$/);
+      if (!m) return;
+      var price = parseFloat(m[5].replace(',', '.'));
+      if (!(price > 1)) return;
+      o[(+m[2]) + '-' + (+m[4])] = price; n++;
+      var k = m[1].trim() + '|' + m[3].trim(); names[k] = (names[k] || 0) + 1;
+    });
+    var best = Object.keys(names).sort(function(a, b){ return names[b] - names[a]; })[0];
+    if (n < 6 || !best) return null;
+    var p = best.split('|');
+    return {home:p[0], away:p[1], o:o, n:n};
   }
   function parseOcr(text){
     var out = [], lines = text.split(/\n/), curDay = '', curTime = '', curJ = null;
@@ -2084,7 +2101,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (curDay && /\d{1,2}\s?[hHM]\s?\d{1,2}\b/.test(line) && /[-–—]/.test(line)) dayOf(curDay).times++;   // « J8 - 20h45 » : un match
         continue;
       }
-      if (pts.some(function(v){ return +v < 1; })) continue;
+      if (pts.some(function(v){ return +v < 5 || +v > 500; })) continue;   // points MPP plausibles
       var home = clean(tok.slice(0, k)), away = clean(tok.slice(kEnd));
       var crowd = null;
       for (var n = 1; n <= 2 && !crowd; n++){
@@ -2317,6 +2334,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         }
       });
       if (!found.length){
+        // Pas de points MPP : c'est peut-être une capture Pinnacle des scores exacts
+        var csDone = [];
+        for (var f2 = 0; f2 < files.length; f2++){
+          var t2 = (await worker.recognize(await prepImage(files[f2], 140, true))).data.text || '', pc = parsePinCS(t2);
+          if (!pc) continue;
+          var mm = cur().filter(function(m){ return sameTeam(m.home, pc.home) && sameTeam(m.away, pc.away); })[0];
+          if (!mm){ csDone.push('⚠️ ' + pc.home + ' – ' + pc.away + ' : match introuvable dans l\'onglet'); continue; }
+          var b4 = advScore(mm);
+          mm.cs = {bk:'Pinnacle (capture)', at:new Date().toISOString(), o:pc.o};
+          noteSc(mm, b4, 'cs');
+          var c2 = calc(mm);
+          csDone.push('🎯 ' + mm.home + ' – ' + mm.away + ' : ' + pc.n + ' scores lus, conseil ' + scoreOf(c2, c2.best) + (b4 && b4 !== scoreOf(c2, c2.best) ? ' (avant ' + b4 + ')' : ''));
+        }
+        if (csDone.length){ renderAll(); save(); status('Capture Pinnacle des scores exacts :\n' + csDone.join('\n')); return; }
         status('Aucun point trouvé sur la capture. Essaie une capture plus nette.');
       } else {
         pending = found;
@@ -2714,7 +2745,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var n = Object.keys(done).length, miss = Object.keys(byFix).filter(function(k){ return !done[k]; }).map(function(k){ return byFix[k].home + ' – ' + byFix[k].away; });
       var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length + ' à chercher' +
         (n ? ' (' + Object.keys(used).map(function(b){ return b + ' ' + used[b]; }).join(', ') + ')' : '') + '.'];
-      if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.');
+      if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.\n📷 Astuce : fais une capture du bloc « Score exact » sur Pinnacle et importe-la avec 📷 Points (ou Partager → JKD+).');
       if (notFound.length){
         msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
         // Matchs d'OddsPapi non reconnus à la même période : souvent le même match écrit autrement (à ajouter dans ⚙️ Noms d'équipes)
