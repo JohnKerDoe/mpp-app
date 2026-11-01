@@ -623,7 +623,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>1/11 · 13h30</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>1/11 · 13h40</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1901,7 +1901,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     $('impStatus').textContent = t; $('impBox').hidden = !t;
     $('impBox').classList.toggle('ok', kind === 'ok');
     $('impBox').classList.toggle('warn', kind === 'warn');
-    if (t && kind === 'ok') statusTimer = setTimeout(function(){ status(''); }, 6000);
+    if (t && kind === 'ok') statusTimer = setTimeout(function(){ status(''); }, 3000);
   }
   $('impClose').addEventListener('click', function(){ status(''); });
 
