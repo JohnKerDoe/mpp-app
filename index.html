@@ -210,6 +210,10 @@ html[data-theme="dark"] .btn.ghost{color:#fff}
 .improw .btn{flex:1;min-width:0;margin:0;padding:12px 6px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .impbox{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 4px 8px 10px}
 .impstatus{flex:1;min-width:0;margin:0;font-size:13px;color:var(--ink-2);white-space:pre-line}
+.impbox.ok{background:#22A45D;border-color:#22A45D}
+.impbox.warn{background:#F08C00;border-color:#F08C00}
+.impbox.ok .impstatus,.impbox.ok .del{color:#fff}
+.impbox.warn .impstatus,.impbox.warn .del{color:#1B1300}
 .impbox .del{flex:none;padding:0 8px}
 .imp .add{margin-top:8px}
 .keyrow{display:flex;gap:8px;margin:6px 0}
@@ -619,7 +623,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>26/10 · 22h55</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>1/11 · 13h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1890,7 +1894,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     return res;
   }
 
-  function status(t){ $('impStatus').textContent = t; $('impBox').hidden = !t; }
+  // kind : 'ok' (vert, s'efface tout seul) · 'warn' (orange, reste affiché) · rien (message neutre, en cours)
+  var statusTimer = null;
+  function status(t, kind){
+    clearTimeout(statusTimer);
+    $('impStatus').textContent = t; $('impBox').hidden = !t;
+    $('impBox').classList.toggle('ok', kind === 'ok');
+    $('impBox').classList.toggle('warn', kind === 'warn');
+    if (t && kind === 'ok') statusTimer = setTimeout(function(){ status(''); }, 6000);
+  }
   $('impClose').addEventListener('click', function(){ status(''); });
 
   // Crédits The Odds API restants, affichés en haut à droite
@@ -1963,7 +1975,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       if (!cur().length){
         status('Importe d\'abord ta capture MPP : seuls ses matchs reçoivent des cotes.');
       } else if (!Array.isArray(events) || !events.length){
-        status(mode.name + ' : aucun match à venir trouvé.');
+        status(mode.name + ' : aucun match à venir trouvé.', 'warn');
       } else {
         var res = applyEvents(events);
         if (res.updated){ S.lastImport = S.lastImport || {}; S.lastImport[S.mode] = new Date().toISOString(); }
@@ -1972,11 +1984,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         res.notes.forEach(function(t){ lines.push('• ' + t); });
         if (viaOP) lines.push('Cotes Pinnacle récupérées via OddsPapi (The Odds API : ' + viaOP + ').');
         else if (left !== null) lines.push('Crédits restants : ' + left + '.');
-        status(lines.join('\n'));
+        status(lines.join('\n'), res.updated >= res.pre && !res.notes.length ? 'ok' : 'warn');
         renderAll(); save();
       }
     } catch (e) {
-      status(e.message || 'Import impossible.');
+      status(e.message || 'Import impossible.', 'warn');
     } finally {
       btn.disabled = false; btn.textContent = '🔄 Cotes';
     }
@@ -2360,7 +2372,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           var c2 = calc(mm);
           csDone.push('🎯 ' + mm.home + ' – ' + mm.away + ' : ' + pc.n + ' scores lus, conseil ' + scoreOf(c2, c2.best) + (b4 && b4 !== scoreOf(c2, c2.best) ? ' (avant ' + b4 + ')' : ''));
         }
-        if (csDone.length){ renderAll(); save(); status('Capture Pinnacle des scores exacts :\n' + csDone.join('\n')); return; }
+        if (csDone.length){ renderAll(); save(); status('Capture Pinnacle des scores exacts :\n' + csDone.join('\n'), csDone.some(function(x){ return x.charAt(0) === '⚠'; }) ? 'warn' : 'ok'); return; }
         status('Aucun point trouvé sur la capture. Essaie une capture plus nette.');
       } else {
         pending = found;
@@ -2569,9 +2581,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var msg = [mode.name + ' : scores exacts mis à jour pour ' + ok + ' match' + (ok > 1 ? 's' : '') + ' sur ' + todo.length + '.'];
       if (none.length) msg.push('Pas encore de cotes score exact : ' + none.join(', ') + '. Elles arrivent souvent à l\'approche du match.');
       if (left !== null) msg.push('Crédits restants : ' + left + '.');
-      status(msg.join('\n'));
+      status(msg.join('\n'), !none.length ? 'ok' : 'warn');
     } catch (e) {
-      status(e.message || 'Import impossible. Vérifie ta connexion internet.');
+      status(e.message || 'Import impossible. Vérifie ta connexion internet.', 'warn');
     } finally {
       btn.disabled = false; btn.textContent = '🎯 Scores';
     }
@@ -2769,9 +2781,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       }
       try { var acc = await opGet('/account'); var sub = acc && (acc.subscription || (acc.subscriptions && acc.subscriptions[0]) || acc);
         if (sub && sub.request_limit){ setOpCredits(sub.request_limit - sub.request_count); msg.push('Requêtes OddsPapi : ' + sub.request_count + ' / ' + sub.request_limit + ' ce mois-ci.'); } } catch (e) {}
-      status(msg.join('\n'));
+      status(msg.join('\n'), !miss.length && !notFound.length ? 'ok' : 'warn');
     } catch (e) {
-      status(e.message || 'Import impossible.');
+      status(e.message || 'Import impossible.', 'warn');
     } finally {
       btn.disabled = false; btn.textContent = '🎯 Scores';
     }
