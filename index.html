@@ -185,6 +185,8 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .qrcols{margin-top:12px;font-size:11px;font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.5px;text-align:center}.qrcols span:first-child{text-align:left}
 .qrrow{padding:9px 0;border-top:1px solid var(--line);font-size:14.5px;font-weight:600}.qrrow.focus{background:rgba(125,211,252,.10);border-radius:8px}
 .qrn small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
+.qrpr{display:block;margin-top:2px;padding:0;border:0;background:transparent;color:var(--mute);font:500 12px Inter,sans-serif;text-align:left;cursor:pointer}
+.qrpr.own{color:var(--chg)}.qrpr.own b{font-weight:800}.qrpr s{opacity:.7;margin-left:4px}
 .qrb{width:30px;height:30px;margin:auto;border-radius:8px;border:2px solid var(--mute);background:transparent;color:#fff;font:900 15px Inter,sans-serif;cursor:pointer}.qrb.on{background:var(--acc);border-color:var(--acc)}.qrb.x2.on{background:#E91E63;border-color:#E91E63}
 .qrbon{margin:auto;border:1.5px solid var(--line);border-radius:999px;background:transparent;color:var(--mute);font:800 13px Inter,sans-serif;padding:5px 9px;cursor:pointer}.qrbon.on{background:#FFC94D;color:#0C1633;border-color:#FFC94D}
 .qrshot{display:block;width:100%;margin-top:10px;background:transparent;border:0;color:var(--ink-2);font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer}
@@ -550,7 +552,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <div class="qrsheet" id="qrSheet" hidden>
     <div class="qrbox" role="dialog" aria-labelledby="qrT">
       <div class="qrgrab"></div>
-      <div class="qrhead"><div><b id="qrT">Matchs terminés</b><small>Coche ce qui est passé · touche le bonus pour le changer</small></div><button class="del" id="qrClose" type="button" aria-label="Fermer">×</button></div>
+      <div class="qrhead"><div><b id="qrT">Matchs terminés</b><small>Coche ce qui est passé · touche le prono ✎ ou le bonus pour le changer</small></div><button class="del" id="qrClose" type="button" aria-label="Fermer">×</button></div>
       <div class="qrcols"><span>Match</span><span>✓</span><span>🎯</span><span>x2</span><span>Bonus</span></div>
       <div id="qrList"></div>
       <button class="btn" id="qrSave" type="button">Enregistrer</button>
@@ -631,7 +633,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 20h40</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 23h20</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3411,7 +3413,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function openQR(focusKey){
     var list = qrMatches();
     if (!list.length) return;
-    qrDraft = list.map(function(m){ var q = m.qr || {}; return {m:m, ok:!!q.ok, ex:!!q.ex, bonus:q.bonus || 20, x2:q.x2 !== undefined ? !!q.x2 : x2Used(m, m.jn || tabJ())}; });
+    qrDraft = list.map(function(m){ var q = m.qr || {}; return {m:m, ok:!!q.ok, ex:!!q.ex, bonus:q.bonus || 20, mine:q.mine || null, x2:q.x2 !== undefined ? !!q.x2 : x2Used(m, m.jn || tabJ())}; });
     renderQR();
     $('qrSheet').hidden = false; document.body.classList.add('noscroll');
     if (focusKey){ var row = $('qrList').querySelector('[data-qk="' + focusKey + '"]'); if (row){ row.classList.add('focus'); row.scrollIntoView({block:'center'}); } }
@@ -3419,8 +3421,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function closeQR(){ $('qrSheet').hidden = true; document.body.classList.remove('noscroll'); qrDraft = null; }
   function renderQR(){
     $('qrList').innerHTML = qrDraft.map(function(d, i){
-      var c = calc(d.m), sc = scoreOf(c, c.best);
-      return '<div class="qrrow" data-qk="' + esc(mkey(d.m)) + '"><span class="qrn">' + esc(d.m.home) + ' – ' + esc(d.m.away) + '<small>prono ' + sc + ' · cote ' + N(d.m.pts[c.best]) + '</small></span>' +
+      var c = calc(d.m), sc = scoreOf(c, c.best), mi = d.mine;
+      // Toucher le prono pour indiquer celui que tu as vraiment joué sur MPP
+      var pr = mi ? '<button type="button" class="qrpr own" data-qi="' + i + '" data-qf="mine">ton prono <b>' + mi.ph + '-' + mi.pa + '</b> ✎ · cote ' + N(d.m.pts[outOf(mi.ph, mi.pa)]) + ' <s>' + sc + '</s></button>'
+        : '<button type="button" class="qrpr" data-qi="' + i + '" data-qf="mine">prono ' + sc + ' ✎ · cote ' + N(d.m.pts[c.best]) + '</button>';
+      return '<div class="qrrow" data-qk="' + esc(mkey(d.m)) + '"><span class="qrn">' + esc(d.m.home) + ' – ' + esc(d.m.away) + pr + '</span>' +
         '<button type="button" class="qrb' + (d.ok ? ' on' : '') + '" data-qi="' + i + '" data-qf="ok" aria-label="Bon résultat">' + (d.ok ? '✓' : '') + '</button>' +
         '<button type="button" class="qrb' + (d.ex ? ' on' : '') + '" data-qi="' + i + '" data-qf="ex" aria-label="Score exact">' + (d.ex ? '✓' : '') + '</button>' +
         '<button type="button" class="qrb x2' + (d.x2 ? ' on' : '') + '" data-qi="' + i + '" data-qf="x2" aria-label="Bonus x2 joué">' + (d.x2 ? '✓' : '') + '</button>' +
@@ -3434,6 +3439,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (f === 'ex'){ d.ex = !d.ex; if (d.ex) d.ok = true; }
     if (f === 'x2') d.x2 = !d.x2;
     if (f === 'bonus') d.bonus = BONUS_CYCLE[(BONUS_CYCLE.indexOf(d.bonus) + 1) % BONUS_CYCLE.length];
+    if (f === 'mine'){
+      var c0 = calc(d.m), adv = scoreOf(c0, c0.best);
+      var v = prompt('Ton prono joué sur MPP pour ' + d.m.home + ' – ' + d.m.away + ' ?\n(ex. 1-1 · laisse vide pour le prono conseillé ' + adv + ')', d.mine ? d.mine.ph + '-' + d.mine.pa : adv);
+      if (v === null) return;
+      var g = v.match(/(\d+)\D+(\d+)/);
+      d.mine = g && (g[1] + '-' + g[2]) !== adv ? {ph:+g[1], pa:+g[2]} : null;
+    }
     renderQR();
   });
   $('qrClose').addEventListener('click', closeQR);
@@ -3445,6 +3457,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var st = x2State();
     qrDraft.forEach(function(d){
       d.m.qr = {ok:d.ok, ex:d.ex, bonus:d.ex ? d.bonus : 0, x2:d.x2, at:at};
+      if (d.mine) d.m.qr.mine = d.mine;
       // Le stock de bonus x2 suit ce que tu as coché
       var k = mkey(d.m), jn = d.m.jn || tabJ(), i0 = st.list.findIndex(function(u){ return u.key === k && (!u.jn || !jn || u.jn === jn); });
       if (d.x2 && i0 < 0) st.list.push({key:k, jn:jn || null, name:d.m.home + ' – ' + d.m.away});
@@ -3474,11 +3487,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         var sn = (arc && arc.matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]) || snapMatch(m);
         var q = noted(m) ? m.qr : null, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
         if (sn.best < 0 || isNaN(ph)){ ph = [1, 1, 0][sn.best] || 0; pa = [0, 1, 1][sn.best] || 0; }
-        var x2 = q && q.x2 !== undefined ? !!q.x2 : x2Used(m, jn), cote = sn.pts ? N(sn.pts[sn.best]) : null;
+        if (q && q.mine){ ph = q.mine.ph; pa = q.mine.pa; }            // prono joué différent du conseil
+        var oMine = outOf(ph, pa);
+        var x2 = q && q.x2 !== undefined ? !!q.x2 : x2Used(m, jn), cote = sn.pts ? N(sn.pts[q && q.mine ? oMine : sn.best]) : null;
         if (!q) return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc, real:null, mine:null};
         var gain = q.ok ? ((cote || 0) + (q.ex ? q.bonus : 0)) * (x2 ? 2 : 1) : 0;
         return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc,
-          real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? sn.best : -1},
+          real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? (q.mine ? oMine : sn.best) : -1},
           mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
       });
       if (at >= 0 && !!arr[at].partial === partial && JSON.stringify(arr[at].matches) === JSON.stringify(matches)) return;   // rien de nouveau
