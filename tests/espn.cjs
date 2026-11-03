@@ -20,16 +20,22 @@ const UCL = {events:[
   let calls = 0;
   await p.route('https://**/*', r => {
     const u = r.request().url();
-    if (/site\.api\.espn\.com/.test(u)){ calls++; return r.fulfill({status:200, contentType:'application/json', headers:{'access-control-allow-origin':'*'}, body:JSON.stringify(/uefa\.champions/.test(u) ? UCL : {events:[]})}); }
+    if (/site\.api\.espn\.com/.test(u)){
+      calls++; const d = (u.match(/dates=([\d-]+)/) || [])[1] || '';
+      if (/-/.test(d) || /limit=/.test(u)) return r.fulfill({status:400, body:'{}'});   // comme le vrai ESPN : plage refusée
+      const day = e => e.date.slice(0, 10).replace(/-/g, '') === d;
+      return r.fulfill({status:200, contentType:'application/json', headers:{'access-control-allow-origin':'*'}, body:JSON.stringify(/uefa\.champions/.test(u) ? {events:UCL.events.filter(day)} : {events:[]})});
+    }
     return r.fulfill({status:404, body:'{}'});
   });
   await p.clock.install({time:new Date('2026-11-03T23:50:00+01:00')});
   await p.addInitScript(s => { if (localStorage.getItem('mpp-esperance-v2')) return; s = JSON.parse(JSON.stringify(s)); s.mode = 'ldc';
     s.data.ldc.forEach(m => { delete m.qr; delete m.score; }); if (s.bDel) s.bDel.ldc = []; s.bilans.ldc = s.bilans.ldc.filter(b => b.jn !== 4); localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
   await p.goto(APP); await p.clock.runFor(3000);
+  await p.waitForFunction(() => JSON.parse(localStorage.getItem('mpp-esperance-v2')).data.ldc.filter(m => m.score).length >= 4, null, {timeout:5000}).catch(() => {});
   const sc = await p.evaluate(() => JSON.parse(localStorage.getItem('mpp-esperance-v2')).data.ldc.filter(m => m.score).map(m => m.home + ' ' + m.score.h + '-' + m.score.a));
   console.log(sc);
-  ok(calls >= 1, 'ESPN appelé au démarrage (' + calls + ' appel)');
+  ok(calls >= 1, 'ESPN appelé au démarrage, un jour à la fois (' + calls + ' appels)');
   ok(sc.length === 4 && sc.includes('Shakhtar 0-1') && sc.includes('Bodo/Glimt 0-0'), '4 scores trouvés malgré les noms ESPN (Bodø, Sporting CP, PSG…), match pas fini ignoré');
   await p.click('#qrOpen'); await p.waitForTimeout(300);
   const rows = await p.$$eval('#qrList .qrrow', r => r.map(x => ({t:x.innerText.replace(/\n/g, ' '), ok:x.querySelector('[data-qf="ok"]').classList.contains('on'), ex:x.querySelector('[data-qf="ex"]').classList.contains('on')})));

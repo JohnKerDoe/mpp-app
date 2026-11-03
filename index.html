@@ -633,7 +633,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h05</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h15</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3437,16 +3437,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function espnLg(md){ return {l1:'fra.1', l2:'fra.2', ldc:'uefa.champions'}[md]; }
   function espnAtOf(){ return window.__espnAt || (window.__espnAt = {}); }
   function ymd(t){ var d = new Date(t); return '' + d.getUTCFullYear() + ('0' + (d.getUTCMonth() + 1)).slice(-2) + ('0' + d.getUTCDate()).slice(-2); }
-  async function espnGet(md, from, to){
-    var r = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/' + espnLg(md) + '/scoreboard?limit=200&dates=' + ymd(from) + '-' + ymd(to));
+  // Un appel par jour (ESPN refuse certaines plages de dates : erreur 400)
+  async function espnDay(md, t){
+    var r = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/' + espnLg(md) + '/scoreboard?dates=' + ymd(t));
     if (!r.ok) throw new Error('ESPN ' + r.status);
     var j = await r.json();
     return (j.events || []).map(function(ev){
       var c = (ev.competitions || [])[0] || {}, cs = c.competitors || [], st = (ev.status || c.status || {}).type || {};
       var side = function(w){ return cs.filter(function(x){ return x.homeAway === w; })[0] || {}; }, h = side('home'), a = side('away');
       var nm = function(x){ var t = x.team || {}; return [t.displayName, t.shortDisplayName, t.name, t.location].filter(Boolean); };
-      return {t:Date.parse(ev.date), done:!!st.completed || st.state === 'post', home:nm(h), away:nm(a), h:parseInt(h.score, 10), a:parseInt(a.score, 10)};
+      var sc = function(x){ return parseInt(typeof x.score === 'object' && x.score ? x.score.value : x.score, 10); };
+      return {t:Date.parse(ev.date), done:!!st.completed || st.state === 'post', home:nm(h), away:nm(a), h:sc(h), a:sc(a)};
     });
+  }
+  async function espnGet(md, from, to){
+    var out = [], err = null, n = 0;
+    for (var t = from; ymd(t) <= ymd(to) && n < 8; t += 864e5, n++){
+      try { out = out.concat(await espnDay(md, t)); } catch (e) { err = err || e; }
+    }
+    if (!out.length && err) throw err;
+    return out;
   }
   function espnFind(list, m){
     var ko = kickoff(m), any = function(names, t){ return names.some(function(n){ return sameTeam(n, t); }); };
@@ -3483,13 +3493,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   $('espnTest').addEventListener('click', async function(){
     var el = $('espnState'); el.textContent = 'Test en cours…';
     try {
-      var now = Date.now(), lines = [];
+      var now = Date.now(), lines = [], okN = 0;
       for (var md of ['l1', 'l2', 'ldc']){
-        var evs = (await espnGet(md, now - 4 * 864e5, now)).filter(function(e){ return e.done; });
         var nm = MODES.filter(function(x){ return x.id === md; })[0].name;
-        lines.push(nm + ' : ' + evs.length + ' match' + (evs.length > 1 ? 's' : '') + (evs.length ? ' (ex. ' + evs[evs.length - 1].home[0] + ' ' + evs[evs.length - 1].h + '-' + evs[evs.length - 1].a + ' ' + evs[evs.length - 1].away[0] + ')' : ''));
+        try {
+          var evs = (await espnGet(md, now - 4 * 864e5, now)).filter(function(e){ return e.done; }), z = evs[evs.length - 1];
+          okN++; lines.push(nm + ' : ' + evs.length + ' match' + (evs.length > 1 ? 's' : '') + (z ? ' (ex. ' + z.home[0] + ' ' + z.h + '-' + z.a + ' ' + z.away[0] + ')' : ''));
+        } catch (e) { lines.push(nm + ' : ⚠️ ' + e.message); }
       }
-      el.textContent = '✅ ESPN répond. Matchs finis ces 4 derniers jours — ' + lines.join(' · ');
+      el.textContent = (okN ? '✅ ESPN répond. Matchs finis ces 4 derniers jours — ' : '⚠️ ESPN ne répond pas depuis cet appareil — ') + lines.join(' · ');
     } catch (e) { el.textContent = '⚠️ ESPN ne répond pas depuis cet appareil (' + e.message + '). Les scores restent à saisir à la main.'; }
   });
   function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
