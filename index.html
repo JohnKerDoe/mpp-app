@@ -552,7 +552,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <div class="qrsheet" id="qrSheet" hidden>
     <div class="qrbox" role="dialog" aria-labelledby="qrT">
       <div class="qrgrab"></div>
-      <div class="qrhead"><div><b id="qrT">Matchs terminés</b><small>Coche ce qui est passé · touche le prono ✎ ou le bonus pour le changer</small></div><button class="del" id="qrClose" type="button" aria-label="Fermer">×</button></div>
+      <div class="qrhead"><div><b id="qrT">Matchs terminés</b><small>Score ESPN pré-rempli · touche le prono ✎ ou le bonus pour le changer</small></div><button class="del" id="qrClose" type="button" aria-label="Fermer">×</button></div>
       <div class="qrcols"><span>Match</span><span>✓</span><span>🎯</span><span>x2</span><span>Bonus</span></div>
       <div id="qrList"></div>
       <button class="btn" id="qrSave" type="button">Enregistrer</button>
@@ -633,7 +633,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 23h20</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h05</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -657,6 +657,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
     </section>
 
+
+    <h3>Scores réels (ESPN)</h3>
+    <section class="grp">
+      <button class="btn2" id="espnTest" type="button">Tester les scores</button>
+      <p class="note" id="espnState">Après chaque match, JKD+ récupère le score final sur ESPN (gratuit, sans clé) et pré-remplit 🏁 Résultats.</p>
+    </section>
 
     <h3>OddsPapi (scores exacts)</h3>
     <section class="grp">
@@ -3203,10 +3209,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   // « Et si j'avais joué le favori ? » : issue à la plus petite cote Pinnacle, points hors bonus et x2,
   // comparés à tes points sur les mêmes matchs (hors bonus et x2). Journées jouées avec le conseil JKD+ seulement.
   function favStats(md, arr){
-    var o = {j:0, n:0, fav:0, me:0, okF:0, okMe:0, skip:0};
+    var o = {j:0, n:0, fav:0, me:0, okF:0, okMe:0, skip:0, noData:[]};
     arr.forEach(function(b){
       if (methOf(md, b.jn) !== 'jkd') return;
       var used = false;
+      if (!b.matches.some(function(m){ return m.pts && m.odds; })) o.noData.push(b.jn);
       b.matches.forEach(function(m){
         var me = m.mine;
         if (!m.real || !me || !m.pts || !m.odds || !m.odds.every(function(x){ return x > 1; })) return;
@@ -3226,7 +3233,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var f = favStats(md, arr); if (!f.n) return '';
     var d = Math.round(f.me - f.fav);
     return '<div><b>' + (d >= 0 ? '+' : '') + d + ' pts</b><span>face au favori : avec le favori Pinnacle à chaque match, tu aurais eu ' + Math.round(f.fav) + ' pts (' + f.okF + ' bons) ; tu en as eu ' + Math.round(f.me) + ' (' + f.okMe + ' bons) sur les mêmes ' + f.n + ' matchs, hors bonus et x2' +
-      (f.j ? ' · ' + (d / f.j >= 0 ? '+' : '') + (d / f.j).toFixed(1).replace('.', ',') + ' par journée' : '') + (f.skip ? ' · ' + f.skip + ' match' + (f.skip > 1 ? 's' : '') + ' sans score réel ignoré' + (f.skip > 1 ? 's' : '') : '') + '</span></div>';
+      (f.j ? ' · ' + (d / f.j >= 0 ? '+' : '') + (d / f.j).toFixed(1).replace('.', ',') + ' par journée' : '') + (f.skip ? ' · ' + f.skip + ' match' + (f.skip > 1 ? 's' : '') + ' raté' + (f.skip > 1 ? 's' : '') + ' sans score réel ignoré' + (f.skip > 1 ? 's' : '') : '') +
+      (f.noData.length ? ' · J' + f.noData.sort(function(a, b){ return a - b; }).join(', J') + ' non comptée' + (f.noData.length > 1 ? 's' : '') + ' (pas de cotes enregistrées)' : '') + '</span></div>';
   }
   function renderBilans(){
     if (renderBilans.mode && renderBilans.mode !== S.mode) bSay('');   // message de l'autre compétition effacé
@@ -3400,8 +3408,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     if (changed){ var q = syncApplying; syncApplying = true; save(); syncApplying = q; }
   }
+  // Correctifs ponctuels : scores réels de matchs ratés notés sans score (vérifiés après coup)
+  function fixBilans(){
+    var n = 0, REAL_FIX = [{md:'l1', jn:8, home:'Lens', away:'Paris FC', h:2, a:1}, {md:'l1', jn:9, home:'Paris FC', away:'Monaco', h:3, a:1}];
+    REAL_FIX.forEach(function(f){
+      var b = bilansOf(f.md).filter(function(x){ return x.jn === f.jn; })[0]; if (!b) return;
+      b.matches.forEach(function(m){
+        if (m.real && (m.real.h === null || m.real.h === undefined) && m.real.o === -1 && sameTeam(m.home, f.home) && sameTeam(m.away, f.away)){
+          m.real = {h:f.h, a:f.a}; b.at = new Date().toISOString(); n++;
+        }
+      });
+    });
+    return n;
+  }
   function updateBilanBar(){
     autoArchive(); $('clearDone').hidden = !cur().length;
+    autoScores();
+    if (fixBilans()){ var qf = syncApplying; syncApplying = true; save(); syncApplying = qf; if (VIEW === 'bilans') renderBilans(); }
     if (quickBilans().length){ var q0 = syncApplying; syncApplying = true; save(); syncApplying = q0; if (VIEW === 'bilans') renderBilans(); }
     var nd = cur().filter(function(m){ return matchState(m) === 'done'; }), todo = nd.filter(function(m){ return !m.qr; }).length;
     $('qrOpen').hidden = !nd.length;
@@ -3409,13 +3432,74 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   /* ---------- Saisie rapide des résultats (sans capture) ---------- */
   var qrDraft = null, BONUS_CYCLE = [20, 30, 50, 70, 100];
+  /* ---------- Scores réels (ESPN, gratuit, sans clé) ---------- */
+  // (pas de « var » ici : ces fonctions servent dès le démarrage, avant que cette ligne ne soit lue)
+  function espnLg(md){ return {l1:'fra.1', l2:'fra.2', ldc:'uefa.champions'}[md]; }
+  function espnAtOf(){ return window.__espnAt || (window.__espnAt = {}); }
+  function ymd(t){ var d = new Date(t); return '' + d.getUTCFullYear() + ('0' + (d.getUTCMonth() + 1)).slice(-2) + ('0' + d.getUTCDate()).slice(-2); }
+  async function espnGet(md, from, to){
+    var r = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/' + espnLg(md) + '/scoreboard?limit=200&dates=' + ymd(from) + '-' + ymd(to));
+    if (!r.ok) throw new Error('ESPN ' + r.status);
+    var j = await r.json();
+    return (j.events || []).map(function(ev){
+      var c = (ev.competitions || [])[0] || {}, cs = c.competitors || [], st = (ev.status || c.status || {}).type || {};
+      var side = function(w){ return cs.filter(function(x){ return x.homeAway === w; })[0] || {}; }, h = side('home'), a = side('away');
+      var nm = function(x){ var t = x.team || {}; return [t.displayName, t.shortDisplayName, t.name, t.location].filter(Boolean); };
+      return {t:Date.parse(ev.date), done:!!st.completed || st.state === 'post', home:nm(h), away:nm(a), h:parseInt(h.score, 10), a:parseInt(a.score, 10)};
+    });
+  }
+  function espnFind(list, m){
+    var ko = kickoff(m), any = function(names, t){ return names.some(function(n){ return sameTeam(n, t); }); };
+    return list.filter(function(e){ return e.done && !isNaN(e.h) && !isNaN(e.a) && Math.abs(e.t - ko) <= 3 * 36e5 && (any(e.home, m.home) || any(e.away, m.away)); })[0];
+  }
+  // Matchs finis sans score : un appel par compétition, au plus toutes les 15 min
+  async function autoScores(force){
+    var got = 0;
+    for (var i = 0; i < MODES.length; i++){
+      var md = MODES[i].id, list = (S.data[md] || []).filter(function(m){ return matchState(m) === 'done' && !m.score && isFinite(kickoff(m)) && Date.now() - kickoff(m) < 7 * 864e5; });
+      var espnAt = espnAtOf();
+      if (!list.length || !espnLg(md)) continue;
+      if (!force && espnAt[md] && Date.now() - espnAt[md] < 15 * 6e4) continue;
+      espnAt[md] = Date.now();
+      var kos = list.map(kickoff);
+      try {
+        var evs = await espnGet(md, Math.min.apply(null, kos) - 864e5, Math.max.apply(null, kos) + 864e5);
+        list.forEach(function(m){ var e = espnFind(evs, m); if (e){ m.score = {h:e.h, a:e.a, src:'espn', at:new Date().toISOString()}; got++; } });
+      } catch (e) {}
+    }
+    if (got){ save(); if (qrDraft) prefillQR(); renderAll(); }
+    return got;
+  }
+  // Pré-remplir ✓ / 🎯 à partir du score réel, pour les lignes pas encore touchées
+  function prefillQR(){
+    qrDraft.forEach(function(d){
+      if (d.touched || d.m.qr || !d.m.score) return;
+      var c = calc(d.m), g = d.mine ? [d.mine.ph, d.mine.pa] : String(scoreOf(c, c.best)).split('-').map(Number), r = d.m.score;
+      d.real = {h:r.h, a:r.a}; d.auto = true;
+      d.ok = outOf(g[0], g[1]) === outOf(r.h, r.a); d.ex = d.ok && g[0] === r.h && g[1] === r.a;
+    });
+    renderQR();
+  }
+  $('espnTest').addEventListener('click', async function(){
+    var el = $('espnState'); el.textContent = 'Test en cours…';
+    try {
+      var now = Date.now(), lines = [];
+      for (var md of ['l1', 'l2', 'ldc']){
+        var evs = (await espnGet(md, now - 4 * 864e5, now)).filter(function(e){ return e.done; });
+        var nm = MODES.filter(function(x){ return x.id === md; })[0].name;
+        lines.push(nm + ' : ' + evs.length + ' match' + (evs.length > 1 ? 's' : '') + (evs.length ? ' (ex. ' + evs[evs.length - 1].home[0] + ' ' + evs[evs.length - 1].h + '-' + evs[evs.length - 1].a + ' ' + evs[evs.length - 1].away[0] + ')' : ''));
+      }
+      el.textContent = '✅ ESPN répond. Matchs finis ces 4 derniers jours — ' + lines.join(' · ');
+    } catch (e) { el.textContent = '⚠️ ESPN ne répond pas depuis cet appareil (' + e.message + '). Les scores restent à saisir à la main.'; }
+  });
   function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
   function openQR(focusKey){
     var list = qrMatches();
     if (!list.length) return;
-    qrDraft = list.map(function(m){ var q = m.qr || {}; return {m:m, ok:!!q.ok, ex:!!q.ex, bonus:q.bonus || 20, mine:q.mine || null, x2:q.x2 !== undefined ? !!q.x2 : x2Used(m, m.jn || tabJ())}; });
-    renderQR();
+    qrDraft = list.map(function(m){ var q = m.qr || {}; return {m:m, ok:!!q.ok, ex:!!q.ex, bonus:q.bonus || 20, mine:q.mine || null, real:q.real || null, auto:!!(q.real && m.score && q.real.h === m.score.h && q.real.a === m.score.a), x2:q.x2 !== undefined ? !!q.x2 : x2Used(m, m.jn || tabJ())}; });
+    prefillQR();
     $('qrSheet').hidden = false; document.body.classList.add('noscroll');
+    autoScores(true);
     if (focusKey){ var row = $('qrList').querySelector('[data-qk="' + focusKey + '"]'); if (row){ row.classList.add('focus'); row.scrollIntoView({block:'center'}); } }
   }
   function closeQR(){ $('qrSheet').hidden = true; document.body.classList.remove('noscroll'); qrDraft = null; }
@@ -3425,6 +3509,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       // Toucher le prono pour indiquer celui que tu as vraiment joué sur MPP
       var pr = mi ? '<button type="button" class="qrpr own" data-qi="' + i + '" data-qf="mine">ton prono <b>' + mi.ph + '-' + mi.pa + '</b> ✎ · cote ' + N(d.m.pts[outOf(mi.ph, mi.pa)]) + ' <s>' + sc + '</s></button>'
         : '<button type="button" class="qrpr" data-qi="' + i + '" data-qf="mine">prono ' + sc + ' ✎ · cote ' + N(d.m.pts[c.best]) + '</button>';
+      // Raté : score réel facultatif, pour savoir ce qu'aurait donné le favori
+      if (!d.ok || d.real) pr += '<button type="button" class="qrpr' + (d.real ? ' own' : '') + '" data-qi="' + i + '" data-qf="real">' + (d.real ? 'score réel <b>' + d.real.h + '-' + d.real.a + '</b>' + (d.auto ? ' · ESPN' : '') + ' ✎' : 'score réel ? ✎') + '</button>';
       return '<div class="qrrow" data-qk="' + esc(mkey(d.m)) + '"><span class="qrn">' + esc(d.m.home) + ' – ' + esc(d.m.away) + pr + '</span>' +
         '<button type="button" class="qrb' + (d.ok ? ' on' : '') + '" data-qi="' + i + '" data-qf="ok" aria-label="Bon résultat">' + (d.ok ? '✓' : '') + '</button>' +
         '<button type="button" class="qrb' + (d.ex ? ' on' : '') + '" data-qi="' + i + '" data-qf="ex" aria-label="Score exact">' + (d.ex ? '✓' : '') + '</button>' +
@@ -3434,11 +3520,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   $('qrList').addEventListener('click', function(e){
     var b = e.target.closest('[data-qf]'); if (!b || b.disabled) return;
-    var d = qrDraft[+b.dataset.qi], f = b.dataset.qf;
+    var d = qrDraft[+b.dataset.qi], f = b.dataset.qf; d.touched = true;
     if (f === 'ok'){ d.ok = !d.ok; if (!d.ok) d.ex = false; }
     if (f === 'ex'){ d.ex = !d.ex; if (d.ex) d.ok = true; }
     if (f === 'x2') d.x2 = !d.x2;
     if (f === 'bonus') d.bonus = BONUS_CYCLE[(BONUS_CYCLE.indexOf(d.bonus) + 1) % BONUS_CYCLE.length];
+    if (f === 'real'){
+      var vr = prompt('Score réel de ' + d.m.home + ' – ' + d.m.away + ' ?\n(ex. 2-1 · facultatif, laisse vide si tu ne sais pas)', d.real ? d.real.h + '-' + d.real.a : '');
+      if (vr === null) return;
+      var gr = vr.match(/(\d+)\D+(\d+)/);
+      d.real = gr ? {h:+gr[1], a:+gr[2]} : null; d.auto = false;
+    }
     if (f === 'mine'){
       var c0 = calc(d.m), adv = scoreOf(c0, c0.best);
       var v = prompt('Ton prono joué sur MPP pour ' + d.m.home + ' – ' + d.m.away + ' ?\n(ex. 1-1 · laisse vide pour le prono conseillé ' + adv + ')', d.mine ? d.mine.ph + '-' + d.mine.pa : adv);
@@ -3458,6 +3550,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     qrDraft.forEach(function(d){
       d.m.qr = {ok:d.ok, ex:d.ex, bonus:d.ex ? d.bonus : 0, x2:d.x2, at:at};
       if (d.mine) d.m.qr.mine = d.mine;
+      if (d.real) d.m.qr.real = {h:d.real.h, a:d.real.a};
       // Le stock de bonus x2 suit ce que tu as coché
       var k = mkey(d.m), jn = d.m.jn || tabJ(), i0 = st.list.findIndex(function(u){ return u.key === k && (!u.jn || !jn || u.jn === jn); });
       if (d.x2 && i0 < 0) st.list.push({key:k, jn:jn || null, name:d.m.home + ' – ' + d.m.away});
@@ -3493,7 +3586,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (!q) return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc, real:null, mine:null};
         var gain = q.ok ? ((cote || 0) + (q.ex ? q.bonus : 0)) * (x2 ? 2 : 1) : 0;
         return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc,
-          real:q.ex ? {h:ph, a:pa} : {h:null, a:null, o:q.ok ? (q.mine ? oMine : sn.best) : -1},
+          real:q.ex ? {h:ph, a:pa} : q.real ? {h:q.real.h, a:q.real.a} : {h:null, a:null, o:q.ok ? (q.mine ? oMine : sn.best) : -1},
           mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
       });
       if (at >= 0 && !!arr[at].partial === partial && JSON.stringify(arr[at].matches) === JSON.stringify(matches)) return;   // rien de nouveau

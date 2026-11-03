@@ -7,9 +7,9 @@ const st = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).state, out = pro
 const FROM = {l1:6, l2:8, ldc:2};
 let fails = 0; const ok = (c, msg) => { console.log((c ? 'OK  ' : 'ÉCHEC ') + msg); if (!c) fails++; };
 const outOf = (h, a) => h > a ? 0 : h === a ? 1 : 2;
-function expected(md){
+function expected(md, stt){
   let fav = 0, me = 0, n = 0;
-  (st.bilans[md] || []).filter(b => !b.partial && b.jn >= FROM[md]).forEach(b => b.matches.forEach(m => {
+  (stt.bilans[md] || []).filter(b => !b.partial && b.jn >= FROM[md]).forEach(b => b.matches.forEach(m => {
     const mi = m.mine; if (!m.real || !mi || !m.pts || !m.odds || !m.odds.every(x => +x > 1)) return;
     let f = 0; m.odds.forEach((x, k) => { if (+x < +m.odds[f]) f = k; });
     const oMe = outOf(mi.ph, mi.pa);
@@ -28,7 +28,7 @@ function expected(md){
     await p.goto(APP); await p.waitForTimeout(800);
     await p.click('#viewSw [data-view="bilans"]'); await p.waitForTimeout(400);
     const txt = await p.evaluate(() => { const d = [...document.querySelectorAll('.bstats > div')].find(x => /face au favori/.test(x.innerText)); return d ? d.innerText.replace(/\n/g, ' ') : null; });
-    const e = expected(md);
+    const e = expected(md, await p.evaluate(() => JSON.parse(localStorage.getItem('mpp-esperance-v2'))));   // après les correctifs de l'appli
     console.log(md.toUpperCase(), '→', txt);
     ok(!errs.length, md + ' : pas d\'erreur JS');
     if (!e.n) ok(txt === null, md + ' : pas de ligne sans journée JKD+');

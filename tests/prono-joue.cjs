@@ -13,7 +13,7 @@ let fails = 0; const ok = (c, msg) => { console.log((c ? 'OK  ' : 'ÉCHEC ') + m
   await p.route('https://**/*', r => r.fulfill({status:404, body:'{}'}));
   await p.clock.install({time:new Date('2026-11-03T21:30:00+01:00')});   // matchs de 18h45 finis
   await p.addInitScript(s => { if (localStorage.getItem('mpp-esperance-v2')) return; s = JSON.parse(JSON.stringify(s)); s.mode = 'ldc';
-    s.data.ldc.forEach(m => delete m.qr); s.bilans.ldc = s.bilans.ldc.filter(b => b.jn !== s.data.ldc[0].jn); localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
+    s.data.ldc.forEach(m => delete m.qr); if (s.bDel) s.bDel.ldc = []; s.bilans.ldc = s.bilans.ldc.filter(b => b.jn !== s.data.ldc[0].jn); localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
   await p.goto(APP); await p.clock.runFor(3000);
   await p.click('#qrOpen'); await p.waitForTimeout(200);
   const rows = await p.$$eval('#qrList .qrrow', r => r.map(x => x.innerText.replace(/\n/g, ' ')));
@@ -36,6 +36,20 @@ let fails = 0; const ok = (c, msg) => { console.log((c ? 'OK  ' : 'ÉCHEC ') + m
   p.once('dialog', d => d.accept(''));
   await p.click('#qrList .qrrow:nth-child(' + (i + 1) + ') [data-qf="mine"]'); await p.waitForTimeout(200);
   ok(/^prono \d+-\d+ ✎/.test(await p.textContent('#qrList .qrrow:nth-child(' + (i + 1) + ') [data-qf="mine"]')), 'champ vide : retour au prono conseillé');
+  // Raté noté avec le score réel
+  const j = rows.findIndex(t => /Galatasaray/.test(t));
+  await p.click('#qrList .qrrow:nth-child(' + (j + 1) + ') [data-qf="ok"]');   // ✓ coché par défaut dans la sauvegarde ? on part de décoché
+  let hasReal = await p.$('#qrList .qrrow:nth-child(' + (j + 1) + ') [data-qf="real"]');
+  if (!hasReal){ await p.click('#qrList .qrrow:nth-child(' + (j + 1) + ') [data-qf="ok"]'); hasReal = await p.$('#qrList .qrrow:nth-child(' + (j + 1) + ') [data-qf="real"]'); }
+  ok(!!hasReal, 'case « score réel » proposée quand ✓ est décoché');
+  p.once('dialog', d => d.accept('0-2'));
+  await p.click('#qrList .qrrow:nth-child(' + (j + 1) + ') [data-qf="real"]'); await p.waitForTimeout(150);
+  await p.click('#qrSave'); await p.waitForTimeout(300);
+  const g = await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mpp-esperance-v2')); const b = s.bilans.ldc.find(x => x.src === 'quick'); return b && b.matches.find(m => /Galatasaray/.test(m.home)); });
+  ok(g && g.real.h === 0 && g.real.a === 2 && g.mine.gain === 0, 'bilan : raté avec score réel 0-2 ' + JSON.stringify(g && g.real));
+  // Correctif ponctuel L1 : Lens – Paris FC et Paris FC – Monaco
+  const fx = await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mpp-esperance-v2')); const f = (jn, h) => { const b = s.bilans.l1.find(x => x.jn === jn); const m = b && b.matches.find(x => x.home === h); return m && m.real; }; return [f(8, 'Lens'), f(9, 'Paris FC')]; });
+  ok(fx[0] && fx[0].h === 2 && fx[0].a === 1 && fx[1] && fx[1].h === 3 && fx[1].a === 1, 'correctif L1 appliqué ' + JSON.stringify(fx));
   ok(!errs.length, 'pas d\'erreur JS ' + (errs[0] || ''));
   await b.close();
   console.log(fails ? fails + ' échec(s)' : 'Tout est bon'); process.exit(fails ? 1 : 0);
