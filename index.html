@@ -633,7 +633,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h15</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h25</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3159,6 +3159,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function openBilans(){
     setView('bilans');
     bSay(''); renderBReview(); renderBilans();
+    backfillBilans();
   }
   function closeBilans(){ setView('pronos'); }
   function bpct(a, b){ return b ? Math.round(a / b * 100) + ' %' : '–'; }
@@ -3504,6 +3505,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       el.textContent = (okN ? '✅ ESPN répond. Matchs finis ces 4 derniers jours — ' : '⚠️ ESPN ne répond pas depuis cet appareil — ') + lines.join(' · ');
     } catch (e) { el.textContent = '⚠️ ESPN ne répond pas depuis cet appareil (' + e.message + '). Les scores restent à saisir à la main.'; }
   });
+  // Score ESPN utilisable seulement s'il est d'accord avec ✓ / ✗ (et pas ton score exact sans 🎯)
+  function scoreFits(sc, ok, ph, pa){ return !!sc && (outOf(sc.h, sc.a) === outOf(ph, pa)) === !!ok && !(sc.h === ph && sc.a === pa); }
+  // Bilans faits avec ✓ / ✗ sans score : on complète le score réel avec ESPN.
+  // Par sécurité, rien n'est changé si le score ESPN contredit ce que tu as coché (✓ / ✗).
+  async function backfillBilans(){
+    var got = 0, now = Date.now();
+    for (var i = 0; i < MODES.length; i++){
+      var md = MODES[i].id, todo = [];
+      bilansOf(md).forEach(function(b){ b.matches.forEach(function(m){
+        var t = Date.parse(m.ts);
+        if (m.real && (m.real.h === null || m.real.h === undefined) && isFinite(t) && now - t < 120 * 864e5 && !(m.espnTry && now - m.espnTry < 864e5)) todo.push({b:b, m:m, t:t});
+      }); });
+      if (!todo.length) continue;
+      var days = {}, evs = [];
+      todo.forEach(function(x){ days[ymd(x.t)] = x.t; });
+      for (var d in days){ try { evs = evs.concat(await espnDay(md, days[d])); } catch (e) {} }
+      todo.forEach(function(x){
+        var m = x.m, e = espnFind(evs, {home:m.home, away:m.away, ts:m.ts}); m.espnTry = now;
+        if (!e) return;
+        var ro = outOf(e.h, e.a), me = m.mine, oMe = me ? outOf(me.ph, me.pa) : -1;
+        if (m.real.o >= 0 && m.real.o !== ro) return;          // ✓ coché mais ESPN dit autre chose
+        if (m.real.o === -1 && me && oMe === ro) return;        // ✗ coché mais ESPN donne ton issue
+        if (me && me.ph === e.h && me.pa === e.a) return;       // ESPN donne ton score exact alors que 🎯 n'est pas coché
+        m.real = {h:e.h, a:e.a}; x.b.at = new Date().toISOString(); got++;
+      });
+    }
+    if (got){ save(); if (VIEW === 'bilans') renderBilans(); bSay('Score réel ajouté à ' + got + ' match' + (got > 1 ? 's' : '') + ' des bilans (ESPN).'); }
+    return got;
+  }
   function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
   function openQR(focusKey){
     var list = qrMatches();
@@ -3591,6 +3621,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var matches = list.map(function(m){
         var sn = (arc && arc.matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]) || snapMatch(m);
         var q = noted(m) ? m.qr : null, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
+        // score réel déjà complété dans le bilan existant (ESPN) : on le garde
+        var old = at >= 0 && arr[at].matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away) && x.real && x.real.h !== null && x.real.h !== undefined; })[0];
+        var sc0 = m.score || (old && old.real);
         if (sn.best < 0 || isNaN(ph)){ ph = [1, 1, 0][sn.best] || 0; pa = [0, 1, 1][sn.best] || 0; }
         if (q && q.mine){ ph = q.mine.ph; pa = q.mine.pa; }            // prono joué différent du conseil
         var oMine = outOf(ph, pa);
@@ -3598,7 +3631,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         if (!q) return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc, real:null, mine:null};
         var gain = q.ok ? ((cote || 0) + (q.ex ? q.bonus : 0)) * (x2 ? 2 : 1) : 0;
         return {home:sn.home, away:sn.away, ts:sn.ts || null, pts:sn.pts, odds:sn.odds, p:sn.p, ev:sn.ev, best:sn.best, level:sn.level, gap:sn.gap, sc:sn.sc, scSrc:sn.scSrc,
-          real:q.ex ? {h:ph, a:pa} : q.real ? {h:q.real.h, a:q.real.a} : {h:null, a:null, o:q.ok ? (q.mine ? oMine : sn.best) : -1},
+          real:q.ex ? {h:ph, a:pa} : (q.real || scoreFits(sc0, q.ok, ph, pa)) ? {h:(q.real || sc0).h, a:(q.real || sc0).a} : {h:null, a:null, o:q.ok ? (q.mine ? oMine : sn.best) : -1},
           mine:{ph:ph, pa:pa, cote:cote, x2:x2, bonus:q.ex ? q.bonus : 0, gain:gain}};
       });
       if (at >= 0 && !!arr[at].partial === partial && JSON.stringify(arr[at].matches) === JSON.stringify(matches)) return;   // rien de nouveau
