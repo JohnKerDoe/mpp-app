@@ -623,7 +623,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>1/11 · 13h40</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 12h25</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3566,6 +3566,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   }
   $('ghSave').addEventListener('click', function(){
     var v = $('ghToken').value.trim();
+    // Champ vide : on ne touche jamais au jeton déjà enregistré
+    if (!v){ syncSay(ghTok() ? 'jeton déjà enregistré, rien à changer' : 'colle d\'abord ton jeton GitHub'); return; }
     lsSet(KEY_GH, v); lsSet(KEY_GIST, '');
     $('ghToken').value = ''; $('ghToken').placeholder = v ? 'Jeton enregistré' : 'Jeton GitHub (ghp_…)';
     syncSay(v ? 'connexion…' : 'désactivée');
