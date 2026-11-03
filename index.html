@@ -518,6 +518,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <section id="bilanView" hidden>
     <h2 class="day" id="bTitle">Bilans</h2>
     <div class="row" style="margin-top:10px"><button class="btn" id="bImport" type="button">📷 Importer les résultats d'une journée</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="bEspn" type="button">🔎 Chercher les scores réels (ESPN)</button></div>
     <p class="note" id="bMsg" role="status" style="font-weight:600;color:var(--ink)"></p>
     <section class="grp" id="bReview" hidden>
       <h2 id="bRevT" style="margin:0 0 4px;font-size:17px">Bilan</h2>
@@ -633,7 +634,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h25</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h35</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3509,31 +3510,42 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function scoreFits(sc, ok, ph, pa){ return !!sc && (outOf(sc.h, sc.a) === outOf(ph, pa)) === !!ok && !(sc.h === ph && sc.a === pa); }
   // Bilans faits avec ✓ / ✗ sans score : on complète le score réel avec ESPN.
   // Par sécurité, rien n'est changé si le score ESPN contredit ce que tu as coché (✓ / ✗).
-  async function backfillBilans(){
-    var got = 0, now = Date.now();
+  async function backfillBilans(force){
+    var got = 0, now = Date.now(), miss = 0, clash = 0, fail = 0, seen = 0;
     for (var i = 0; i < MODES.length; i++){
       var md = MODES[i].id, todo = [];
       bilansOf(md).forEach(function(b){ b.matches.forEach(function(m){
         var t = Date.parse(m.ts);
-        if (m.real && (m.real.h === null || m.real.h === undefined) && isFinite(t) && now - t < 120 * 864e5 && !(m.espnTry && now - m.espnTry < 864e5)) todo.push({b:b, m:m, t:t});
+        if (m.real && (m.real.h === null || m.real.h === undefined) && isFinite(t) && now - t < 120 * 864e5 && (force || !(m.espnTry && now - m.espnTry < 864e5))) todo.push({b:b, m:m, t:t});
       }); });
       if (!todo.length) continue;
-      var days = {}, evs = [];
+      var days = {}, evs = [], okDay = {};
       todo.forEach(function(x){ days[ymd(x.t)] = x.t; });
-      for (var d in days){ try { evs = evs.concat(await espnDay(md, days[d])); } catch (e) {} }
+      for (var d in days){ try { evs = evs.concat(await espnDay(md, days[d])); okDay[d] = 1; } catch (e) { fail++; } }
       todo.forEach(function(x){
-        var m = x.m, e = espnFind(evs, {home:m.home, away:m.away, ts:m.ts}); m.espnTry = now;
-        if (!e) return;
+        var m = x.m; if (!okDay[ymd(x.t)]) return;              // ESPN injoignable ce jour-là : on réessaiera
+        var e = espnFind(evs, {home:m.home, away:m.away, ts:m.ts}); m.espnTry = now; seen++;
+        if (!e){ miss++; return; }
+        clash++;
         var ro = outOf(e.h, e.a), me = m.mine, oMe = me ? outOf(me.ph, me.pa) : -1;
         if (m.real.o >= 0 && m.real.o !== ro) return;          // ✓ coché mais ESPN dit autre chose
         if (m.real.o === -1 && me && oMe === ro) return;        // ✗ coché mais ESPN donne ton issue
         if (me && me.ph === e.h && me.pa === e.a) return;       // ESPN donne ton score exact alors que 🎯 n'est pas coché
-        m.real = {h:e.h, a:e.a}; x.b.at = new Date().toISOString(); got++;
+        clash--; m.real = {h:e.h, a:e.a}; x.b.at = new Date().toISOString(); got++;
       });
     }
-    if (got){ save(); if (VIEW === 'bilans') renderBilans(); bSay('Score réel ajouté à ' + got + ' match' + (got > 1 ? 's' : '') + ' des bilans (ESPN).'); }
+    if (got || seen) save();
+    if (got && VIEW === 'bilans') renderBilans();
+    var pl = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
+    if (got || miss || clash || fail) bSay('ESPN : ' + [got ? 'score réel ajouté à ' + pl(got, 'match') : '', miss ? pl(miss, 'match') + ' introuvable' + (miss > 1 ? 's' : '') : '',
+      clash ? pl(clash, 'match') + ' en désaccord avec tes coches (laissé' + (clash > 1 ? 's' : '') + ' tel' + (clash > 1 ? 's' : '') + ' quel' + (clash > 1 ? 's' : '') + ')' : '', fail ? 'ESPN injoignable pour ' + pl(fail, 'jour') : ''].filter(Boolean).join(' · ') + '.');
     return got;
   }
+  $('bEspn').addEventListener('click', async function(){
+    var bt = this; bt.disabled = true; bSay('Recherche des scores sur ESPN…');
+    try { var n = await backfillBilans(true); if (!/^ESPN/.test($('bMsg').textContent)) bSay('ESPN : tous les matchs des bilans ont déjà leur score réel.'); }
+    finally { bt.disabled = false; }
+  });
   function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
   function openQR(focusKey){
     var list = qrMatches();

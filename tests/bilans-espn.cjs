@@ -31,11 +31,16 @@ const fake = {};
   await p.goto(APP); await p.clock.runFor(2000);
   const before = await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mpp-esperance-v2')); let n = 0, g = 0; ['l1','l2','ldc'].forEach(md => s.bilans[md].forEach(b => b.matches.forEach(m => { if (m.real && m.real.h == null) n++; if (m.mine) g += m.mine.gain || 0; }))); return {n, g}; });
   await p.click('#viewSw [data-view="bilans"]');
-  await p.waitForFunction(() => /Score réel ajouté/.test(document.getElementById('bMsg').textContent), null, {timeout:8000}).catch(() => {});
+  await p.waitForFunction(() => /score réel ajouté/.test(document.getElementById('bMsg').textContent), null, {timeout:8000}).catch(() => {});
   const after = await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mpp-esperance-v2')); let n = 0, g = 0; ['l1','l2','ldc'].forEach(md => s.bilans[md].forEach(b => b.matches.forEach(m => { if (m.real && m.real.h == null) n++; if (m.mine) g += m.mine.gain || 0; }))); return {n, g}; });
   console.log(await p.textContent('#bMsg'), before, after);
   ok(before.n === 0 ? after.n === 0 : after.n < before.n, 'matchs sans score : ' + before.n + ' → ' + after.n);
   ok(after.g === before.g, 'tes points ne changent pas (' + after.g + ')');
+  // Bouton « Chercher les scores réels » : relance à la demande
+  await p.click('#bEspn');
+  await p.waitForFunction(() => /^ESPN/.test(document.getElementById('bMsg').textContent), null, {timeout:8000}).catch(() => {});
+  const msg2 = await p.textContent('#bMsg'); console.log(msg2);
+  ok(/^ESPN/.test(msg2), 'bouton 🔎 : message affiché');
   ok(!errs.length, 'pas d\'erreur JS ' + (errs[0] || ''));
   await b.close();
   console.log(fails ? fails + ' échec(s)' : 'Tout est bon'); process.exit(fails ? 1 : 0);
