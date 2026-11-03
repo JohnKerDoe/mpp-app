@@ -161,6 +161,10 @@ h2.day .cnt{font-weight:400;color:var(--mute);font-size:13px}
 .cf{padding:6px 10px 10px;font-size:12px;color:var(--mute)}
 .cf .tie{margin-top:6px;padding:5px 8px;border:1px solid var(--lr);border-left-width:4px;border-radius:6px;color:var(--ink-2)}
 .cf .tie b{color:var(--ink)}
+.cf .tie.tot{border-color:#FFC94D}
+.cf .tie.tot div{margin-top:3px}
+.cf .tie.tot div.best{color:var(--ink);font-weight:700}
+.cf .tie.tot small{display:block;margin-top:4px;color:var(--mute)}
 
 .add{width:100%;padding:13px;border:1.5px dashed var(--mute);background:transparent;border-radius:12px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;margin-top:4px}
 .btn{width:100%;padding:13px;border:0;background:var(--acc);color:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
@@ -623,7 +627,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 12h25</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 18h45</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -908,6 +912,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var close = [0, 1, 2].filter(function(o){ return c.ev[c.best] - c.ev[o] < 1; });
     var o = close.reduce(function(a, k){ return c.sc[k].p > c.sc[a].p ? k : a; }, c.best);
     return {o:o, close:close};
+  }
+  // Bonus de rareté estimé d'un score exact : moyenne de tes bonus réels sur ce score (2 fois au moins), sinon popularité supposée
+  var BONUS_GUESS = {'1-0':40, '2-1':20, '2-0':30, '3-1':50, '3-0':50, '3-2':70, '4-0':70, '4-1':70, '4-2':70, '1-1':20, '0-0':30, '2-2':50, '3-3':100};
+  function bonusGuess(sc){
+    var g = String(sc).split('-').map(Number); if (g.length !== 2 || isNaN(g[0])) return 20;
+    var key = Math.max(g[0], g[1]) + '-' + Math.min(g[0], g[1]), seen = [];
+    MODES.forEach(function(md){ ((S.bilans || {})[md.id] || []).forEach(function(b){ b.matches.forEach(function(m){
+      var me = m.mine, rl = m.real;
+      if (me && rl && rl.h !== null && rl.h !== undefined && me.ph === rl.h && me.pa === rl.a && me.bonus && (Math.max(rl.h, rl.a) + '-' + Math.min(rl.h, rl.a)) === key) seen.push(me.bonus);
+    }); }); });
+    if (seen.length >= 2) return Math.round(seen.reduce(function(a, b){ return a + b; }, 0) / seen.length);
+    return BONUS_GUESS[key] || 70;
   }
   function pickLabel(m, o){ return o === 0 ? (m.home || 'Domicile') : o === 1 ? 'Nul' : (m.away || 'Extérieur'); }
 
@@ -1284,6 +1300,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
           ? 'le score le plus probable est déjà dans l\'issue conseillée (<b>' + esc(bs.score) + '</b> ' + pct(bs.p * 100) + ').'
           : 'le score le plus probable est <b>' + esc(ts.score) + '</b> ' + pct(ts.p * 100) + ' → <b>' + esc(pickLabel(m, tb.o)) + '</b>, au lieu de ' + esc(bs.score) + ' ' + pct(bs.p * 100) + '.') +
         '</div>';
+    }
+    // Pastille rouge : total « espérance + chance du score × bonus estimé » pour chaque issue
+    if (c.ev && c.sc && c.level === 'r'){
+      var tots = [0, 1, 2].map(function(o){ var b = bonusGuess(c.sc[o].score); return {o:o, sc:c.sc[o].score, p:c.sc[o].p, b:b, t:c.ev[o] + c.sc[o].p * b}; });
+      var top = tots.reduce(function(a, x){ return x.t > a.t ? x : a; }, tots[0]);
+      html += '<div class="tie tot">🎯 Avec le bonus du score exact (estimé) :' + tots.map(function(x){
+        return '<div' + (x === top ? ' class="best"' : '') + '>' + (x === top ? '★ ' : '') + '<b>' + esc(pickLabel(m, x.o)) + ' ' + esc(x.sc) + '</b> : ' +
+          nf1.format(c.ev[x.o]) + ' + ' + pct(x.p * 100) + ' × ' + x.b + ' = <b>' + nf1.format(x.t) + '</b></div>';
+      }).join('') + '<small>Bonus estimé d\'après tes bilans quand tu as déjà trouvé ce score, sinon selon sa popularité habituelle.</small></div>';
     }
     card.querySelector('[data-out="note"]').innerHTML = html;
   }
