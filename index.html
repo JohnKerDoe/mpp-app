@@ -192,6 +192,10 @@ body.noscroll{overflow:hidden}
 .recap li.rsep{padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:1.2px;color:var(--mute);background:rgba(127,127,127,.06);justify-content:flex-start}
 .recap .rtm{font-size:12px;font-weight:600;color:var(--mute);margin-right:8px}
 .recap li.tbar{position:relative}
+.recap li.nxw .nxwt{display:inline-block}
+.recap .nxwt{display:none;font-size:12px;font-weight:800;color:#fff;background:#FF5A5F;border-radius:999px;padding:2px 8px;white-space:nowrap;animation:nxblink 1s steps(2,start) infinite}
+.recap li.nxw:after{animation:nxblink 1s steps(2,start) infinite}
+@keyframes nxblink{50%{opacity:.25}}
 .recap li.tbar:after{content:"";position:absolute;left:12px;right:12px;bottom:4px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--barc) 0 var(--fill),rgba(127,127,127,.18) var(--fill))}
 
 .recap .rm{color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0}
@@ -627,7 +631,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 18h45</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>3/11 · 20h40</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1348,14 +1352,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     el.innerHTML = '📊 Cotes <b' + (mn >= 1440 ? ' class="warn"' : '') + '>' + txt + '</b>';
   }
 
+  // Rappel : match serré (pastille rouge, ou orange avec moins de 2 pts d'écart) à moins d'1 h, cotes vieilles de plus d'1 h
+  function needOddsRefresh(li, now){
+    var left = +li.dataset.ko - now, lv = li.dataset.lv, gap = parseFloat(li.dataset.gap), t = lastImportAt();
+    var tight = lv === 'r' || (lv === 'o' && gap < 2);
+    return left > 0 && left <= 36e5 && tight && (!isFinite(t) || now - t > 36e5);
+  }
   function paintBars(){
     var now = Date.now();
     $('recapList').querySelectorAll('li[data-ko]').forEach(function(li){
-      var left = +li.dataset.ko - now, on = left > 0 && left <= 3 * 36e5;
+      var left = +li.dataset.ko - now, on = left > 0 && left <= 3 * 36e5, warn = on && needOddsRefresh(li, now);
       li.classList.toggle('tbar', on);
+      li.classList.toggle('nxw', warn);
       if (!on) return;
       li.style.setProperty('--fill', Math.round((1 - left / (3 * 36e5)) * 100) + '%');
-      li.style.setProperty('--barc', left <= 10 * 6e4 ? '#FF5A5F' : left <= 36e5 ? '#FFC94D' : '#7DD3FC');
+      li.style.setProperty('--barc', warn || left <= 10 * 6e4 ? '#FF5A5F' : left <= 36e5 ? '#FFC94D' : '#7DD3FC');
     });
   }
   function updateCountdown(){
@@ -1452,10 +1463,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var jt0 = tabJ();
       if (r.m.rep || (r.m.jn && jt0 && r.m.jn !== jt0)) tag += '<span class="reptag">' + (r.m.rep ? 'reporté · ' : '') + 'J' + r.m.jn + '</span>';
       var cls = [showCh || showSc ? 'chg' : '', r.st !== 'pre' ? r.st : '', gold ? 'x2gold' : '', goldWait ? 'x2wait' : '', isNext ? 'nxt' : ''].join(' ').trim();
-      return sep + '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (isNext ? ' data-ko="' + ko + '"' : '') + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
+      return sep + '<li data-k="' + esc(mkey(r.m)) + '" role="button" tabindex="0"' + (isNext ? ' data-ko="' + ko + '" data-lv="' + r.c.level + '" data-gap="' + r.c.gap + '"' : '') + (cls ? ' class="' + cls + '"' : '') + ' aria-label="Force de l\'espérance : ' + LV[r.c.level] + '"><span class="rm"><span class="mt">' +
           '<span class="' + (r.c.best === 0 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.home) + '</span>' +
           '<span class="sc lv-' + r.c.level + '">' + scoreOf(r.c, r.c.best) + '</span>' +
-          '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + '</span></span>' +
+          '<span class="' + (r.c.best === 2 ? 'win lv-' + r.c.level : '') + '">' + esc(r.m.away) + '</span>' + tag + (isNext ? '<span class="nxwt" role="button">🔄 mets à jour les cotes</span>' : '') + '</span></span>' +
         '<span class="rp">' + hr + lb + '<em>' + nf1.format(r.c.ev[r.c.best]) + ' pts</em></span></li>';
     }).join('');
     paintBars();
@@ -1509,6 +1520,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   $('recapList').addEventListener('click', function(e){
     var q = e.target.closest('[data-qr]');
     if (q){ e.stopPropagation(); openQR(q.dataset.qr); return; }
+    if (e.target.closest('.nxwt')){ e.stopPropagation(); $('fetchOdds').click(); return; }   // toucher le rappel lance la mise à jour des cotes
     var li = e.target.closest('li[data-k]'); if (li) openFromRecap(li);
   });
   $('recapList').addEventListener('keydown', function(e){
@@ -3186,6 +3198,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     return s;
   }
+  // « Et si j'avais joué le favori ? » : issue à la plus petite cote Pinnacle, points hors bonus et x2,
+  // comparés à tes points sur les mêmes matchs (hors bonus et x2). Journées jouées avec le conseil JKD+ seulement.
+  function favStats(md, arr){
+    var o = {j:0, n:0, fav:0, me:0, okF:0, okMe:0, skip:0};
+    arr.forEach(function(b){
+      if (methOf(md, b.jn) !== 'jkd') return;
+      var used = false;
+      b.matches.forEach(function(m){
+        var me = m.mine;
+        if (!m.real || !me || !m.pts || !m.odds || !m.odds.every(function(x){ return x > 1; })) return;
+        var fav = 0; m.odds.forEach(function(x, k){ if (x < m.odds[fav]) fav = k; });
+        var oMe = outOf(me.ph, me.pa), ro = rOut(m.real);
+        if (ro < 0 && oMe === fav) ro = -2;            // raté sans score : le favori était ton choix, raté aussi
+        if (ro === -1){ o.skip++; return; }            // raté sans score et favori différent : on ne sait pas
+        used = true; o.n++;
+        if (ro === fav){ o.fav += m.pts[fav] || 0; o.okF++; }
+        if (ro === oMe){ o.me += me.cote || m.pts[oMe] || 0; o.okMe++; }
+      });
+      if (used) o.j++;
+    });
+    return o;
+  }
+  function favHTML(md, arr){
+    var f = favStats(md, arr); if (!f.n) return '';
+    var d = Math.round(f.me - f.fav);
+    return '<div><b>' + (d >= 0 ? '+' : '') + d + ' pts</b><span>face au favori : avec le favori Pinnacle à chaque match, tu aurais eu ' + Math.round(f.fav) + ' pts (' + f.okF + ' bons) ; tu en as eu ' + Math.round(f.me) + ' (' + f.okMe + ' bons) sur les mêmes ' + f.n + ' matchs, hors bonus et x2' +
+      (f.j ? ' · ' + (d / f.j >= 0 ? '+' : '') + (d / f.j).toFixed(1).replace('.', ',') + ' par journée' : '') + (f.skip ? ' · ' + f.skip + ' match' + (f.skip > 1 ? 's' : '') + ' sans score réel ignoré' + (f.skip > 1 ? 's' : '') : '') + '</span></div>';
+  }
   function renderBilans(){
     if (renderBilans.mode && renderBilans.mode !== S.mode) bSay('');   // message de l'autre compétition effacé
     renderBilans.mode = S.mode;
@@ -3203,6 +3243,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         '<div><b>🎯 ' + s.exMe + '</b><span>scores exacts trouvés' + (avgB ? ' · bonus moyen +' + avgB + ' pts' : '') + (s.n ? ' · conseil JKD+ : ' + s.exAdv : '') + '</span></div>' +
         (s.diff ? '<div><b>' + s.diff + ' écart' + (s.diff > 1 ? 's' : '') + '</b><span>au conseil : tu as gagné ' + s.diffMe + ' pts, le conseil aurait donné ' + s.diffAdv + ' pts (hors bonus)</span></div>' : '') +
         (s.x2n ? '<div><b>x2 · ' + s.x2n + '</b><span>bonus joués, +' + Math.round(s.x2plus) + ' pts rapportés</span></div>' : '') +
+        favHTML(S.mode, done) +
         methHTML(S.mode, done) +
         '<p class="note">' + (s.j < 10 ? 'Peu de journées : la chance pèse encore beaucoup, les tendances seront fiables après une dizaine de journées.' : 'Assez de journées pour commencer à lire des tendances.') + '</p></section>';
       else html += '<p class="note">Les statistiques arriveront avec la première journée terminée.</p>';
