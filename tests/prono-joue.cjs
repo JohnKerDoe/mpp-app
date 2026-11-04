@@ -13,7 +13,7 @@ let fails = 0; const ok = (c, msg) => { console.log((c ? 'OK  ' : 'ÉCHEC ') + m
   await p.route('https://**/*', r => r.fulfill({status:404, body:'{}'}));
   await p.clock.install({time:new Date('2026-11-03T21:30:00+01:00')});   // matchs de 18h45 finis
   await p.addInitScript(s => { if (localStorage.getItem('mpp-esperance-v2')) return; s = JSON.parse(JSON.stringify(s)); s.mode = 'ldc';
-    s.data.ldc.forEach(m => delete m.qr); if (s.bDel) s.bDel.ldc = []; s.bilans.ldc = s.bilans.ldc.filter(b => b.jn !== s.data.ldc[0].jn); localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
+    s.data.ldc.forEach(m => { delete m.qr; delete m.score; }); if (s.bDel) s.bDel.ldc = []; s.bilans.ldc = s.bilans.ldc.filter(b => b.jn !== s.data.ldc[0].jn); localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
   await p.goto(APP); await p.clock.runFor(3000);
   await p.click('#qrOpen'); await p.waitForTimeout(200);
   const rows = await p.$$eval('#qrList .qrrow', r => r.map(x => x.innerText.replace(/\n/g, ' ')));

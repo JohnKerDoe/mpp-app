@@ -374,6 +374,9 @@ body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !import
 .bfl input{font:inherit;font-size:16px;text-align:center;padding:5px 2px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink)}
 .bfl .bx2 input{width:auto}
 .bstats{display:grid;gap:10px}
+.bstats .fav{gap:4px}.bstats .frow{font-size:13px;color:var(--ink-2)}.bstats .frow strong.pos{color:#22A45D}.bstats .frow strong.neg{color:#E5484D}
+.fchart{width:100%;height:auto;margin-top:6px}.flegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute);align-items:center}
+.flegend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}.flegend i.dash{background:repeating-linear-gradient(90deg,var(--mute) 0 5px,transparent 5px 8px)}
 .bstats .bmeth{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid var(--line);padding-top:10px}
 .bstats .bmeth .bmt2{grid-column:span 2;font-size:15px;font-weight:700;color:var(--ink)}
 .bstats .bmeth .bmt2 small{font-weight:400;color:var(--mute)}
@@ -634,7 +637,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 00h35</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 12h40</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3208,35 +3211,78 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     return s;
   }
-  // « Et si j'avais joué le favori ? » : issue à la plus petite cote Pinnacle, points hors bonus et x2,
-  // comparés à tes points sur les mêmes matchs (hors bonus et x2). Journées jouées avec le conseil JKD+ seulement.
+  // « Et si j'avais joué le favori ? » : issue à la plus petite cote, points MPP hors bonus et x2,
+  // comparés à tes points sur les mêmes matchs (hors bonus et x2), journée par journée et par méthode.
+  // Favori d'un match : m.fav {k, pts} (cotes Betclic saisies après coup) ou, sinon, ses cotes et points enregistrés.
+  function favOf(m){
+    if (m.fav) return m.fav;
+    if (!m.pts || !m.odds || !m.odds.every(function(x){ return x > 1; })) return null;
+    var k = 0; m.odds.forEach(function(x, i){ if (+x < +m.odds[k]) k = i; });
+    return {k:k, pts:+m.pts[k] || 0};
+  }
   function favStats(md, arr){
-    var o = {j:0, n:0, fav:0, me:0, okF:0, okMe:0, skip:0, noData:[]};
-    arr.forEach(function(b){
-      if (methOf(md, b.jn) !== 'jkd') return;
-      var used = false;
-      if (!b.matches.some(function(m){ return m.pts && m.odds; })) o.noData.push(b.jn);
+    var rows = [], skip = 0, noData = [];
+    arr.slice().sort(function(a, b){ return a.jn - b.jn; }).forEach(function(b){
+      var r = {jn:b.jn, meth:methOf(md, b.jn), n:0, fav:0, me:0, okF:0, okMe:0};
       b.matches.forEach(function(m){
-        var me = m.mine;
-        if (!m.real || !me || !m.pts || !m.odds || !m.odds.every(function(x){ return x > 1; })) return;
-        var fav = 0; m.odds.forEach(function(x, k){ if (x < m.odds[fav]) fav = k; });
+        var me = m.mine, f = favOf(m);
+        if (!m.real || !me || !f) return;
         var oMe = outOf(me.ph, me.pa), ro = rOut(m.real);
-        if (ro < 0 && oMe === fav) ro = -2;            // raté sans score : le favori était ton choix, raté aussi
-        if (ro === -1){ o.skip++; return; }            // raté sans score et favori différent : on ne sait pas
-        used = true; o.n++;
-        if (ro === fav){ o.fav += m.pts[fav] || 0; o.okF++; }
-        if (ro === oMe){ o.me += me.cote || m.pts[oMe] || 0; o.okMe++; }
+        if (ro < 0 && oMe === f.k) ro = -2;            // raté sans score : le favori était ton choix, raté aussi
+        if (ro === -1){ skip++; return; }              // raté sans score et favori différent : on ne sait pas
+        r.n++;
+        if (ro === f.k){ r.fav += f.pts; r.okF++; }
+        if (ro === oMe){ r.me += me.cote || (m.pts && +m.pts[oMe]) || 0; r.okMe++; }
       });
-      if (used) o.j++;
+      if (r.n) rows.push(r); else noData.push(b.jn);
     });
-    return o;
+    return {rows:rows, skip:skip, noData:noData};
+  }
+  function favChart(rows){
+    if (rows.length < 2) return '';
+    var W = 320, H = 150, L = 34, R = 44, T = 12, B = 22, cm = 0, cf = 0, pm = [0], pf = [0];
+    rows.forEach(function(r){ cm += r.me; cf += r.fav; pm.push(cm); pf.push(cf); });
+    var mx = Math.max(cm, cf, 1), n = rows.length;
+    var X = function(i){ return L + i * (W - L - R) / n; }, Y = function(v){ return T + (H - T - B) * (1 - v / mx); };
+    var path = function(a){ return a.map(function(v, i){ return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1); }).join(' '); };
+    var j0 = rows.map(function(r){ return r.meth; }).indexOf('jkd'), mark = '';
+    if (j0 > 0) mark = '<line x1="' + X(j0) + '" x2="' + X(j0) + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--mute)" stroke-dasharray="3 3" stroke-width="1"/><text x="' + (X(j0) + 4) + '" y="' + (T + 9) + '" font-size="10" fill="var(--mute)">JKD+ →</text>';
+    var ticks = rows.map(function(r, i){ return (n <= 12 || i % 2 === n % 2 - 1 || i === n - 1) ? '<text x="' + X(i + 1) + '" y="' + (H - 6) + '" font-size="9.5" text-anchor="middle" fill="var(--mute)">J' + r.jn + '</text>' : ''; }).join('');
+    var lab = function(v, col, dy){ return '<text x="' + (X(n) + 5) + '" y="' + (Y(v) + 3 + dy) + '" font-size="11" font-weight="800" fill="' + col + '">' + Math.round(v) + '</text>'; };
+    var gap = Math.abs(Y(cm) - Y(cf)) < 12 ? (Y(cm) < Y(cf) ? -6 : 6) : 0;
+    return '<svg class="fchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Points cumulés : toi ' + Math.round(cm) + ', favori ' + Math.round(cf) + '">' +
+      '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '" stroke="var(--line)"/>' +
+      '<text x="' + (L - 4) + '" y="' + (T + 4) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">' + Math.round(mx) + '</text><text x="' + (L - 4) + '" y="' + (H - B) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">0</text>' +
+      mark + ticks +
+      '<path d="' + path(pf) + '" fill="none" stroke="var(--mute)" stroke-width="2" stroke-dasharray="5 4"/>' +
+      '<path d="' + path(pm) + '" fill="none" stroke="var(--acc)" stroke-width="2.5"/>' +
+      pm.slice(1).map(function(v, i){ return '<circle cx="' + X(i + 1) + '" cy="' + Y(v) + '" r="2.5" fill="var(--acc)"/>'; }).join('') +
+      lab(cm, 'var(--acc)', gap) + lab(cf, 'var(--mute)', -gap) + '</svg>' +
+      '<div class="flegend"><span><i style="background:var(--acc)"></i>toi</span><span><i class="dash"></i>favori à chaque match</span><span class="note">points cumulés, hors bonus et x2</span></div>';
   }
   function favHTML(md, arr){
-    var f = favStats(md, arr); if (!f.n) return '';
-    var d = Math.round(f.me - f.fav);
-    return '<div><b>' + (d >= 0 ? '+' : '') + d + ' pts</b><span>face au favori : avec le favori Pinnacle à chaque match, tu aurais eu ' + Math.round(f.fav) + ' pts (' + f.okF + ' bons) ; tu en as eu ' + Math.round(f.me) + ' (' + f.okMe + ' bons) sur les mêmes ' + f.n + ' matchs, hors bonus et x2' +
-      (f.j ? ' · ' + (d / f.j >= 0 ? '+' : '') + (d / f.j).toFixed(1).replace('.', ',') + ' par journée' : '') + (f.skip ? ' · ' + f.skip + ' match' + (f.skip > 1 ? 's' : '') + ' raté' + (f.skip > 1 ? 's' : '') + ' sans score réel ignoré' + (f.skip > 1 ? 's' : '') : '') +
-      (f.noData.length ? ' · J' + f.noData.sort(function(a, b){ return a - b; }).join(', J') + ' non comptée' + (f.noData.length > 1 ? 's' : '') + ' (pas de cotes enregistrées)' : '') + '</span></div>';
+    var f = favStats(md, arr); if (!f.rows.length) return '';
+    var sum = function(meth){ var r = f.rows.filter(function(x){ return x.meth === meth; }); if (!r.length) return null;
+      var me = 0, fv = 0; r.forEach(function(x){ me += x.me; fv += x.fav; }); return {j:r.length, me:me, fav:fv, d:Math.round(me - fv), from:r[0].jn, to:r[r.length - 1].jn}; };
+    var line = function(nm, t){ if (!t) return '';
+      return '<span class="frow"><b>' + nm + '</b> J' + t.from + (t.to !== t.from ? '–J' + t.to : '') + ' : <strong class="' + (t.d >= 0 ? 'pos' : 'neg') + '">' + (t.d >= 0 ? '+' : '') + t.d + ' pts</strong> (' + (t.d / t.j >= 0 ? '+' : '') + Math.round(t.d / t.j) + ' par journée) · toi ' + Math.round(t.me) + ', favori ' + Math.round(t.fav) + '</span>'; };
+    var o = sum('old'), j = sum('jkd'), all = Math.round(f.rows.reduce(function(a, x){ return a + x.me - x.fav; }, 0));
+    return '<div class="fav"><b>' + (all >= 0 ? '+' : '') + all + ' pts</b><span>face au favori : si tu avais joué le favori à chaque match (hors bonus et x2)</span>' +
+      line(METH_NAME.old, o) + line(METH_NAME.jkd, j) + favChart(f.rows) +
+      (f.skip ? '<span class="note">' + f.skip + ' match' + (f.skip > 1 ? 's' : '') + ' raté' + (f.skip > 1 ? 's' : '') + ' sans score réel ignoré' + (f.skip > 1 ? 's' : '') + '</span>' : '') +
+      (f.noData.length ? '<span class="note">J' + f.noData.join(', J') + ' non comptée' + (f.noData.length > 1 ? 's' : '') + ' (pas de cotes enregistrées)</span>' : '') + '</div>';
+  }
+  // Cotes (Betclic) des journées sans cotes enregistrées, saisies après coup : favori et ses points MPP
+  function fixFav(){
+    var n = 0, D = "l1|6|Nice|Strasbourg|0|86;l1|6|Rennes|Auxerre|0|47;l1|6|Troyes|Marseille|2|71;l1|6|Lens|Lyon|2|0;l1|6|Lille|Havre|0|49;l1|6|Brest|Angers|0|67;l1|6|Lorient|Paris Fc|2|0;l1|6|Monaco|Toulouse|0|0;l1|6|Paris SG|Le Mans|0|21;l1|5|Paris Fc|Strasbourg|0|86;l1|5|Angers|Troyes|0|77;l1|5|Le Mans|Lorient|2|0;l1|5|Lyon|Rennes|0|75;l1|5|Toulouse|Havre|0|67;l1|5|Auxerre|Brest|2|0;l1|5|Nice|Lille|2|0;l1|5|Marseille|Paris SG|2|67;l1|5|Monaco|Lens|0|86;l1|4|Rennes|Marseille|0|100;l1|4|Strasbourg|Monaco|2|0;l1|4|Auxerre|Nice|2|0;l1|4|Havre|Angers|0|0;l1|4|Lorient|Toulouse|0|0;l1|4|Paris Fc|Lyon|0|0;l1|4|Lille|Troyes|0|42;l1|4|Le Mans|Lens|2|0;l1|4|Brest|Paris SG|2|38;l1|3|Toulouse|Lille|2|88;l1|3|Paris SG|Monaco|0|0;l1|3|Lens|Lorient|0|0;l1|3|Havre|Brest|2|104;l1|3|Nice|Le Mans|0|0;l1|3|Troyes|Strasbourg|2|86;l1|3|Angers|Rennes|2|73;l1|3|Marseille|Paris Fc|0|0;l1|3|Lyon|Auxerre|0|53;l1|2|Lille|Paris SG|2|0;l1|2|Strasbourg|Lens|2|0;l1|2|Auxerre|Angers|0|0;l1|2|Brest|Toulouse|0|0;l1|2|Lorient|Troyes|0|0;l1|2|Lyon|Havre|0|0;l1|2|aris|ice|0|83;l1|2|Rennes|Le Mans|0|49;l1|2|Monaco|Marseille|0|86;l1|1|Marseille|Strasbourg|0|59;l1|1|Lens|Auxerre|0|55;l1|1|Le Mans|Brest|0|0;l1|1|Nice|Lorient|0|0;l1|1|Toulouse|Lyon|0|0;l1|1|Troyes|Paris Fc|2|0;l1|1|Angers|Lille|2|59;l1|1|Havre|Monaco|2|74;l1|1|Rennes|Paris SG|2|0;l2|8|Dijon|Metz|2|0;l2|8|Dunkerque|Annecy|0|0;l2|8|Montpellier|Grenoble|0|59;l2|8|Nancy|Guingamp|0|83;l2|8|Pau|Laval|0|79;l2|8|Sochaux|Boulogne|0|0;l2|8|Clermont|Red Star|2|71;l2|8|Nantes|Reims|0|0;l2|8|St Étienne|Rodez|0|39;l2|7|Grenoble|Clermont|0|0;l2|7|Laval|Sochaux|0|0;l2|7|Pau|Dunkerque|0|88;l2|7|Reims|Montpellier|0|0;l2|7|Rodez|Nancy|0|0;l2|7|Boulogne|Nantes|2|79;l2|7|Guingamp|Red Star|0|0;l2|7|Metz|St Étienne|2|0;l2|7|Annecy|Dijon|0|0;l2|6|Clermont|Boulogne|0|0;l2|6|Dijon|Laval|0|77;l2|6|Montpellier|Pau|0|71;l2|6|Nancy|Reims|2|79;l2|6|Rodez|Grenoble|0|0;l2|6|Guingamp|Annecy|0|83;l2|6|Sochaux|Nantes|2|0;l2|6|Red Star|Metz|0|88;l2|6|Dunkerque|St Étienne|2|0;l2|5|Boulogne|Dijon|2|0;l2|5|Dunkerque|Clermont|0|0;l2|5|Grenoble|Annecy|2|91;l2|5|Laval|Red Star|2|93;l2|5|Pau|Sochaux|0|0;l2|5|Metz|Rodez|0|83;l2|5|Reims|Guingamp|0|0;l2|5|St Étienne|Montpellier|0|70;l2|5|Nantes|Nancy|0|73;l2|4|Clermont|Sochaux|0|0;l2|4|Laval|Grenoble|0|0;l2|4|Montpellier|Boulogne|0|0;l2|4|Nancy|Dunkerque|0|95;l2|4|Rodez|Pau|0|0;l2|4|Annecy|Metz|2|0;l2|4|Red Star|Reims|2|102;l2|4|Guingamp|Nantes|2|0;l2|4|Dijon|St Étienne|2|71;l2|3|Boulogne|Red Star|2|0;l2|3|Clermont|Dijon|2|0;l2|3|Dunkerque|Montpellier|0|0;l2|3|Pau|Nancy|0|0;l2|3|Sochaux|Guingamp|2|0;l2|3|Metz|Laval|0|0;l2|3|Nantes|Rodez|0|0;l2|3|St Étienne|Grenoble|0|47;l2|3|Reims|Annecy|0|62;l2|2|Annecy|odez|0|81;l2|2|Dijon|Pau|0|0;l2|2|Grenoble|Metz|2|0;l2|2|Guingamp|Boulogne|0|66;l2|2|Laval|Nantes|2|0;l2|2|Red Star|Sochaux|0|0;l2|2|Reims|Dunkerque|0|0;l2|2|St Étienne|Clermont|0|58;l2|2|Nancy|Montpellier|2|93;l2|1|Boulogne|Nancy|0|0;l2|1|Clermont|Reims|2|0;l2|1|Dunkerque|Grenoble|0|73;l2|1|Metz|Guingamp|0|71;l2|1|Montpellier|Dijon|0|0;l2|1|Nantes|Red Star|0|0;l2|1|Pau|Annecy|2|101;l2|1|Rodez|Laval|0|72;l2|1|Sochaux|St Étienne|2|73;ldc|2|Lens|Sporting|0|0;ldc|2|Sabah|Slavia|2|0;ldc|2|Arsenal|Lille|0|35;ldc|2|Galatasaray|Barcelona|2|39;ldc|2|Leipzig|Psv|0|75;ldc|2|Inter|Bruges|0|0;ldc|2|Atlético|Man United|0|83;ldc|2|Viking JV|Bayern|2|0;ldc|2|Villarreal|Napoli|0|85;ldc|2|Feyenoord|Como|2|0;ldc|2|LASK|Liverpool|2|37;ldc|2|Aston Villa|Fenerbahçe|0|64;ldc|2|Betis|Porto|0|77;ldc|2|Roma RE|Real Madrid|2|77;ldc|2|Man City|Paris SG|0|0;ldc|2|Shakhtar|AEK Athens|2|0;ldc|2|BodgGlimt|Dortmund|2|0;ldc|2|Slovan|Stuttgart|2|39;ldc|1|AEK Athens|LASK|0|65;ldc|1|Bruges|Aston Villa|0|0;ldc|1|Dortmund|Villarreal|0|73;ldc|1|Porto|Man City|2|67;ldc|1|Lille|Betis|0|0;ldc|1|Barcelona|Feyenoord|0|24;ldc|1|Stuttgart|VÇ Viking|0|32;ldc|1|Liverpool|Atlético|0|67;ldc|1|Napoli|Arsenal|2|71;ldc|1|Paris SG|Slovan|0|10;ldc|1|Sporting|Galatasaray|0|73;ldc|1|Fenerbahçe|Roma|2|0;ldc|1|Psv|Shakhtar|0|0;ldc|1|Bayern|BodgGlimt|0|30;ldc|1|Como|Leipzig|0|83;ldc|1|Man United|Sabah|0|22;ldc|1|Real Madrid|Inter|0|62;ldc|1|Slavia|Lens|2|95";
+    D.split(';').forEach(function(x){
+      var f = x.split('|'), md = f[0], jn = +f[1];
+      var b = bilansOf(md).filter(function(y){ return y.jn === jn; })[0]; if (!b) return;
+      var m = b.matches.filter(function(y){ return y.home === f[2] && y.away === f[3]; })[0];
+      if (!m || m.fav || (m.pts && m.odds)) return;
+      m.fav = {k:+f[4], pts:+f[5], src:'betclic'}; b.at = new Date().toISOString(); n++;
+    });
+    return n;
   }
   function renderBilans(){
     if (renderBilans.mode && renderBilans.mode !== S.mode) bSay('');   // message de l'autre compétition effacé
@@ -3426,7 +3472,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function updateBilanBar(){
     autoArchive(); $('clearDone').hidden = !cur().length;
     autoScores();
-    if (fixBilans()){ var qf = syncApplying; syncApplying = true; save(); syncApplying = qf; if (VIEW === 'bilans') renderBilans(); }
+    if (fixBilans() + fixFav()){ var qf = syncApplying; syncApplying = true; save(); syncApplying = qf; if (VIEW === 'bilans') renderBilans(); }
     if (quickBilans().length){ var q0 = syncApplying; syncApplying = true; save(); syncApplying = q0; if (VIEW === 'bilans') renderBilans(); }
     var nd = cur().filter(function(m){ return matchState(m) === 'done'; }), todo = nd.filter(function(m){ return !m.qr; }).length;
     $('qrOpen').hidden = !nd.length;

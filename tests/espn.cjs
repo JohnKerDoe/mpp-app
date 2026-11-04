@@ -36,14 +36,14 @@ const UCL = {events:[
   const sc = await p.evaluate(() => JSON.parse(localStorage.getItem('mpp-esperance-v2')).data.ldc.filter(m => m.score).map(m => m.home + ' ' + m.score.h + '-' + m.score.a));
   console.log(sc);
   ok(calls >= 1, 'ESPN appelé au démarrage, un jour à la fois (' + calls + ' appels)');
-  ok(sc.length === 4 && sc.includes('Shakhtar 0-1') && sc.includes('Bodo/Glimt 0-0'), '4 scores trouvés malgré les noms ESPN (Bodø, Sporting CP, PSG…), match pas fini ignoré');
+  ok(sc.length === 4 && sc.includes('Shakhtar 0-1') && sc.some(x => /^Bod[oø]\/Glimt 0-0/.test(x)), '4 scores trouvés malgré les noms ESPN (Bodø, Sporting CP, PSG…), match pas fini ignoré');
   await p.click('#qrOpen'); await p.waitForTimeout(300);
   const rows = await p.$$eval('#qrList .qrrow', r => r.map(x => ({t:x.innerText.replace(/\n/g, ' '), ok:x.querySelector('[data-qf="ok"]').classList.contains('on'), ex:x.querySelector('[data-qf="ex"]').classList.contains('on')})));
   rows.forEach(r => console.log(r.ok ? '✓' : '✗', r.ex ? '🎯' : '  ', r.t));
   const R = n => rows.find(r => new RegExp(n).test(r.t));
   ok(R('Galatasaray') && !R('Galatasaray').ok && /score réel 1-1 · ESPN/.test(R('Galatasaray').t), 'Galatasaray (prono 2-1, réel 1-1) : ✗ pré-rempli');
   ok(R('Villarreal') && R('Villarreal').ok && R('Villarreal').ex, 'Villarreal (prono 1-2, réel 1-2) : ✓ 🎯 pré-remplis');
-  ok(R('Bodo') && !R('Bodo').ok, 'Bodo/Glimt (réel 0-0) : ✗');
+  ok(R('Bod[oø]') && !R('Bod[oø]').ok, 'Bodo/Glimt (réel 0-0) : ✗');
   ok(R('Barcelona') && !R('Barcelona').ok && /score réel \? ✎/.test(R('Barcelona').t), 'Barcelona sans score ESPN : à remplir à la main');
   if (out) await p.locator('#qrSheet').screenshot({path:out + '/espn.png'});
   await p.click('#qrSave'); await p.waitForTimeout(300);
