@@ -363,6 +363,9 @@ body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !import
 #ligueView .note{font-size:13px;color:var(--mute);margin:6px 0}
 .lgt{width:100%;border-collapse:collapse;font-size:14px}.lgt td,.lgt th{padding:7px 4px;border-top:1px solid var(--line);text-align:right}.lgt th{font-size:11px;color:var(--mute);font-weight:700;border-top:0}
 .lgt td:nth-child(2),.lgt th:nth-child(2){text-align:left}.lgt tr.me td{background:rgba(125,211,252,.12);font-weight:800}
+.lgheat{display:grid;gap:3px;align-items:center;font-size:12px}.lgheat .hj{text-align:center;color:var(--mute);font-size:11px;font-weight:700}
+.lgheat .hn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;padding-right:4px}.lgheat .hn.me{font-weight:800}
+.lgheat .hc{text-align:center;border-radius:4px;padding:5px 0;font-weight:800;font-size:12px}
 .lgdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}.lgt td.lgap{color:var(--mute);font-size:13px}.lgt tr.me td.lgap{color:var(--ink)}
 .lup{color:#22A45D;font-size:11px;font-weight:800;margin-left:4px}.ldn{color:#E5484D;font-size:11px;font-weight:800;margin-left:4px}
 .lgbig{font-size:26px;font-weight:800;line-height:1.1}.lgsub{font-size:13px;color:var(--ink-2);margin-top:4px}
@@ -662,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 12h30</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 16h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3696,6 +3699,19 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     // 1 · classement
     h += '<h3>Classement · J' + last.jn + '</h3><section class="grp"><table class="lgt"><tr><th>#</th><th>Joueur</th><th>J' + last.jn + '</th><th>Total</th><th>Écart</th></tr>' +
       last.list.map(function(x){ return '<tr' + (x.n === me ? ' class="me"' : '') + '><td>' + x.rk + '</td><td><i class="lgdot" style="background:' + lgColor(S.mode, x.n) + '"></i>' + esc(x.n) + (x.d > 0 ? '<span class="lup">▲' + x.d + '</span>' : x.d < 0 ? '<span class="ldn">▼' + (-x.d) + '</span>' : '') + '</td><td>' + (x.p === null ? '–' : Math.round(x.p)) + '</td><td>' + nf0.format(x.t) + '</td><td class="lgap">' + (x.rk === 1 ? '—' : '−' + nf0.format(lead.t - x.t)) + '</td></tr>'; }).join('') + '</table></section>';
+    // Carte de chaleur : rang de chaque joueur à chaque journée (vert = meilleur score de la journée, rouge = moins bon), 12 dernières journées
+    var hs = ser.slice(-12);
+    if (hs.length >= 2){
+      var HC = [['#97C459', '#173404'], ['#C0DD97', '#27500A'], ['#FAC775', '#633806'], ['#F7C1C1', '#791F1F'], ['#F09595', '#501313']];
+      var jrk = hs.map(function(s0){ var ps = s0.list.filter(function(x){ return x.p !== null; }).slice().sort(function(a, b){ return b.p - a.p; }), o = {};
+        ps.forEach(function(x, i){ o[x.n] = {rk:i > 0 && x.p === ps[i - 1].p ? o[ps[i - 1].n].rk : i + 1, n:ps.length, p:x.p}; }); return o; });
+      h += '<h3>Rang à chaque journée</h3><section class="grp"><div class="lgheat" style="grid-template-columns:' + (hs.length > 9 ? 84 : 104) + 'px repeat(' + hs.length + ',minmax(0,1fr))"><span></span>' +
+        hs.map(function(s0){ return '<span class="hj">' + s0.jn + '</span>'; }).join('') +
+        last.list.map(function(x){ return '<span class="hn' + (x.n === me ? ' me' : '') + '"><i class="lgdot" style="background:' + lgColor(S.mode, x.n) + '"></i>' + esc(x.n) + '</span>' +
+          jrk.map(function(o){ var c = o[x.n]; if (!c) return '<span class="hc" style="background:var(--field)">·</span>';
+            var k = c.n <= 1 ? 0 : Math.round((c.rk - 1) / (c.n - 1) * 4); return '<span class="hc" style="background:' + HC[k][0] + ';color:' + HC[k][1] + '" title="' + Math.round(c.p) + ' pts">' + c.rk + '</span>'; }).join(''); }).join('') +
+        '</div><p class="note">Rang de la journée : vert = meilleur score de la journée, rouge = le moins bon. Une case grise = pas joué.</p></section>';
+    }
     // 2 · podium de la journée
     var jp = last.list.filter(function(x){ return x.p !== null; }).slice().sort(function(a, b){ return b.p - a.p; });
     if (jp.length >= 2){
