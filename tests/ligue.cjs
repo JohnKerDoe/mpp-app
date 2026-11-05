@@ -55,6 +55,11 @@ pts.forEach((r, k) => { const rows = {}; P.forEach((n, i) => { tot[n] = (tot[n] 
   const t2 = await q.evaluate(() => document.querySelector('#lgBody .lgt').innerText.replace(/\s+/g, ' '));
   console.log('L2 :', t2);
   ok(/1 NewTeamFC 415 4\s?641/.test(t2) && /Cuitass 137 2\s?557/.test(t2) && /PSGsansMbappe 448 1\s?465/.test(t2), 'L2 : classement J11 (NewTeamFC 4 641, Cuitass 2 557, PSGsansMbappe 1 465)');
+  // L1 : LABEXIALIGUE1 J1–J9
+  await q.evaluate(() => { const t = [...document.querySelectorAll('button, a')].find(x => x.textContent.trim() === 'L1'); t && t.click(); }); await q.waitForTimeout(300);
+  const t1 = await q.evaluate(() => document.querySelector('#lgBody .lgt').innerText.replace(/\s+/g, ' '));
+  console.log('L1 :', t1);
+  ok(t1.includes('1 NewTeamFC▲1 415 3') && /3\s?261/.test(t1), 'L1 : classement J9 (NewTeamFC 1er, 3 261)');
   await c2.close();
   ok(!errs.length, 'L2 : pas d\'erreur JS ' + (errs[0] || ''));
   await b.close();
