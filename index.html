@@ -537,7 +537,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   </div>
   <section id="ligueView" hidden>
     <h2 class="day" id="lgTitle">Ligue</h2>
-    <div class="row" style="margin-top:10px"><button class="btn" id="lgAdd" type="button">＋ Saisir une journée</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="lgShot" type="button">📷 Capture d'une journée</button><button class="btn ghost" id="lgAdd" type="button">＋ À la main</button></div>
+    <input type="file" id="lgFile" accept="image/*" hidden>
     <p class="note" id="lgMsg" role="status"></p>
     <section class="grp" id="lgEdit" hidden></section>
     <div id="lgBody"></div>
@@ -661,7 +662,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 10h40</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 12h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3683,7 +3684,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var md = MODES.filter(function(x){ return x.id === S.mode; })[0], L = lgOf(S.mode), me = L.me, ser = lgSeries(S.mode);
     $('lgTitle').textContent = 'Ligue · ' + md.name;
     var h = '';
-    if (!ser.length){ $('lgBody').innerHTML = '<p class="note">Aucune journée saisie. Touche « ＋ Saisir une journée » et recopie le classement de ta ligue MPP : pseudo, total, et points de la journée si MPP les affiche.</p>'; return; }
+    if (!ser.length){ $('lgBody').innerHTML = '<p class="note">Aucune journée saisie. Touche « 📷 Capture d\'une journée » et choisis une capture de l\'onglet « Résultats » de ta ligue MPP, ou saisis-la « À la main ».</p>'; return; }
     var last = ser[ser.length - 1], my = last.by[me], N = last.list.length, pl = function(v){ return (v > 0 ? '+' : '') + Math.round(v); };
     if (!my){ $('lgBody').innerHTML = '<p class="note">Indique ton pseudo dans « ＋ Saisir une journée » (case « moi ») pour voir tes statistiques.</p>'; return; }
     var lead = last.list[0], above = last.list[my.rk - 2], below = last.list[my.rk];
@@ -3788,6 +3789,60 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       '<div class="row"><button class="btn" id="lgSave" type="button">Enregistrer</button><button class="btn ghost" id="lgCancel" type="button">Annuler</button>' + (d.edit ? '<button class="btn ghost" id="lgDel" type="button">Supprimer</button>' : '') + '</div>';
   }
   $('lgAdd').addEventListener('click', function(){ lgOpen(null); });
+  /* Capture de l'onglet « Résultats » de ta ligue MPP : « J.4 / 34 », puis une ligne par joueur « 2 Pseudo 431 Pts ».
+     La ligne surlignée en haut (toi) est en double : on garde une seule ligne par joueur. */
+  function lgNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9#]/g, ''); }
+  function parseLeague(txt, known){
+    var out = {jn:null, of:null, rows:[]}, seen = {};
+    var jm = txt.match(/J\s*[.,]?\s*(\d{1,2})\s*\/\s*(\d{2})/);
+    if (jm){ out.jn = +jm[1]; out.of = +jm[2]; }
+    var D = {O:'0', o:'0', D:'0', Q:'0', I:'1', l:'1', '|':'1', i:'1', Z:'2', z:'2', S:'5', s:'5', A:'4', T:'7', B:'8', g:'9', G:'6', b:'6'};
+    txt.split(/\n/).forEach(function(line){
+      var pm = line.match(/([0-9A-Za-z|][0-9A-Za-z| ]{0,7}?)\s*P\s*[t1l]\s*s\b/i); if (!pm) return;
+      var raw = pm[1].trim().split(/\s+/), dig = '';
+      for (var k = raw.length - 1; k >= 0; k--){                    // derniers groupes de chiffres avant « Pts » (« 1 044 »)
+        var g = raw[k].split('').map(function(c){ return /\d/.test(c) ? c : (D[c] || ''); }).join('');
+        if (!g || g.length !== raw[k].length) break;
+        dig = g + dig; if (dig.length >= 3) break;
+      }
+      var v = parseInt(dig, 10); if (isNaN(v)) return;
+      if (v > 2500 && dig.length >= 4) v = parseInt(dig.slice(0, -1), 10);   // badge lu comme un chiffre en trop
+      var before = line.slice(0, pm.index), nl = lgNorm(before), name = null;
+      (known || []).slice().sort(function(a, b){ return b.length - a.length; }).forEach(function(n){ if (!name && lgNorm(n).length >= 3 && nl.indexOf(lgNorm(n)) >= 0) name = n; });
+      if (!name){
+        var toks = before.replace(/^[\s\d.\-–]+/, ' ').split(/\s+/).map(function(w){ return w.replace(/^[^A-Za-z0-9#]+|[^A-Za-z0-9#]+$/g, ''); }).filter(function(w){ return /[A-Za-z]/.test(w) && w.replace(/[^A-Za-z0-9]/g, '').length >= 3; });
+        name = toks.sort(function(a, b){ return b.length - a.length; })[0] || null;
+      }
+      if (!name) return;
+      if (seen[name] !== undefined) out.rows[seen[name]].p = v;     // même joueur : on garde la dernière ligne (sous « Joueurs »)
+      else { seen[name] = out.rows.length; out.rows.push({n:name, p:v}); }
+    });
+    return out;
+  }
+  $('lgShot').addEventListener('click', function(){ $('lgFile').click(); });
+  $('lgFile').addEventListener('change', async function(e){
+    var f = (e.target.files || [])[0]; e.target.value = ''; if (!f) return;
+    var msg = function(t){ $('lgMsg').textContent = t; }, worker = null;
+    msg('Chargement de la lecture de texte…');
+    try {
+      try { await loadTesseract(); } catch (err) { throw new Error('Impossible de charger la lecture de texte. Vérifie ta connexion internet.'); }
+      worker = await Tesseract.createWorker('fra', 1, {logger:function(m){ if (m.status === 'recognizing text') msg('Lecture de la capture… ' + Math.round(m.progress * 100) + '%'); }});
+      await worker.setParameters({tessedit_pageseg_mode:'6'});
+      var L = lgOf(S.mode), known = {};
+      MODES.forEach(function(md){ var LL = lgOf(md.id); Object.keys(LL.j).forEach(function(k){ Object.keys(LL.j[k].rows || {}).forEach(function(n){ known[n] = 1; }); }); if (LL.me) known[LL.me] = 1; });
+      var txt = (await worker.recognize(await prepImage(f, 150))).data.text || '', res = parseLeague(txt, Object.keys(known));
+      if (res.rows.length < 2){ var t2 = (await worker.recognize(await prepImage(f, 120))).data.text || '', r2 = parseLeague(t2, Object.keys(known)); if (r2.rows.length > res.rows.length) res = r2; }
+      if (!res.rows.length) throw new Error('Aucun joueur lu. Fais la capture de l\'onglet « Résultats » de ta ligue, avec le numéro de journée visible.');
+      var warn = res.of === 17 && S.mode !== 'ldc' ? ' ⚠️ Cette capture ressemble à la Ligue des champions (17 journées) : vérifie l\'onglet.' : res.of === 34 && S.mode === 'ldc' ? ' ⚠️ Cette capture ressemble à un championnat (34 journées) : vérifie l\'onglet.' : '';
+      var js = Object.keys(L.j).map(Number), names = {};
+      lgDraft = {jn:res.jn || (js.length ? Math.max.apply(null, js) + 1 : 1), edit:!!(res.jn && L.j[res.jn]), rows:res.rows.map(function(r){ names[r.n] = 1; return {n:r.n, t:'', p:r.p}; })};
+      // joueurs connus absents de la capture : lignes vides, à compléter ou à laisser vides
+      if (js.length) Object.keys(L.j[Math.max.apply(null, js)].rows || {}).forEach(function(n){ if (!names[n]) lgDraft.rows.push({n:n, t:'', p:''}); });
+      lgRenderEdit(); $('lgEdit').hidden = false; $('lgEdit').scrollIntoView({block:'start'});
+      msg('J' + lgDraft.jn + ' lue : ' + res.rows.length + ' joueur' + (res.rows.length > 1 ? 's' : '') + '. Vérifie les points puis touche Enregistrer.' + warn);
+    } catch (err) { msg('⚠️ ' + err.message); }
+    finally { if (worker){ try { await worker.terminate(); } catch (e2) {} } }
+  });
   $('lgBody').addEventListener('click', function(e){ var b = e.target.closest('[data-lged]'); if (b) lgOpen(+b.dataset.lged); });
   $('lgEdit').addEventListener('input', function(e){
     var el = e.target, d = lgDraft; if (!d) return;
