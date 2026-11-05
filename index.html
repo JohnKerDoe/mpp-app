@@ -660,7 +660,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 09h45</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 10h15</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3723,16 +3723,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     h += '<h3>Journées saisies</h3><section class="grp">' + ser.slice().reverse().map(function(s){ return '<div class="brh"><span>J' + s.jn + ' · ' + s.list.length + ' joueurs</span><span></span><span><button class="btn2" type="button" data-lged="' + s.jn + '">Modifier</button></span></div>'; }).join('') + '</section>';
     $('lgBody').innerHTML = h;
   }
-  // Classement LdC « LIGUEDECH » J1–J4 (points de la journée, captures du 5/11), ajouté une seule fois
+  // Classements de tes ligues MPP (points de la journée, captures du 5/11), ajoutés une seule fois par compétition
   function seedLeague(){
-    var L = lgOf('ldc'); if (L.seed) return 0;
-    var P = {1:{'JeanChristo#2KN9':1044, 'PSGsansMbappe':935, 'NewTeamFC':862, 'Merenguespagnole':751, 'Cuitass':677},
-             2:{'NewTeamFC':983, 'Merenguespagnole':732, 'Cuitass':698, 'PSGsansMbappe':621, 'JeanChristo#2KN9':402},
-             3:{'NewTeamFC':719, 'Cuitass':712, 'PSGsansMbappe':551, 'Merenguespagnole':529, 'JeanChristo#2KN9':476},
-             4:{'NewTeamFC':1056, 'Merenguespagnole':926, 'PSGsansMbappe':766, 'Cuitass':605, 'JeanChristo#2KN9':586}};
-    Object.keys(P).forEach(function(jn){ if (L.j[jn]) return; var rows = {}; Object.keys(P[jn]).forEach(function(n){ rows[n] = {t:null, p:P[jn][n]}; }); L.j[jn] = {at:'2026-11-05T08:00:00Z', rows:rows}; });
-    if (!L.me){ L.me = 'NewTeamFC'; L.meAt = '2026-11-05T08:00:00Z'; }
-    L.seed = 1; return 1;
+    var SEED = {
+      ldc:{1:{'JeanChristo#2KN9':1044, 'PSGsansMbappe':935, 'NewTeamFC':862, 'Merenguespagnole':751, 'Cuitass':677},
+           2:{'NewTeamFC':983, 'Merenguespagnole':732, 'Cuitass':698, 'PSGsansMbappe':621, 'JeanChristo#2KN9':402},
+           3:{'NewTeamFC':719, 'Cuitass':712, 'PSGsansMbappe':551, 'Merenguespagnole':529, 'JeanChristo#2KN9':476},
+           4:{'NewTeamFC':1056, 'Merenguespagnole':926, 'PSGsansMbappe':766, 'Cuitass':605, 'JeanChristo#2KN9':586}},
+      l2:{1:{'NewTeamFC':449}, 2:{'Cuitass':334, 'NewTeamFC':298}, 3:{'NewTeamFC':372, 'Cuitass':144}, 4:{'NewTeamFC':377, 'Cuitass':180},
+          5:{'NewTeamFC':563, 'Cuitass':437}, 6:{'NewTeamFC':322, 'Cuitass':180}, 7:{'NewTeamFC':423, 'Cuitass':253}, 8:{'NewTeamFC':544, 'Cuitass':355},
+          9:{'PSGsansMbappe':502, 'NewTeamFC':387, 'Cuitass':270}, 10:{'PSGsansMbappe':515, 'NewTeamFC':491, 'Cuitass':267}, 11:{'PSGsansMbappe':448, 'NewTeamFC':415, 'Cuitass':137}}};
+    var n = 0;
+    Object.keys(SEED).forEach(function(md){
+      var L = lgOf(md), P = SEED[md]; if (L.seed) return;
+      Object.keys(P).forEach(function(jn){ if (L.j[jn]) return; var rows = {}; Object.keys(P[jn]).forEach(function(nm){ rows[nm] = {t:null, p:P[jn][nm]}; }); L.j[jn] = {at:'2026-11-05T08:00:00Z', rows:rows}; });
+      if (!L.me){ L.me = 'NewTeamFC'; L.meAt = '2026-11-05T08:00:00Z'; }
+      L.seed = 1; n++;
+    });
+    return n;
   }
   // Saisie d'une journée : pseudo, total, points de la journée (facultatif) ; ta ligne cochée « moi »
   var lgDraft = null;

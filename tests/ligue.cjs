@@ -7,7 +7,7 @@ const st = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).state, out = pro
 let fails = 0; const ok = (c, msg) => { console.log((c ? 'OK  ' : 'ÉCHEC ') + msg); if (!c) fails++; };
 const P = ['Toi', 'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Fox', 'Golf'];
 const pts = [[380,410,350,300,330,290,360,310],[420,300,390,350,280,330,300,340],[350,380,400,320,360,300,310,290],[400,360,330,380,300,350,290,330],[360,420,310,340,390,280,330,300]];
-const league = {me:'Toi', j:{}}, tot = {};
+const league = {me:'Toi', j:{}, seed:1}, tot = {};
 pts.forEach((r, k) => { const rows = {}; P.forEach((n, i) => { tot[n] = (tot[n] || 0) + r[i]; rows[n] = {t:tot[n], p:k === 0 ? r[i] : null}; }); league.j[k + 1] = {at:'2026-10-0' + (k + 1) + 'T10:00:00Z', rows}; });
 (async () => {
   const b = await chromium.launch({executablePath:process.env.PW_CHROME || '/opt/pw-browsers/chromium'});
@@ -45,6 +45,18 @@ pts.forEach((r, k) => { const rows = {}; P.forEach((n, i) => { tot[n] = (tot[n] 
   ok(tl && /1 NewTeamFC 1\s?056 3\s?620/.test(tl) && /5 JeanChristo#2KN9 586 2\s?508/.test(tl), 'LdC : classement J4 cumulé (NewTeamFC 1er, 3 620)');
   if (out) await p.locator('#ligueView').screenshot({path:out + '/ligue-ldc.png'});
   ok(!errs.length, 'LdC : pas d\'erreur JS ' + (errs[0] || ''));
+  // L2 : FUFUFU LIGUE2 J1–J11 ajoutée toute seule (état sans ligue)
+  const c2 = await b.newContext({viewport:{width:412,height:900}, colorScheme:'dark', timezoneId:'Europe/Paris'});
+  const q = await c2.newPage(); q.on('pageerror', e => errs.push(e.message));
+  await q.route('https://**/*', r => r.fulfill({status:404, body:'{}'}));
+  await q.addInitScript(s => { if (localStorage.getItem('mpp-esperance-v2')) return; s = JSON.parse(JSON.stringify(s)); s.mode = 'l2'; delete s.league; localStorage.setItem('mpp-esperance-v2', JSON.stringify(s)); }, st);
+  await q.goto(APP); await q.waitForTimeout(800);
+  await q.click('#viewSw [data-view="ligue"]'); await q.waitForTimeout(300);
+  const t2 = await q.evaluate(() => document.querySelector('#lgBody .lgt').innerText.replace(/\s+/g, ' '));
+  console.log('L2 :', t2);
+  ok(/1 NewTeamFC 415 4\s?641/.test(t2) && /Cuitass 137 2\s?557/.test(t2) && /PSGsansMbappe 448 1\s?465/.test(t2), 'L2 : classement J11 (NewTeamFC 4 641, Cuitass 2 557, PSGsansMbappe 1 465)');
+  await c2.close();
+  ok(!errs.length, 'L2 : pas d\'erreur JS ' + (errs[0] || ''));
   await b.close();
   console.log(fails ? fails + ' échec(s)' : 'Tout est bon'); process.exit(fails ? 1 : 0);
 })();
