@@ -363,6 +363,7 @@ body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !import
 #ligueView .note{font-size:13px;color:var(--mute);margin:6px 0}
 .lgt{width:100%;border-collapse:collapse;font-size:14px}.lgt td,.lgt th{padding:7px 4px;border-top:1px solid var(--line);text-align:right}.lgt th{font-size:11px;color:var(--mute);font-weight:700;border-top:0}
 .lgt td:nth-child(2),.lgt th:nth-child(2){text-align:left}.lgt tr.me td{background:rgba(125,211,252,.12);font-weight:800}
+.lgdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}.lgt td.lgap{color:var(--mute);font-size:13px}.lgt tr.me td.lgap{color:var(--ink)}
 .lup{color:#22A45D;font-size:11px;font-weight:800;margin-left:4px}.ldn{color:#E5484D;font-size:11px;font-weight:800;margin-left:4px}
 .lgbig{font-size:26px;font-weight:800;line-height:1.1}.lgsub{font-size:13px;color:var(--ink-2);margin-top:4px}
 .lgpod{display:flex;align-items:flex-end;gap:8px;height:110px;margin-top:6px}.lgpod>div{flex:1;text-align:center;font-size:13px}
@@ -660,7 +661,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 10h25</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 10h40</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3637,8 +3638,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     return out;
   }
+  // Une couleur par joueur, la même partout (classement, courbe), stable d'une journée à l'autre
+  var LG_PAL = ['#7DD3FC', '#F59E0B', '#22C55E', '#F43F5E', '#A78BFA', '#FB923C', '#2DD4BF', '#E879F9', '#FACC15', '#94A3B8'];
+  function lgColor(md, n){
+    var L = lgOf(md), all = {};
+    Object.keys(L.j).forEach(function(k){ Object.keys(L.j[k].rows || {}).forEach(function(x){ all[x] = 1; }); });
+    var names = Object.keys(all).sort(function(a, b){ return a.localeCompare(b); }), i = names.indexOf(n);
+    return LG_PAL[(i < 0 ? 0 : i) % LG_PAL.length];
+  }
   function lgSpark(series, me, mode){
-    var W = 320, H = 140, L = 30, R = 46, T = 10, B = 20, n = series.length;
+    var W = 320, H = 170, L = 30, R = 46, T = 10, B = 20, n = series.length;
     if (n < 2) return '<p class="note">La courbe apparaîtra à partir de 2 journées saisies.</p>';
     var names = Object.keys(series[n - 1].by), X = function(i){ return L + i * (W - L - R) / (n - 1); };
     var vals = function(nm){ return series.map(function(s){ var x = s.by[nm]; return x ? (mode === 'rank' ? x.rk : x.t) : null; }); };
@@ -3651,13 +3660,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '" stroke="var(--line)"/>';
     svg += '<text x="' + (L - 4) + '" y="' + (T + 4) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">' + (mode === 'rank' ? '1er' : Math.round(hi)) + '</text><text x="' + (L - 4) + '" y="' + (H - B) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">' + (mode === 'rank' ? hi + 'e' : Math.round(lo)) + '</text>';
     series.forEach(function(s, i){ if (n <= 10 || i % 2 === 0 || i === n - 1) svg += '<text x="' + X(i) + '" y="' + (H - 5) + '" font-size="9.5" text-anchor="middle" fill="var(--mute)">J' + s.jn + '</text>'; });
-    if (mode !== 'rank') names.forEach(function(nm){ if (nm !== me) svg += '<path d="' + pth(vals(nm)) + '" fill="none" stroke="var(--mute)" stroke-width="1.3" opacity=".55"/>'; });
-    var mv = vals(me);
-    svg += '<path d="' + pth(mv) + '" fill="none" stroke="var(--acc)" stroke-width="2.6"/>';
-    mv.forEach(function(v, i){ if (v !== null) svg += '<circle cx="' + X(i) + '" cy="' + Y(v) + '" r="2.6" fill="var(--acc)"/>'; });
-    var last = series[n - 1], lead = last.list[0];
-    if (mode !== 'rank' && lead && lead.n !== me) svg += '<text x="' + (X(n - 1) + 5) + '" y="' + (Y(lead.t) + 3) + '" font-size="10.5" fill="var(--mute)">' + esc(lead.n) + '</text>';
-    if (last.by[me]) svg += '<text x="' + (X(n - 1) + 5) + '" y="' + (Y(mode === 'rank' ? last.by[me].rk : last.by[me].t) + (mode !== 'rank' && lead && lead.n !== me && Math.abs(Y(lead.t) - Y(last.by[me].t)) < 11 ? 12 : 3)) + '" font-size="10.5" font-weight="800" fill="var(--acc)">' + (mode === 'rank' ? last.by[me].rk + (last.by[me].rk === 1 ? 'er' : 'e') : 'Toi') + '</text>';
+    var last = series[n - 1], md = S.mode;
+    if (mode !== 'rank'){
+      // une ligne de couleur par joueur, toi par-dessus et plus épais ; total final au bout de chaque ligne (étiquettes écartées)
+      names.forEach(function(nm){ if (nm !== me) svg += '<path d="' + pth(vals(nm)) + '" fill="none" stroke="' + lgColor(md, nm) + '" stroke-width="1.6"/>'; });
+      var mv0 = vals(me); svg += '<path d="' + pth(mv0) + '" fill="none" stroke="' + lgColor(md, me) + '" stroke-width="3.2"/>';
+      mv0.forEach(function(v, i){ if (v !== null) svg += '<circle cx="' + X(i) + '" cy="' + Y(v) + '" r="2.8" fill="' + lgColor(md, me) + '"/>'; });
+      var labs = last.list.map(function(x){ return {n:x.n, t:x.t, y:Y(x.t) + 3}; }).sort(function(a, b){ return a.y - b.y; });
+      labs.forEach(function(l, i){ if (i && l.y - labs[i - 1].y < 10) l.y = labs[i - 1].y + 10; });
+      labs.forEach(function(l){ svg += '<text x="' + (X(n - 1) + 4) + '" y="' + l.y.toFixed(1) + '" font-size="9.5"' + (l.n === me ? ' font-weight="800"' : '') + ' fill="' + lgColor(md, l.n) + '">' + nf0.format(l.t) + '</text>'; });
+    } else {
+      var mv = vals(me);
+      svg += '<path d="' + pth(mv) + '" fill="none" stroke="' + lgColor(md, me) + '" stroke-width="2.6"/>';
+      mv.forEach(function(v, i){ if (v !== null) svg += '<circle cx="' + X(i) + '" cy="' + Y(v) + '" r="2.6" fill="' + lgColor(md, me) + '"/>'; });
+      if (last.by[me]) svg += '<text x="' + (X(n - 1) + 5) + '" y="' + (Y(last.by[me].rk) + 3) + '" font-size="10.5" font-weight="800" fill="' + lgColor(md, me) + '">' + last.by[me].rk + (last.by[me].rk === 1 ? 'er' : 'e') + '</text>';
+    }
     return svg + '</svg>';
   }
   function renderLigue(){
@@ -3676,8 +3693,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       '<div class="lgbar"><b style="width:' + Math.max(4, Math.round(my.t / Math.max(1, lead.t) * 100)) + '%"></b></div>' +
       (below && my.rk > 1 ? '<div class="lgsub" style="color:#22A45D">' + Math.round(my.t - below.t) + ' pts d\'avance sur ' + esc(below.n) + ' (' + below.rk + 'e)</div>' : '') + '</section>';
     // 1 · classement
-    h += '<h3>Classement · J' + last.jn + '</h3><section class="grp"><table class="lgt"><tr><th>#</th><th>Joueur</th><th>J' + last.jn + '</th><th>Total</th></tr>' +
-      last.list.map(function(x){ return '<tr' + (x.n === me ? ' class="me"' : '') + '><td>' + x.rk + '</td><td>' + esc(x.n) + (x.d > 0 ? '<span class="lup">▲' + x.d + '</span>' : x.d < 0 ? '<span class="ldn">▼' + (-x.d) + '</span>' : '') + '</td><td>' + (x.p === null ? '–' : Math.round(x.p)) + '</td><td>' + nf0.format(x.t) + '</td></tr>'; }).join('') + '</table></section>';
+    h += '<h3>Classement · J' + last.jn + '</h3><section class="grp"><table class="lgt"><tr><th>#</th><th>Joueur</th><th>J' + last.jn + '</th><th>Total</th><th>Écart</th></tr>' +
+      last.list.map(function(x){ return '<tr' + (x.n === me ? ' class="me"' : '') + '><td>' + x.rk + '</td><td><i class="lgdot" style="background:' + lgColor(S.mode, x.n) + '"></i>' + esc(x.n) + (x.d > 0 ? '<span class="lup">▲' + x.d + '</span>' : x.d < 0 ? '<span class="ldn">▼' + (-x.d) + '</span>' : '') + '</td><td>' + (x.p === null ? '–' : Math.round(x.p)) + '</td><td>' + nf0.format(x.t) + '</td><td class="lgap">' + (x.rk === 1 ? '—' : '−' + nf0.format(lead.t - x.t)) + '</td></tr>'; }).join('') + '</table></section>';
     // 2 · podium de la journée
     var jp = last.list.filter(function(x){ return x.p !== null; }).slice().sort(function(a, b){ return b.p - a.p; });
     if (jp.length >= 2){
@@ -3686,7 +3703,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       h += '<h3>Podium de la J' + last.jn + '</h3><section class="grp"><div class="lgpod">' + pod + '</div><div class="lgsub">' + (myp >= 0 ? 'Toi : ' + (myp + 1) + (myp ? 'e' : 'er') + ' de la journée avec ' + Math.round(jp[myp].p) + ' pts · ' + pl(jp[myp].p - avg) + ' sur la moyenne' + (myp ? ' · ' + Math.round(jp[0].p - jp[myp].p) + ' pts du meilleur' : '') : '') + '</div></section>';
     }
     // 4 · course, 5 · rang
-    h += '<h3>Course au classement</h3><section class="grp">' + lgSpark(ser, me, 'tot') + '<div class="flegend"><span><i style="background:var(--acc)"></i>toi</span><span><i style="background:var(--mute)"></i>les autres</span></div></section>';
+    h += '<h3>Course au classement</h3><section class="grp">' + lgSpark(ser, me, 'tot') + '<div class="flegend">' + last.list.map(function(x){ return '<span' + (x.n === me ? ' style="font-weight:800;color:var(--ink)"' : '') + '><i style="background:' + lgColor(S.mode, x.n) + (x.n === me ? ';height:4px' : '') + '"></i>' + esc(x.n) + '</span>'; }).join('') + '</div></section>';
     var rks = ser.filter(function(s){ return s.by[me]; }).map(function(s){ return {jn:s.jn, rk:s.by[me].rk}; });
     if (rks.length){
       var best = rks.slice().sort(function(a, b){ return a.rk - b.rk; })[0], worst = rks.slice().sort(function(a, b){ return b.rk - a.rk; })[0];
