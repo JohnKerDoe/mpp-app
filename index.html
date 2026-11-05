@@ -358,6 +358,21 @@ body.cardfull{overflow:hidden}
 .viewsw button[aria-selected="true"]{background:var(--acc);color:#fff}
 body.vb .panel,body.vb .recap,body.vb #list,body.vb #review{display:none !important}
 #bilanView .row{margin-top:0}
+#ligueView section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px}
+#ligueView h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+#ligueView .note{font-size:13px;color:var(--mute);margin:6px 0}
+.lgt{width:100%;border-collapse:collapse;font-size:14px}.lgt td,.lgt th{padding:7px 4px;border-top:1px solid var(--line);text-align:right}.lgt th{font-size:11px;color:var(--mute);font-weight:700;border-top:0}
+.lgt td:nth-child(2),.lgt th:nth-child(2){text-align:left}.lgt tr.me td{background:rgba(125,211,252,.12);font-weight:800}
+.lup{color:#22A45D;font-size:11px;font-weight:800;margin-left:4px}.ldn{color:#E5484D;font-size:11px;font-weight:800;margin-left:4px}
+.lgbig{font-size:26px;font-weight:800;line-height:1.1}.lgsub{font-size:13px;color:var(--ink-2);margin-top:4px}
+.lgpod{display:flex;align-items:flex-end;gap:8px;height:110px;margin-top:6px}.lgpod>div{flex:1;text-align:center;font-size:13px}
+.lgpod i{display:block;font-style:normal;border-radius:8px 8px 0 0;background:var(--field);border:1px solid var(--line);padding-top:4px;font-size:12px;margin-top:4px}
+.lgpod .me i{background:var(--acc);color:#fff;border-color:var(--acc)}
+.lgbar{height:8px;border-radius:4px;background:var(--line);margin:8px 0}.lgbar b{display:block;height:8px;border-radius:4px;background:var(--acc)}
+.lgduo{display:flex;justify-content:space-between;align-items:center;text-align:center}.lgduo b{display:block;font-size:26px}
+.lg2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lg2>div{background:var(--field);border-radius:10px;padding:8px 10px}
+.lgin{display:grid;grid-template-columns:1fr 84px 84px 28px;gap:6px;align-items:center;margin:4px 0}.lgin input{width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;font-size:14px}
+.lgin .h{font-size:11px;color:var(--mute);font-weight:700}
 #bilanView section.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px}
 #bilanView h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
 #bilanView .note{font-size:13px;color:var(--mute);margin:6px 0}
@@ -517,7 +532,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   <div class="viewsw" id="viewSw" role="tablist" aria-label="Affichage">
     <button type="button" role="tab" data-view="pronos" aria-selected="true">🎯 Pronos</button>
     <button type="button" role="tab" data-view="bilans" aria-selected="false">📊 Bilans</button>
+    <button type="button" role="tab" data-view="ligue" aria-selected="false">🏆 Ligue</button>
   </div>
+  <section id="ligueView" hidden>
+    <h2 class="day" id="lgTitle">Ligue</h2>
+    <div class="row" style="margin-top:10px"><button class="btn" id="lgAdd" type="button">＋ Saisir une journée</button></div>
+    <p class="note" id="lgMsg" role="status"></p>
+    <section class="grp" id="lgEdit" hidden></section>
+    <div id="lgBody"></div>
+  </section>
   <section id="bilanView" hidden>
     <h2 class="day" id="bTitle">Bilans</h2>
     <div class="row" style="margin-top:10px"><button class="btn" id="bImport" type="button">📷 Importer les résultats d'une journée</button></div>
@@ -637,7 +660,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>4/11 · 12h40</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 09h45</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1591,6 +1614,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     fullApply();
     if (typeof updateBilanBar === 'function') updateBilanBar();
     if (typeof VIEW !== 'undefined' && VIEW === 'bilans') renderBilans();
+    if (typeof VIEW !== 'undefined' && VIEW === 'ligue') renderLigue();
   }
 
   /* ---------- événements ---------- */
@@ -2551,7 +2575,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function closeSettings(){ document.querySelectorAll('#teamsBox details[open]').forEach(function(d){ d.open = false; }); $('settings').hidden = true; document.body.classList.remove('noscroll'); renderAll(); }
   $('setBtn').addEventListener('click', openSettings);
   $('setClose').addEventListener('click', closeSettings);
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); if (e.key === 'Escape' && VIEW === 'bilans') closeBilans(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('settings').hidden) closeSettings(); if (e.key === 'Escape' && (VIEW === 'bilans' || VIEW === 'ligue')) closeBilans(); });
 
 
 
@@ -3151,14 +3175,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   var VIEW = 'pronos';
   function setView(v){
     VIEW = v;
-    document.body.classList.toggle('vb', v === 'bilans');
+    document.body.classList.toggle('vb', v === 'bilans' || v === 'ligue');
     $('bilanView').hidden = v !== 'bilans';
+    $('ligueView').hidden = v !== 'ligue';
     $('viewSw').querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.view === v)); });
     window.scrollTo(0, 0);
   }
   $('viewSw').addEventListener('click', function(e){
     var b = e.target.closest('[data-view]'); if (!b) return;
-    if (b.dataset.view === 'bilans') openBilans(); else closeBilans();
+    if (b.dataset.view === 'bilans') openBilans(); else if (b.dataset.view === 'ligue'){ setView('ligue'); renderLigue(); } else closeBilans();
   });
   function openBilans(){
     setView('bilans');
@@ -3472,7 +3497,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   function updateBilanBar(){
     autoArchive(); $('clearDone').hidden = !cur().length;
     autoScores();
-    if (fixBilans() + fixFav()){ var qf = syncApplying; syncApplying = true; save(); syncApplying = qf; if (VIEW === 'bilans') renderBilans(); }
+    if (fixBilans() + fixFav() + seedLeague()){ var qf = syncApplying; syncApplying = true; save(); syncApplying = qf; if (VIEW === 'bilans') renderBilans(); }
     if (quickBilans().length){ var q0 = syncApplying; syncApplying = true; save(); syncApplying = q0; if (VIEW === 'bilans') renderBilans(); }
     var nd = cur().filter(function(m){ return matchState(m) === 'done'; }), todo = nd.filter(function(m){ return !m.qr; }).length;
     $('qrOpen').hidden = !nd.length;
@@ -3591,6 +3616,167 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var bt = this; bt.disabled = true; bSay('Recherche des scores sur ESPN…');
     try { var n = await backfillBilans(true); if (!/^ESPN/.test($('bMsg').textContent)) bSay('ESPN : tous les matchs des bilans ont déjà leur score réel.'); }
     finally { bt.disabled = false; }
+  });
+  /* ---------- Ligue : classement de tes concurrents, journée par journée ----------
+     S.league[mode] = {me:'pseudo', meAt, j:{'10':{at, rows:{pseudo:{t:total, p:points de la journée}}}}} */
+  var LG_LEN = {l1:34, l2:34, ldc:17};
+  function lgOf(md){ S.league = S.league || {}; return S.league[md] = S.league[md] || {me:'', j:{}}; }
+  function lgSeries(md){
+    var L = lgOf(md), js = Object.keys(L.j).map(Number).sort(function(a, b){ return a - b; }), prev = null, out = [];
+    js.forEach(function(jn){
+      var rows = L.j[jn].rows || {}, list = Object.keys(rows).map(function(n){
+        var r = rows[n], p = r.p !== '' && r.p !== undefined && r.p !== null && !isNaN(+r.p) ? +r.p : null;
+        var t = r.t !== '' && r.t !== undefined && r.t !== null && !isNaN(+r.t) ? +r.t : NaN;
+        if (isNaN(t) && p !== null) t = (prev && prev.by[n] ? prev.by[n].t : 0) + p;   // seulement les points de la journée : total = total d'avant + journée
+        if (p === null && prev && prev.by[n] && !isNaN(t)) p = t - prev.by[n].t;
+        return {n:n, t:t, p:p};
+      }).filter(function(x){ return !isNaN(x.t); });
+      list.sort(function(a, b){ return b.t - a.t; });
+      var by = {}; list.forEach(function(x, i){ x.rk = i + 1; x.d = prev && prev.by[x.n] ? prev.by[x.n].rk - x.rk : 0; by[x.n] = x; });
+      prev = {jn:jn, list:list, by:by}; out.push(prev);
+    });
+    return out;
+  }
+  function lgSpark(series, me, mode){
+    var W = 320, H = 140, L = 30, R = 46, T = 10, B = 20, n = series.length;
+    if (n < 2) return '<p class="note">La courbe apparaîtra à partir de 2 journées saisies.</p>';
+    var names = Object.keys(series[n - 1].by), X = function(i){ return L + i * (W - L - R) / (n - 1); };
+    var vals = function(nm){ return series.map(function(s){ var x = s.by[nm]; return x ? (mode === 'rank' ? x.rk : x.t) : null; }); };
+    var all = []; names.forEach(function(nm){ vals(nm).forEach(function(v){ if (v !== null) all.push(v); }); });
+    var lo = mode === 'rank' ? 1 : Math.min.apply(null, all), hi = mode === 'rank' ? Math.max.apply(null, all) : Math.max.apply(null, all);
+    if (hi === lo) hi = lo + 1;
+    var Y = function(v){ return mode === 'rank' ? T + (H - T - B) * (v - 1) / (hi - 1 || 1) : T + (H - T - B) * (1 - (v - lo) / (hi - lo)); };
+    var pth = function(a){ var d = '', st = false; a.forEach(function(v, i){ if (v === null){ st = false; return; } d += (st ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1) + ' '; st = true; }); return d; };
+    var svg = '<svg class="fchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (mode === 'rank' ? 'Ton rang' : 'Course au classement') + '">';
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '" stroke="var(--line)"/>';
+    svg += '<text x="' + (L - 4) + '" y="' + (T + 4) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">' + (mode === 'rank' ? '1er' : Math.round(hi)) + '</text><text x="' + (L - 4) + '" y="' + (H - B) + '" font-size="9.5" text-anchor="end" fill="var(--mute)">' + (mode === 'rank' ? hi + 'e' : Math.round(lo)) + '</text>';
+    series.forEach(function(s, i){ if (n <= 10 || i % 2 === 0 || i === n - 1) svg += '<text x="' + X(i) + '" y="' + (H - 5) + '" font-size="9.5" text-anchor="middle" fill="var(--mute)">J' + s.jn + '</text>'; });
+    if (mode !== 'rank') names.forEach(function(nm){ if (nm !== me) svg += '<path d="' + pth(vals(nm)) + '" fill="none" stroke="var(--mute)" stroke-width="1.3" opacity=".55"/>'; });
+    var mv = vals(me);
+    svg += '<path d="' + pth(mv) + '" fill="none" stroke="var(--acc)" stroke-width="2.6"/>';
+    mv.forEach(function(v, i){ if (v !== null) svg += '<circle cx="' + X(i) + '" cy="' + Y(v) + '" r="2.6" fill="var(--acc)"/>'; });
+    var last = series[n - 1], lead = last.list[0];
+    if (mode !== 'rank' && lead && lead.n !== me) svg += '<text x="' + (X(n - 1) + 5) + '" y="' + (Y(lead.t) + 3) + '" font-size="10.5" fill="var(--mute)">' + esc(lead.n) + '</text>';
+    if (last.by[me]) svg += '<text x="' + (X(n - 1) + 5) + '" y="' + (Y(mode === 'rank' ? last.by[me].rk : last.by[me].t) + (mode !== 'rank' && lead && lead.n !== me && Math.abs(Y(lead.t) - Y(last.by[me].t)) < 11 ? 12 : 3)) + '" font-size="10.5" font-weight="800" fill="var(--acc)">' + (mode === 'rank' ? last.by[me].rk + (last.by[me].rk === 1 ? 'er' : 'e') : 'Toi') + '</text>';
+    return svg + '</svg>';
+  }
+  function renderLigue(){
+    if (renderLigue.mode && renderLigue.mode !== S.mode){ $('lgMsg').textContent = ''; $('lgEdit').hidden = true; lgDraft = null; }   // message et saisie de l'autre compétition effacés
+    renderLigue.mode = S.mode;
+    var md = MODES.filter(function(x){ return x.id === S.mode; })[0], L = lgOf(S.mode), me = L.me, ser = lgSeries(S.mode);
+    $('lgTitle').textContent = 'Ligue · ' + md.name;
+    var h = '';
+    if (!ser.length){ $('lgBody').innerHTML = '<p class="note">Aucune journée saisie. Touche « ＋ Saisir une journée » et recopie le classement de ta ligue MPP : pseudo, total, et points de la journée si MPP les affiche.</p>'; return; }
+    var last = ser[ser.length - 1], my = last.by[me], N = last.list.length, pl = function(v){ return (v > 0 ? '+' : '') + Math.round(v); };
+    if (!my){ $('lgBody').innerHTML = '<p class="note">Indique ton pseudo dans « ＋ Saisir une journée » (case « moi ») pour voir tes statistiques.</p>'; return; }
+    var lead = last.list[0], above = last.list[my.rk - 2], below = last.list[my.rk];
+    // 3 · écart au leader
+    h += '<section class="grp"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="lgbig">' + my.rk + (my.rk === 1 ? 'er' : 'e') + '</span><span class="note">sur ' + N + ' joueurs · après la J' + last.jn + '</span></div>' +
+      '<div class="lgsub">' + (my.rk === 1 ? 'Tu es en tête' + (below ? ', ' + Math.round(my.t - below.t) + ' pts devant ' + esc(below.n) : '') : 'À <b>' + Math.round(lead.t - my.t) + ' pts</b> de ' + esc(lead.n) + ' (1er)' + (above && above !== lead ? ' · à ' + Math.round(above.t - my.t) + ' pts de ' + esc(above.n) : '')) + '</div>' +
+      '<div class="lgbar"><b style="width:' + Math.max(4, Math.round(my.t / Math.max(1, lead.t) * 100)) + '%"></b></div>' +
+      (below && my.rk > 1 ? '<div class="lgsub" style="color:#22A45D">' + Math.round(my.t - below.t) + ' pts d\'avance sur ' + esc(below.n) + ' (' + below.rk + 'e)</div>' : '') + '</section>';
+    // 1 · classement
+    h += '<h3>Classement · J' + last.jn + '</h3><section class="grp"><table class="lgt"><tr><th>#</th><th>Joueur</th><th>J' + last.jn + '</th><th>Total</th></tr>' +
+      last.list.map(function(x){ return '<tr' + (x.n === me ? ' class="me"' : '') + '><td>' + x.rk + '</td><td>' + esc(x.n) + (x.d > 0 ? '<span class="lup">▲' + x.d + '</span>' : x.d < 0 ? '<span class="ldn">▼' + (-x.d) + '</span>' : '') + '</td><td>' + (x.p === null ? '–' : Math.round(x.p)) + '</td><td>' + nf0.format(x.t) + '</td></tr>'; }).join('') + '</table></section>';
+    // 2 · podium de la journée
+    var jp = last.list.filter(function(x){ return x.p !== null; }).slice().sort(function(a, b){ return b.p - a.p; });
+    if (jp.length >= 2){
+      var avg = jp.reduce(function(a, x){ return a + x.p; }, 0) / jp.length, myp = jp.map(function(x){ return x.n; }).indexOf(me);
+      var pod = [jp[1], jp[0], jp[2]].map(function(x, i){ if (!x) return '<div></div>'; var rk = [2, 1, 3][i]; return '<div' + (x.n === me ? ' class="me"' : '') + '>' + esc(x.n) + '<i style="height:' + [56, 78, 40][i] + 'px">' + rk + (rk === 1 ? 'er' : 'e') + ' · ' + Math.round(x.p) + '</i></div>'; }).join('');
+      h += '<h3>Podium de la J' + last.jn + '</h3><section class="grp"><div class="lgpod">' + pod + '</div><div class="lgsub">' + (myp >= 0 ? 'Toi : ' + (myp + 1) + (myp ? 'e' : 'er') + ' de la journée avec ' + Math.round(jp[myp].p) + ' pts · ' + pl(jp[myp].p - avg) + ' sur la moyenne' + (myp ? ' · ' + Math.round(jp[0].p - jp[myp].p) + ' pts du meilleur' : '') : '') + '</div></section>';
+    }
+    // 4 · course, 5 · rang
+    h += '<h3>Course au classement</h3><section class="grp">' + lgSpark(ser, me, 'tot') + '<div class="flegend"><span><i style="background:var(--acc)"></i>toi</span><span><i style="background:var(--mute)"></i>les autres</span></div></section>';
+    var rks = ser.filter(function(s){ return s.by[me]; }).map(function(s){ return {jn:s.jn, rk:s.by[me].rk}; });
+    if (rks.length){
+      var best = rks.slice().sort(function(a, b){ return a.rk - b.rk; })[0], worst = rks.slice().sort(function(a, b){ return b.rk - a.rk; })[0];
+      h += '<h3>Ton rang dans le temps</h3><section class="grp">' + lgSpark(ser, me, 'rank') + '<div class="lgsub">Meilleur rang : ' + best.rk + (best.rk === 1 ? 'er' : 'e') + ' (J' + best.jn + ') · pire : ' + worst.rk + 'e (J' + worst.jn + ')</div></section>';
+    }
+    // 6 · face à la moyenne
+    var diffs = ser.map(function(s){ var ps = s.list.filter(function(x){ return x.p !== null; }); var m = s.by[me]; if (!m || m.p === null || ps.length < 2) return null; return {jn:s.jn, d:m.p - ps.reduce(function(a, x){ return a + x.p; }, 0) / ps.length}; }).filter(Boolean);
+    if (diffs.length){
+      var mxd = Math.max.apply(null, diffs.map(function(x){ return Math.abs(x.d); })) || 1, W = 320, bw = Math.min(26, (W - 20) / diffs.length - 4);
+      var bars = diffs.map(function(x, i){ var hgt = Math.abs(x.d) / mxd * 36, xx = 10 + i * (W - 20) / diffs.length; return '<rect x="' + xx.toFixed(1) + '" y="' + (x.d >= 0 ? 44 - hgt : 44).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, hgt).toFixed(1) + '" rx="2" fill="' + (x.d >= 0 ? '#22A45D' : '#E5484D') + '"/><text x="' + (xx + bw / 2).toFixed(1) + '" y="98" font-size="9.5" text-anchor="middle" fill="var(--mute)">J' + x.jn + '</text>'; }).join('');
+      var md2 = diffs.reduce(function(a, x){ return a + x.d; }, 0) / diffs.length, up = diffs.filter(function(x){ return x.d >= 0; }).length;
+      h += '<h3>Toi face à la moyenne</h3><section class="grp"><svg class="fchart" viewBox="0 0 320 100" role="img" aria-label="Écart à la moyenne par journée"><line x1="6" x2="314" y1="44" y2="44" stroke="var(--line)"/>' + bars + '</svg><div class="lgsub">' + pl(md2) + ' pts par journée par rapport à la moyenne · <span style="color:#22A45D">' + up + ' au-dessus</span> / <span style="color:#E5484D">' + (diffs.length - up) + ' en dessous</span></div></section>';
+    }
+    // 7 · rival direct
+    var riv = above || below;
+    if (riv){
+      var w1 = 0, w2 = 0;
+      ser.forEach(function(s){ var a = s.by[me], b = s.by[riv.n]; if (a && b && a.p !== null && b.p !== null){ if (a.p > b.p) w1++; else if (b.p > a.p) w2++; } });
+      h += '<h3>Ton rival direct · ' + esc(riv.n) + '</h3><section class="grp"><div class="lgduo"><div><b style="color:var(--acc)">' + w1 + '</b><span class="note">Toi</span></div><div class="note">journées gagnées<br>en duel</div><div><b>' + w2 + '</b><span class="note">' + esc(riv.n) + '</span></div></div><div class="lgsub" style="text-align:center">' + (riv.t > my.t ? esc(riv.n) + ' mène de ' + Math.round(riv.t - my.t) + ' pts' : 'Tu mènes de ' + Math.round(my.t - riv.t) + ' pts') + '</div></section>';
+    }
+    // 8 · journées gagnées
+    var wins = {};
+    ser.forEach(function(s){ var ps = s.list.filter(function(x){ return x.p !== null; }); if (ps.length < 2) return; var top = Math.max.apply(null, ps.map(function(x){ return x.p; })); ps.forEach(function(x){ if (x.p === top) wins[x.n] = (wins[x.n] || 0) + 1; }); });
+    var wl = Object.keys(wins).sort(function(a, b){ return wins[b] - wins[a]; });
+    if (wl.length) h += '<h3>Journées gagnées</h3><section class="grp"><table class="lgt">' + wl.map(function(n){ return '<tr' + (n === me ? ' class="me"' : '') + '><td style="text-align:left;width:70%">' + esc(n) + '</td><td>' + wins[n] + ' 🏆</td></tr>'; }).join('') + '</table></section>';
+    // 9 · projection
+    var rem = (LG_LEN[S.mode] || 34) - last.jn;
+    if (rem > 0 && ser.length >= 2){
+      var pace = function(nm){ var r = ser.slice(-6).filter(function(s){ return s.by[nm] && s.by[nm].p !== null; }).slice(-5); return r.length ? r.reduce(function(a, s){ return a + s.by[nm].p; }, 0) / r.length : 0; };
+      var proj = last.list.map(function(x){ return {n:x.n, v:x.t + pace(x.n) * rem}; }).sort(function(a, b){ return b.v - a.v; });
+      var prk = proj.map(function(x){ return x.n; }).indexOf(me) + 1, need = my.rk === 1 ? null : ((lead.t - my.t) / rem + pace(lead.n) - pace(me));
+      h += '<h3>Projection fin de saison</h3><section class="grp"><div class="lg2"><div><span class="note">Rang probable</span><div class="lgbig">' + prk + (prk === 1 ? 'er' : 'e') + '</div></div><div><span class="note">' + (need === null ? 'Tu mènes' : 'Pour finir 1er') + '</span><div class="lgbig">' + (need === null ? '👑' : pl(Math.max(0, need))) + '</div>' + (need === null ? '' : '<span class="note">pts par journée de plus que ' + esc(lead.n) + '</span>') + '</div></div><p class="note">Au rythme de tes dernières journées (5 au plus) · ' + rem + ' journée' + (rem > 1 ? 's' : '') + ' restante' + (rem > 1 ? 's' : '') + '</p></section>';
+    }
+    h += '<h3>Journées saisies</h3><section class="grp">' + ser.slice().reverse().map(function(s){ return '<div class="brh"><span>J' + s.jn + ' · ' + s.list.length + ' joueurs</span><span></span><span><button class="btn2" type="button" data-lged="' + s.jn + '">Modifier</button></span></div>'; }).join('') + '</section>';
+    $('lgBody').innerHTML = h;
+  }
+  // Classement LdC « LIGUEDECH » J1–J4 (points de la journée, captures du 5/11), ajouté une seule fois
+  function seedLeague(){
+    var L = lgOf('ldc'); if (L.seed) return 0;
+    var P = {1:{'JeanChristo#2KN9':1044, 'PSGsansMbappe':935, 'NewTeamFC':862, 'Merenguespagnole':751, 'Cuitass':677},
+             2:{'NewTeamFC':983, 'Merenguespagnole':732, 'Cuitass':698, 'PSGsansMbappe':621, 'JeanChristo#2KN9':402},
+             3:{'NewTeamFC':719, 'Cuitass':712, 'PSGsansMbappe':551, 'Merenguespagnole':529, 'JeanChristo#2KN9':476},
+             4:{'NewTeamFC':1056, 'Merenguespagnole':926, 'PSGsansMbappe':766, 'Cuitass':605, 'JeanChristo#2KN9':586}};
+    Object.keys(P).forEach(function(jn){ if (L.j[jn]) return; var rows = {}; Object.keys(P[jn]).forEach(function(n){ rows[n] = {t:null, p:P[jn][n]}; }); L.j[jn] = {at:'2026-11-05T08:00:00Z', rows:rows}; });
+    if (!L.me){ L.me = 'NewTeamFC'; L.meAt = '2026-11-05T08:00:00Z'; }
+    L.seed = 1; return 1;
+  }
+  // Saisie d'une journée : pseudo, total, points de la journée (facultatif) ; ta ligne cochée « moi »
+  var lgDraft = null;
+  function lgOpen(jn){
+    var L = lgOf(S.mode), js = Object.keys(L.j).map(Number).sort(function(a, b){ return a - b; });
+    var src = jn && L.j[jn] ? L.j[jn] : (js.length ? L.j[js[js.length - 1]] : null);
+    var names = src ? Object.keys(src.rows) : (L.me ? [L.me] : []);
+    lgDraft = {jn:jn || (js.length ? js[js.length - 1] + 1 : (tabJ() || 1)), edit:!!jn, rows:names.map(function(n){ var r = jn && src ? src.rows[n] : null; return {n:n, t:r && r.t !== null && r.t !== undefined ? r.t : '', p:r && r.p !== null && r.p !== undefined ? r.p : ''}; })};
+    while (lgDraft.rows.length < 4) lgDraft.rows.push({n:'', t:'', p:''});
+    lgRenderEdit(); $('lgEdit').hidden = false; $('lgEdit').scrollIntoView({block:'start'});
+  }
+  function lgRenderEdit(){
+    var L = lgOf(S.mode), d = lgDraft;
+    $('lgEdit').innerHTML = '<h2 style="margin:0 0 6px;font-size:17px">Journée <input id="lgJn" inputmode="numeric" value="' + d.jn + '" style="width:56px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit"></h2>' +
+      '<p class="note">Recopie ta ligue MPP pour cette journée : le <b>total</b> (onglet Classement) ou les <b>points de la journée</b> (onglet Résultats). Un des deux suffit, JKD+ calcule l\'autre.</p>' +
+      '<div class="lgin"><span class="h">Pseudo</span><span class="h">Total</span><span class="h">Points J</span><span class="h">moi</span></div>' +
+      d.rows.map(function(r, i){ return '<div class="lgin"><input data-lr="' + i + '" data-lf="n" value="' + esc(r.n) + '" placeholder="pseudo"><input data-lr="' + i + '" data-lf="t" inputmode="numeric" value="' + r.t + '" placeholder="total"><input data-lr="' + i + '" data-lf="p" inputmode="numeric" value="' + r.p + '" placeholder="–"><input type="radio" name="lgme" data-lme="' + i + '"' + (r.n && r.n === L.me ? ' checked' : '') + ' aria-label="C\'est moi"></div>'; }).join('') +
+      '<div class="row"><button class="btn2" id="lgMore" type="button">＋ Joueur</button></div>' +
+      '<div class="row"><button class="btn" id="lgSave" type="button">Enregistrer</button><button class="btn ghost" id="lgCancel" type="button">Annuler</button>' + (d.edit ? '<button class="btn ghost" id="lgDel" type="button">Supprimer</button>' : '') + '</div>';
+  }
+  $('lgAdd').addEventListener('click', function(){ lgOpen(null); });
+  $('lgBody').addEventListener('click', function(e){ var b = e.target.closest('[data-lged]'); if (b) lgOpen(+b.dataset.lged); });
+  $('lgEdit').addEventListener('input', function(e){
+    var el = e.target, d = lgDraft; if (!d) return;
+    if (el.id === 'lgJn'){ d.jn = parseInt(el.value, 10) || ''; return; }
+    if (el.dataset.lr !== undefined){ var r = d.rows[+el.dataset.lr], f = el.dataset.lf; r[f] = f === 'n' ? el.value : el.value.replace(/[^0-9-]/g, ''); if (f !== 'n') el.value = r[f]; }
+  });
+  $('lgEdit').addEventListener('change', function(e){ var el = e.target; if (el.dataset.lme !== undefined) lgDraft.meIdx = +el.dataset.lme; });
+  $('lgEdit').addEventListener('click', function(e){
+    var id = e.target.id, d = lgDraft, L = lgOf(S.mode);
+    if (id === 'lgMore'){ d.rows.push({n:'', t:'', p:''}); lgRenderEdit(); }
+    if (id === 'lgCancel'){ $('lgEdit').hidden = true; lgDraft = null; }
+    if (id === 'lgDel' && confirm('Supprimer le classement de la J' + d.jn + ' ?')){ delete L.j[d.jn]; save(); $('lgEdit').hidden = true; lgDraft = null; renderLigue(); }
+    if (id === 'lgSave'){
+      var jn = parseInt(d.jn, 10), rows = {}, n = 0;
+      if (!(jn > 0)){ $('lgMsg').textContent = 'Indique le numéro de la journée.'; return; }
+      d.rows.forEach(function(r){ var nm = String(r.n || '').trim(), hasT = r.t !== '' && r.t !== null && !isNaN(+r.t), hasP = r.p !== '' && r.p !== null && !isNaN(+r.p); if (!nm || (!hasT && !hasP)) return; rows[nm] = {t:hasT ? +r.t : null, p:hasP ? +r.p : null}; n++; });
+      if (n < 2){ $('lgMsg').textContent = 'Saisis au moins 2 joueurs avec leur total ou leurs points de la journée.'; return; }
+      if (d.meIdx !== undefined && d.rows[d.meIdx] && String(d.rows[d.meIdx].n || '').trim()){ L.me = String(d.rows[d.meIdx].n).trim(); L.meAt = new Date().toISOString(); }
+      L.j[jn] = {at:new Date().toISOString(), rows:rows};
+      save(); $('lgEdit').hidden = true; lgDraft = null;
+      $('lgMsg').textContent = 'Classement de la J' + jn + ' enregistré (' + n + ' joueurs).' + (L.me ? '' : ' Coche « moi » sur ta ligne pour voir tes statistiques.');
+      renderLigue();
+    }
   });
   function qrMatches(){ return cur().filter(function(m){ return matchState(m) === 'done' && calc(m).ev; }); }
   function openQR(focusKey){
@@ -3744,6 +3930,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     var cl = function(x){ return x === undefined ? undefined : JSON.parse(JSON.stringify(x)); };
     var newer = (+rem.savedAt || 0) >= (+loc.savedAt || 0) ? rem : loc;
     var out = cl(newer);
+    // Ligue : par compétition et par journée, la saisie la plus récente
+    out.league = {};
+    MODES.forEach(function(md){
+      var a = ((rem.league || {})[md.id]) || {}, b = ((loc.league || {})[md.id]) || {}, j = {};
+      [a, b].forEach(function(x){ Object.keys(x.j || {}).forEach(function(k){ var v = x.j[k]; if (!j[k] || (Date.parse(j[k].at) || 0) < (Date.parse(v.at) || 0)) j[k] = cl(v); }); });
+      var meSrc = (Date.parse(a.meAt) || 0) >= (Date.parse(b.meAt) || 0) ? a : b;
+      if (Object.keys(j).length || meSrc.me) out.league[md.id] = {me:meSrc.me || '', meAt:meSrc.meAt || null, j:j, seed:(a.seed || b.seed) ? 1 : undefined};
+    });
     out.dataAt = out.dataAt || {}; out.bilans = out.bilans || {}; out.archive = out.archive || {}; out.x2 = out.x2 || {}; out.bDel = out.bDel || {};
     MODES.forEach(function(md){
       var id = md.id, ra = (rem.dataAt || {})[id] || 0, la = (loc.dataAt || {})[id] || 0;
