@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>5/11 · 16h30</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>6/11 · 13h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1335,6 +1335,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       lines.push('Scores probables (' + pickLabel(m, c.best) + ') : ' + tp.map(function(x){ return x.score + ' ' + pct(x.p * 100); }).join(' · '));
     }
     if (m.cs && m.cs.bk && c.ev) lines.push('🎯 Scores exacts : cotes ' + m.cs.bk + ' (' + whenLabel(m.cs.at) + ')');
+    var spm = m.jn ? spOf(S.mode, m.jn, m) : null;
+    if (spm && c.best >= 0){ var adv = String(scoreOf(c, c.best)), sps = spm.ph + '-' + spm.pa;
+      lines.push('🔎 Score Parfait : ' + sps + (sps === adv ? ' (même score que JKD+)' : outOf(spm.ph, spm.pa) === c.best ? ' (même issue, autre score)' : ' (autre issue que JKD+)')); }
     var html = lines.map(function(x){ return '<div>' + esc(x) + '</div>'; }).join('');
     var tb = tieBreak(c);
     if (tb){
@@ -3290,6 +3293,45 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       lab(cm, 'var(--acc)', gap) + lab(cf, 'var(--mute)', -gap) + '</svg>' +
       '<div class="flegend"><span><i style="background:var(--acc)"></i>toi</span><span><i class="dash"></i>favori à chaque match</span><span class="note">points cumulés, hors bonus et x2</span></div>';
   }
+  /* ---------- Score Parfait (scoreparfait.fr) : leur prono « Équilibré », récupéré sur leur site le 6/11 ---------- */
+  function spRaw(){ return 'l1|1|Marseille|Strasbourg|1-0;l1|1|Lens|Auxerre|2-1;l1|1|Le Mans|Brest|2-0;l1|1|Troyes|Paris Fc|0-2;l1|1|Nice|Lorient|2-0;l1|1|Toulouse|Lyon|0-2;l1|1|Angers|Lille|0-1;l1|1|Havre|Monaco|0-1;l1|1|Rennes|Paris SG|1-2;l1|2|Strasbourg|Lens|0-2;l1|2|Lorient|Troyes|1-0;l1|2|Lyon|Havre|2-1;l1|2|Auxerre|Angers|1-0;l1|2|Brest|Toulouse|0-2;l1|2|aris|ice|2-0;l1|2|Rennes|Le Mans|2-1;l1|2|Monaco|Marseille|2-0;l1|3|Toulouse|Lille|0-1;l1|3|Lyon|Auxerre|2-1;l1|3|Paris SG|Monaco|3-0;l1|3|Lens|Lorient|2-1;l1|3|Havre|Brest|2-0;l1|3|Nice|Le Mans|1-0;l1|3|Troyes|Strasbourg|0-2;l1|3|Angers|Rennes|0-1;l1|3|Marseille|Paris Fc|1-0;l1|4|Rennes|Marseille|2-0;l1|4|Strasbourg|Monaco|0-2;l1|4|Auxerre|Nice|0-2;l1|4|Havre|Angers|0-2;l1|4|Lorient|Toulouse|2-0;l1|4|Paris Fc|Lyon|2-0;l1|4|Lille|Troyes|2-0;l1|4|Le Mans|Lens|1-2;l1|4|Brest|Paris SG|0-3;l1|5|Monaco|Lens|2-0;l1|5|Paris Fc|Strasbourg|1-0;l1|5|Angers|Troyes|2-0;l1|5|Le Mans|Lorient|2-0;l1|5|Lyon|Rennes|2-0;l1|5|Toulouse|Havre|2-1;l1|5|Auxerre|Brest|0-2;l1|5|Nice|Lille|0-2;l1|5|Marseille|Paris SG|1-2;l1|6|Lens|Lyon|2-0;l1|6|Lille|Havre|2-1;l1|6|Brest|Angers|1-0;l1|6|Lorient|Paris Fc|0-2;l1|6|Paris SG|Le Mans|2-0;l1|6|Monaco|Toulouse|2-1;l1|6|Nice|Strasbourg|2-0;l1|6|Rennes|Auxerre|2-1;l1|6|Troyes|Marseille|0-2;l1|7|Le Mans|Toulouse|0-2;l1|7|Strasbourg|Paris SG|1-2;l1|7|Troyes|Lens|0-1;l1|7|Lille|Brest|2-0;l1|7|Angers|Marseille|0-2;l1|7|Lorient|Monaco|0-2;l1|7|Paris FC|Rennes|2-0;l1|7|Le Havre|Auxerre|2-0;l1|7|Lyon|Nice|1-0;l1|8|Brest|Nice|2-0;l1|8|Lens|Paris FC|2-0;l1|8|Monaco|Lille|1-0;l1|8|Marseille|Le Havre|2-1;l1|8|Rennes|Strasbourg|1-0;l1|8|Angers|Lorient|0-2;l1|8|Toulouse|Troyes|2-1;l1|8|Auxerre|Le Mans|2-0;l1|8|Paris SG|Lyon|3-0;l1|9|Le Havre|Paris SG|0-3;l1|9|Nice|Rennes|2-0;l1|9|Lille|Lens|0-2;l1|9|Troyes|Le Mans|2-0;l1|9|Strasbourg|Auxerre|1-0;l1|9|Lyon|Angers|2-1;l1|9|Paris FC|Monaco|2-0;l1|9|Marseille|Toulouse|2-0;l1|9|Lorient|Brest|2-0;l2|3|Reims|Annecy|1-0;l2|4|Clermont|Sochaux|2-0;l2|4|Montpellier|Boulogne|1-0;l2|4|Nancy|Dunkerque|2-0;l2|4|Annecy|Metz|2-0;l2|4|Red Star|Reims|0-2;l2|4|Guingamp|Nantes|0-2;l2|5|Dunkerque|Clermont|1-0;l2|5|Boulogne|Dijon|0-2;l2|5|Grenoble|Annecy|0-2;l2|5|Laval|Red Star|0-2;l2|5|Pau|Sochaux|2-0;l2|5|Metz|Rodez|2-0;l2|5|Reims|Guingamp|1-0;l2|5|St Étienne|Montpellier|2-1;l2|5|Nantes|Nancy|1-0;l2|6|Clermont|Boulogne|2-0;l2|6|Dijon|Laval|2-0;l2|6|Montpellier|Pau|1-0;l2|6|Nancy|Reims|0-2;l2|6|Rodez|Grenoble|1-0;l2|6|Guingamp|Annecy|2-0;l2|6|Sochaux|Nantes|0-2;l2|6|Dunkerque|St Étienne|0-1;l2|6|Red Star|Metz|2-0;l2|7|Annecy|Dijon|2-0;l2|7|Grenoble|Clermont|2-0;l2|7|Laval|Sochaux|2-0;l2|7|Pau|Dunkerque|2-0;l2|7|Reims|Montpellier|2-0;l2|7|Rodez|Nancy|2-0;l2|7|Boulogne|Nantes|0-2;l2|7|Guingamp|Red Star|0-2;l2|7|Metz|St Étienne|0-1;l2|8|Dunkerque|Annecy|2-0;l2|8|Montpellier|Grenoble|2-1;l2|8|Nancy|Guingamp|1-0;l2|8|Pau|Laval|2-0;l2|8|Sochaux|Boulogne|2-0;l2|8|Clermont|Red Star|0-2;l2|8|Nantes|Reims|2-0;l2|8|St Étienne|Rodez|3-0;l2|8|Dijon|Metz|0-2;l2|9|Annecy|Nancy|0-2;l2|9|Grenoble|Boulogne|0-2;l2|9|Guingamp|Pau|2-0;l2|9|Laval|Clermont|2-0;l2|9|Reims|Dijon|1-0;l2|9|FC Metz|Sochaux|1-0;l2|9|FC Nantes|Dunkerque|2-1;l2|9|Red Star|St Étienne|0-2;l2|9|Rodez|Montpellier|0-2;l2|10|Clermont|Guingamp|0-2;l2|10|Dunkerque|Metz|0-2;l2|10|Nancy|Laval|2-1;l2|10|Pau|Grenoble|1-0;l2|10|Sochaux|Annecy|2-0;l2|10|Dijon|Rodez|2-0;l2|10|St Étienne|Nantes|1-0;l2|10|Boulogne|Reims|0-2;l2|10|Montpellier|Red Star|2-0;l2|11|Grenoble|Dijon|0-2;l2|11|Laval|Boulogne|2-0;l2|11|Metz|Pau|2-0;l2|11|Nantes|Clermont|2-1;l2|11|Rodez|Dunkerque|2-0;l2|11|Annecy|Montpellier|0-2;l2|11|Guingamp|St Étienne|0-1;l2|11|Red Star|Nancy|2-0;l2|11|Reims|Sochaux|2-1;ldc|1|AEK Athens|LASK|1-0;ldc|1|Bruges|Aston Villa|2-0;ldc|1|Real Madrid|Inter|2-1;ldc|1|Lille|Betis|2-0;ldc|1|Dortmund|Villarreal|1-0;ldc|1|Porto|Man City|1-2;ldc|1|Stuttgart|VÇ Viking|3-0;ldc|1|Barcelona|Feyenoord|2-0;ldc|1|Sporting|Galatasaray|1-0;ldc|1|Liverpool|Atlético|1-0;ldc|1|Napoli|Arsenal|0-1;ldc|1|Paris SG|Slovan|2-0;ldc|1|Psv|Shakhtar|2-1;ldc|1|Fenerbahçe|Roma|0-2;ldc|1|Bayern|BodgGlimt|2-0;ldc|1|Man United|Sabah|2-0;ldc|1|Como|Leipzig|1-0;ldc|1|Slavia|Lens|0-2;l1|10|Toulouse|Strasbourg|2-0;l1|10|Auxerre|Paris FC|0-1;l1|10|Paris SG|Troyes|2-0;l1|10|Rennes|Lille|2-0;l1|10|Le Mans|Monaco|0-1;l1|10|Brest|Lyon|0-2;l1|10|Havre|Lorient|0-2;l1|10|Angers|Nice|0-2;l1|10|Lens|Marseille|2-0;l1|11|Troyes|Havre|1-0;l1|11|Nice|Paris SG|1-2;l1|11|Monaco|Auxerre|2-1;l1|11|Lens|Toulouse|1-0;l1|11|Lille|Lyon|2-0;l1|11|Strasbourg|Brest|2-0;l1|11|Paris FC|Angers|2-1;l1|11|Lorient|Rennes|0-2;l1|11|Marseille|Le Mans|2-1;l2|12|Boulogne|Annecy|2-0;l2|12|Dijon|Red Star|2-0;l2|12|Dunkerque|Guingamp|0-2;l2|12|Grenoble|Reims|0-1;l2|12|Montpellier|FC Metz|1-0;l2|12|Nancy|Sochaux|2-1;l2|12|Clermont|Rodez|0-2;l2|12|Pau|FC Nantes|0-2;l2|12|St Étienne|Laval|2-1'; }   // fonction, pas « var » : sert dès le démarrage
+  function spOf(md, jn, m){
+    if (!spOf.tab){ spOf.tab = {}; spRaw().split(';').forEach(function(x){ var f = x.split('|'), k = f[0] + '|' + f[1], g = f[4].split('-'); (spOf.tab[k] = spOf.tab[k] || []).push({h:f[2], a:f[3], ph:+g[0], pa:+g[1]}); }); }
+    var L = spOf.tab[md + '|' + jn]; if (!L || !m) return null;
+    return L.filter(function(x){ return (x.h === m.home && x.a === m.away) || sameTeam(x.h, m.home) || sameTeam(x.a, m.away); })[0] || null;
+  }
+  // Toi face à Score Parfait, sur les mêmes matchs, hors bonus et x2 (leurs points MPP connus seulement si leur issue a des points enregistrés)
+  function spStats(md, arr){
+    var R = {old:null, jkd:null}, unk = 0;
+    arr.slice().sort(function(a, b){ return a.jn - b.jn; }).forEach(function(b){
+      b.matches.forEach(function(m){
+        var me = m.mine, sp = spOf(md, b.jn, m); if (!sp || !me || !m.real || m.real.h === null || m.real.h === undefined) return;
+        var ro = outOf(m.real.h, m.real.a), so = outOf(sp.ph, sp.pa), mo = outOf(me.ph, me.pa), pts = null;
+        if (so !== ro) pts = 0;
+        else if (m.pts && +m.pts[so]) pts = +m.pts[so];
+        else if (mo === so && me.cote) pts = me.cote;
+        else if (m.fav && m.fav.k === so) pts = m.fav.pts;
+        if (pts === null){ unk++; return; }
+        var k = methOf(md, b.jn), t = R[k] = R[k] || {n:0, me:0, sp:0, okM:0, okS:0, exM:0, exS:0, js:{}};
+        t.n++; t.sp += pts; t.js[b.jn] = 1;
+        if (mo === ro){ t.me += me.cote || (m.pts && +m.pts[mo]) || 0; t.okM++; }
+        if (so === ro) t.okS++;
+        if (me.ph === m.real.h && me.pa === m.real.a) t.exM++;
+        if (sp.ph === m.real.h && sp.pa === m.real.a) t.exS++;
+      });
+    });
+    return {R:R, unk:unk};
+  }
+  function spHTML(md, arr){
+    var f = spStats(md, arr), all = 0, n = 0;
+    ['old', 'jkd'].forEach(function(k){ if (f.R[k]){ all += f.R[k].me - f.R[k].sp; n += f.R[k].n; } });
+    if (!n) return '';
+    var line = function(k){ var t = f.R[k]; if (!t) return ''; var js = Object.keys(t.js).map(Number).sort(function(a, b){ return a - b; }), d = Math.round(t.me - t.sp);
+      return '<span class="frow"><b>' + METH_NAME[k] + '</b> J' + js[0] + (js.length > 1 ? '–J' + js[js.length - 1] : '') + ' : <strong class="' + (d >= 0 ? 'pos' : 'neg') + '">' + (d >= 0 ? '+' : '') + d + ' pts</strong> · toi ' + Math.round(t.me) + ', Score Parfait ' + Math.round(t.sp) + ' sur ' + t.n + ' matchs · bons résultats ' + t.okM + ' / ' + t.okS + ' · 🎯 ' + t.exM + ' / ' + t.exS + '</span>'; };
+    all = Math.round(all);
+    return '<div class="fav"><b>' + (all >= 0 ? '+' : '') + all + ' pts</b><span>face à Score Parfait : leur prono « Équilibré » (scoreparfait.fr) sur les mêmes matchs, hors bonus et x2 · toi / eux</span>' +
+      line('old') + line('jkd') + (f.unk ? '<span class="note">' + f.unk + ' match' + (f.unk > 1 ? 's' : '') + ' ignoré' + (f.unk > 1 ? 's' : '') + ' (points MPP de leur choix inconnus)</span>' : '') + '</div>';
+  }
   function favHTML(md, arr){
     var f = favStats(md, arr); if (!f.rows.length) return '';
     var sum = function(meth){ var r = f.rows.filter(function(x){ return x.meth === meth; }); if (!r.length) return null;
@@ -3332,6 +3374,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         (s.diff ? '<div><b>' + s.diff + ' écart' + (s.diff > 1 ? 's' : '') + '</b><span>au conseil : tu as gagné ' + s.diffMe + ' pts, le conseil aurait donné ' + s.diffAdv + ' pts (hors bonus)</span></div>' : '') +
         (s.x2n ? '<div><b>x2 · ' + s.x2n + '</b><span>bonus joués, +' + Math.round(s.x2plus) + ' pts rapportés</span></div>' : '') +
         favHTML(S.mode, done) +
+        spHTML(S.mode, done) +
         methHTML(S.mode, done) +
         '<p class="note">' + (s.j < 10 ? 'Peu de journées : la chance pèse encore beaucoup, les tendances seront fiables après une dizaine de journées.' : 'Assez de journées pour commencer à lire des tendances.') + '</p></section>';
       else html += '<p class="note">Les statistiques arriveront avec la première journée terminée.</p>';
