@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>6/11 · 13h30</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>7/11 · 13h00</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -689,6 +689,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     <p class="note">La clé reste sur ce téléphone. Chaque import des cotes coûte 2 crédits.</p>
     </section>
 
+
+    <h3>Notifications avant les matchs (ntfy)</h3>
+    <section class="grp">
+      <label class="row" style="gap:8px;align-items:center"><input type="checkbox" id="ntOn"> <span>Me prévenir <b>45 min</b> puis <b>10 min</b> avant chaque match, depuis cet appareil</span></label>
+      <div class="row" style="margin-top:8px"><input id="ntTopic" autocomplete="off" spellcheck="false" aria-label="Sujet ntfy" style="flex:1"><button class="btn2" id="ntCopy" type="button">Copier</button></div>
+      <div class="row" style="margin-top:8px"><button class="btn2" id="ntTest" type="button">Envoyer une notif de test</button></div>
+      <p class="note" id="ntState">1. Installe l'appli gratuite <b>ntfy</b> (Play Store). 2. Touche ＋ et abonne-toi au sujet ci-dessus (garde-le secret : c'est ton canal). 3. Coche la case. JKD+ programme les rappels des matchs des 3 prochains jours à chaque ouverture. Active-la sur un seul appareil, sinon tu recevras les rappels en double.</p>
+    </section>
 
     <h3>Scores réels (ESPN)</h3>
     <section class="grp">
@@ -1591,8 +1599,45 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     b.textContent = t === 'dark' ? '☀️ Passer en mode clair' : '🌙 Passer en mode sombre';
     b.setAttribute('aria-label', t === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
   }
+  /* ---------- Rappels ntfy : 45 min et 10 min avant chaque créneau de match (programmés à l'avance sur ntfy.sh, appli fermée ou pas) ---------- */
+  function ntTopic(){ var t = ''; try { t = localStorage.getItem('mpp-ntfy-topic') || ''; } catch (e) {}
+    if (!t){ t = 'jkd-' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8); try { localStorage.setItem('mpp-ntfy-topic', t); } catch (e) {} } return t; }
+  function ntOn(){ try { return localStorage.getItem('mpp-ntfy-on') === '1'; } catch (e) { return false; } }
+  function ntSent(v){ try { if (v) localStorage.setItem('mpp-ntfy-sent', JSON.stringify(v)); return JSON.parse(localStorage.getItem('mpp-ntfy-sent') || '{}'); } catch (e) { return {}; } }
+  async function ntPost(title, body, at, prio, tags){
+    var q = 'title=' + encodeURIComponent(title) + '&tags=' + encodeURIComponent(tags || 'soccer') + '&priority=' + (prio || 3) + '&click=' + encodeURIComponent(location.href.split('#')[0]) + (at ? '&at=' + Math.floor(at / 1000) : '');
+    var r = await fetch('https://ntfy.sh/' + encodeURIComponent(ntTopic()) + '?' + q, {method:'POST', body:body});   // requête simple (texte), sans en-têtes spéciaux
+    if (!r.ok) throw new Error('ntfy ' + r.status);
+  }
+  var ntBusy = false;
+  async function ntSchedule(){
+    if (!ntOn() || ntBusy) return; ntBusy = true;
+    try {
+      var now = Date.now(), sent = ntSent(), dot = {g:'🟢', o:'🟠', r:'🔴'}, n = 0;
+      Object.keys(sent).forEach(function(k){ if (sent[k] < now - 864e5) delete sent[k]; });   // ménage : rappels passés
+      for (var i = 0; i < MODES.length; i++){
+        var md = MODES[i], slots = {};
+        (S.data[md.id] || []).forEach(function(m){ var ko = kickoff(m); if (isFinite(ko) && ko > now && ko - now < 3 * 864e5 && !m.rep) (slots[ko] = slots[ko] || []).push(m); });
+        for (var ko in slots){
+          var list = slots[ko], t = new Date(+ko), hh = ('0' + t.getHours()).slice(-2) + 'h' + ('0' + t.getMinutes()).slice(-2);
+          var body = list.map(function(m){ var c = calc(m); return (dot[c.level] || '⚪') + ' ' + m.home + ' – ' + m.away + (c.best >= 0 ? ' : ' + scoreOf(c, c.best) : ''); }).join('\n');
+          var tight = list.some(function(m){ var c = calc(m); return c.level === 'r' || (c.level === 'o' && c.gap < 2); });
+          for (var off of [45, 10]){
+            var at = +ko - off * 6e4, id = md.id + '|' + ko + '|' + off;
+            if (sent[id] || at < now + 15e3) continue;
+            await ntPost(md.name + ' · ' + hh + ' dans ' + off + ' min' + (tight ? ' · mets à jour les cotes' : ''), body, at, off === 10 ? 4 : 3, off === 10 ? 'alarm_clock' : 'soccer');
+            sent[id] = +ko; n++;
+          }
+        }
+      }
+      ntSent(sent);
+      if (n && $('ntState')) $('ntState').textContent = '✅ ' + n + ' rappel' + (n > 1 ? 's' : '') + ' programmé' + (n > 1 ? 's' : '') + ' sur ntfy (sujet ' + ntTopic() + ').';
+    } catch (e) { if ($('ntState')) $('ntState').textContent = '⚠️ Rappels non programmés : ' + e.message + '. Vérifie ta connexion, puis rouvre l\'appli.'; }
+    finally { ntBusy = false; }
+  }
   function renderAll(){
     X2 = x2Info();
+    setTimeout(ntSchedule, 1500);
     var jt = tabJ();   // numéro de journée lu sur la capture MPP
     $('recapTitle').textContent = jt ? jt + (jt === 1 ? 're' : 'e') + ' journée' : 'Pronos conseillés';
     document.body.setAttribute('data-mode', S.mode);
@@ -3611,6 +3656,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     });
     renderQR();
   }
+  $('ntTopic').value = ntTopic(); $('ntOn').checked = ntOn();
+  $('ntTopic').addEventListener('change', function(){ var v = this.value.trim().replace(/[^A-Za-z0-9_-]/g, ''); if (v.length < 8){ this.value = ntTopic(); return; } try { localStorage.setItem('mpp-ntfy-topic', v); localStorage.removeItem('mpp-ntfy-sent'); } catch (e) {} this.value = v; });
+  $('ntCopy').addEventListener('click', function(){ try { navigator.clipboard.writeText(ntTopic()); $('ntState').textContent = 'Sujet copié : ' + ntTopic(); } catch (e) { $('ntTopic').select(); } });
+  $('ntOn').addEventListener('change', function(){ try { localStorage.setItem('mpp-ntfy-on', this.checked ? '1' : '0'); } catch (e) {} if (this.checked) ntSchedule(); else $('ntState').textContent = 'Rappels désactivés sur cet appareil. Ceux déjà programmés arriveront quand même.'; });
+  $('ntTest').addEventListener('click', async function(){
+    $('ntState').textContent = 'Envoi…';
+    try { await ntPost('JKD+ · notification de test', 'Si tu lis ceci dans ntfy, les rappels avant les matchs fonctionneront.', 0, 3, 'white_check_mark'); $('ntState').textContent = '✅ Envoyée sur le sujet ' + ntTopic() + '. Elle doit arriver dans ntfy d\'ici quelques secondes.'; }
+    catch (e) { $('ntState').textContent = '⚠️ ' + e.message + ' : ntfy ne répond pas depuis cet appareil.'; }
+  });
   $('espnTest').addEventListener('click', async function(){
     var el = $('espnState'); el.textContent = 'Test en cours…';
     try {
