@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>7/11 · 13h00</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>8/11 · 9h00</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -4051,10 +4051,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   });
   // Bilan d'une journée à partir de la saisie rapide (quand tous ses matchs sont finis et notés)
   function quickBilans(){
-    var all = cur(), jns = [], made = [];
+    var all = cur(), jns = [], made = [], jDom = tabJ();
     all.forEach(function(m){ if (m.jn && jns.indexOf(m.jn) < 0) jns.push(m.jn); });
     jns.forEach(function(jn){
-      var list = all.filter(function(m){ return m.jn === jn && !(m.rep && matchState(m) !== 'done'); });
+      // Un match importé sans numéro de journée rejoint la journée principale de l'onglet (comme pour l'archivage)
+      var list = all.filter(function(m){ return (m.jn === jn || (!m.jn && jn === jDom)) && !(m.rep && matchState(m) !== 'done'); });
       var noted = function(m){ return matchState(m) === 'done' && m.qr; };
       if (!list.some(function(m){ return matchState(m) === 'done'; })) return;
       // Bilan supprimé à la main : on ne le recrée que si tu notes un résultat après la suppression
