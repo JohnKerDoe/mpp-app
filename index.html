@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>8/11 · 9h00</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 19h45</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3643,7 +3643,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
         list.forEach(function(m){ var e = espnFind(evs, m); if (e){ m.score = {h:e.h, a:e.a, src:'espn', at:new Date().toISOString()}; got++; } });
       } catch (e) {}
     }
-    if (got){ save(); if (qrDraft) prefillQR(); renderAll(); }
+    // Scores ESPN : chaque appareil les trouve tout seul, ce n'est pas une modification à synchroniser
+    // (sinon l'appareil resté en veille passerait pour « plus récent » et écraserait l'autre à la fusion)
+    if (got){ var qa = syncApplying; syncApplying = true; save(); syncApplying = qa; if (qrDraft) prefillQR(); renderAll(); }
     return got;
   }
   // Pré-remplir ✓ / 🎯 à partir du score réel, pour les lignes pas encore touchées
@@ -4146,6 +4148,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var id = md.id, ra = (rem.dataAt || {})[id] || 0, la = (loc.dataAt || {})[id] || 0;
       out.data[id] = cl(la > ra ? loc.data[id] : rem.data[id]) || [];
       out.dataAt[id] = Math.max(ra, la);
+      // Match par match : résultat noté (🏁), score réel et cotes les plus récents, quel que soit l'appareil
+      var other = la > ra ? rem.data[id] : loc.data[id];
+      out.data[id].forEach(function(m){
+        var o = (other || []).filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]; if (!o) return;
+        var t = function(x, k){ return x && x[k] ? (Date.parse(x[k].at) || 0) : -1; };
+        if (t(o, 'qr') > t(m, 'qr')) m.qr = cl(o.qr);
+        if (o.score && (!m.score || t(o, 'score') > t(m, 'score'))) m.score = cl(o.score);
+        if (t(o, 'snap') > t(m, 'snap')) ['odds', 'snap', 'prev', 'hist', 'tot', 'ts', 'day', 'time'].forEach(function(k){ if (o[k] !== undefined) m[k] = cl(o[k]); });
+        if (t(o, 'cs') > t(m, 'cs')) m.cs = cl(o.cs);
+      });
       var del = {}, dl = [];
       [rem, loc].forEach(function(st){ ((st.bDel || {})[id] || []).forEach(function(t){ if (!del[t.jn] || del[t.jn] < t.at) del[t.jn] = t.at; }); });
       Object.keys(del).forEach(function(k){ dl.push({jn:+k, at:del[k]}); });
