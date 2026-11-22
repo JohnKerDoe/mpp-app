@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 19h45</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 20h15</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -3537,8 +3537,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
      (cotes, probabilités, pastille, score conseillé) pour le bilan, même après l'import de la journée suivante. */
   function jnOf(list){ var n = {}, best = null; list.forEach(function(m){ if (m.jn) n[m.jn] = (n[m.jn] || 0) + 1; });
     Object.keys(n).forEach(function(k){ if (best === null || n[k] > n[best]) best = k; }); return best === null ? null : +best; }
+  // Conseils perdus par la synchro et retapés à la main (match recréé sans cotes) : le conseil de l'époque
+  function advFix(m){
+    var F = [{md:'l1', jn:11, home:'Lorient', away:'Rennes', best:2, sc:'0-1', level:'g'}];
+    if (nums(m.odds).every(function(o){ return o > 1; })) return null;
+    return F.filter(function(f){ return f.md === S.mode && (!m.jn || m.jn === f.jn) && sameTeam(m.home, f.home) && sameTeam(m.away, f.away); })[0] || null;
+  }
   function snapMatch(m){
-    var c = calc(m);
+    var c = calc(m), fx = advFix(m);
+    if (fx) return {home:m.home, away:m.away, ts:m.ts || null, pts:m.pts.map(N), odds:m.odds.map(N), p:null, ev:null, best:fx.best, level:fx.level, gap:null,
+      sc:fx.sc, scSrc:'conseil retapé', rep:!!m.rep};
     return {home:m.home, away:m.away, ts:m.ts || null, pts:m.pts.map(N), odds:m.odds.map(N), p:c.p, ev:c.ev, best:c.best, level:c.level, gap:c.gap,
       sc:c.sc ? scoreOf(c, c.best) : null, scSrc:m.cs && m.cs.bk ? m.cs.bk : 'modèle', rep:!!m.rep};
   }
@@ -4058,7 +4066,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     jns.forEach(function(jn){
       // Un match importé sans numéro de journée rejoint la journée principale de l'onglet (comme pour l'archivage)
       var list = all.filter(function(m){ return (m.jn === jn || (!m.jn && jn === jDom)) && !(m.rep && matchState(m) !== 'done'); });
-      var noted = function(m){ return matchState(m) === 'done' && m.qr; };
+      // Match au conseil retapé (sans cotes, absent de 🏁) : noté d'après le score réel ESPN
+      var qOf = function(m){
+        if (m.qr) return m.qr;
+        var fx = advFix(m); if (!fx || !m.score) return null;
+        var g = fx.sc.split('-');
+        return {ok:outOf(m.score.h, m.score.a) === fx.best, ex:+g[0] === m.score.h && +g[1] === m.score.a, bonus:0, x2:false, at:m.score.at, real:{h:m.score.h, a:m.score.a}};
+      };
+      var noted = function(m){ return matchState(m) === 'done' && qOf(m); };
       if (!list.some(function(m){ return matchState(m) === 'done'; })) return;
       // Bilan supprimé à la main : on ne le recrée que si tu notes un résultat après la suppression
       var tomb = ((S.bDel || {})[S.mode] || []).filter(function(t){ return t.jn === jn; }).map(function(t){ return t.at; }).sort().pop();
@@ -4069,7 +4084,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var arc = S.archive && S.archive[S.mode] && S.archive[S.mode][jn];
       var matches = list.map(function(m){
         var sn = (arc && arc.matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away); })[0]) || snapMatch(m);
-        var q = noted(m) ? m.qr : null, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
+        var q = noted(m) ? qOf(m) : null, g = String(sn.sc || '').split('-'), ph = +g[0], pa = +g[1];
         // score réel déjà complété dans le bilan existant (ESPN) : on le garde
         var old = at >= 0 && arr[at].matches.filter(function(x){ return sameTeam(x.home, m.home) && sameTeam(x.away, m.away) && x.real && x.real.h !== null && x.real.h !== undefined; })[0];
         var sc0 = m.score || (old && old.real);
