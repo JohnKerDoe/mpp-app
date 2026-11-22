@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 20h15</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 20h30</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -1526,6 +1526,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     if (inc.length){
       if (!rows.length) $('recapList').innerHTML = '';
       $('recapList').innerHTML += inc.map(function(m){
+        var fx = advFix(m);
+        if (fx) return '<li class="inc" data-k="' + esc(mkey(m)) + '" role="button" tabindex="0"><span class="rm"><span class="mt">' +
+          '<span class="' + (fx.best === 0 ? 'win lv-' + fx.level : '') + '">' + esc(m.home) + '</span>' +
+          '<span class="sc lv-' + fx.level + '">' + fx.sc + '</span>' +
+          '<span class="' + (fx.best === 2 ? 'win lv-' + fx.level : '') + '">' + esc(m.away) + '</span></span></span>' +
+          '<span class="rp"><em>' + (m.score ? 'fini ' + m.score.h + '-' + m.score.a : 'conseil retapé') + '</em></span></li>';
         return '<li class="inc" data-k="' + esc(mkey(m)) + '" role="button" tabindex="0"><span class="rm"><span class="mt">' +
           esc(m.home) + ' – ' + esc(m.away) + '</span></span><span class="rp"><em>à compléter</em></span></li>';
       }).join('');
