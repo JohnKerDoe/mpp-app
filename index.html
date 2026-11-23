@@ -665,7 +665,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       </div>
       <button class="btn2" id="ghHist" type="button">🕘 Versions précédentes</button>
       <div id="ghHistList"></div>
-      <p class="note" style="margin-top:10px">Version de l'appli : <b>22/11 · 20h30</b></p>
+      <p class="note" style="margin-top:10px">Version de l'appli : <b>23/11 · 12h50</b></p>
     </div>
     <p class="note" style="margin-top:0">Sauvegarde manuelle, au cas où : tous tes matchs, bonus x2 et réglages dans un fichier JKD-SAVE-MMJJHHMM (mois, jour, heure, minute). Exporter ouvre le menu Partager (Drive, mail…). Les clés API ne sont pas incluses.</p>
     <div class="row">
@@ -2198,7 +2198,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
     }
     return null;
   }
-  // Capture Pinnacle « Score exact » : « Montpellier 1, Red Star 0   9.870 »
+  // Capture Pinnacle « Correct Score » (anciennement « Score exact ») : « Montpellier 1, Red Star 0   9.870 »
+  // Le titre du bloc n'est pas lu : seules comptent les lignes « équipe score, équipe score cote »
   function parsePinCS(text){
     var o = {}, names = {}, n = 0;
     String(text || '').split(/\n/).forEach(function(l){
@@ -2902,7 +2903,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
       var n = Object.keys(done).length, miss = Object.keys(byFix).filter(function(k){ return !done[k]; }).map(function(k){ return byFix[k].home + ' – ' + byFix[k].away; });
       var msg = [mode.name + ' : scores exacts mis à jour pour ' + n + ' match' + (n > 1 ? 's' : '') + ' sur ' + todo.length + ' à chercher' +
         (n ? ' (' + Object.keys(used).map(function(b){ return b + ' ' + used[b]; }).join(', ') + ')' : '') + '.'];
-      if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.\n📷 Astuce : fais une capture du bloc « Score exact » sur Pinnacle et importe-la avec 📷 Points (ou Partager → JKD+).');
+      if (miss.length) msg.push('Pas encore de score exact chez ces bookmakers : ' + miss.join(', ') + '.\n📷 Astuce : fais une capture du bloc « Correct Score » (ou « Score exact ») sur Pinnacle et importe-la avec 📷 Points (ou Partager → JKD+).');
       if (notFound.length){
         msg.push('Introuvables chez OddsPapi : ' + notFound.map(function(m){ return m.home + ' – ' + m.away; }).join(', ') + '.');
         // Matchs d'OddsPapi non reconnus à la même période : souvent le même match écrit autrement (à ajouter dans ⚙️ Noms d'équipes)
